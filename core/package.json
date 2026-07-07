@@ -1,0 +1,29 @@
+{
+  "name": "devdiary-core",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "DevDiary Core Engine — TypeScript Node.js (SQLite + Local HTTP API)",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "dev:local": "DEVDIARY_PROJECT_ROOTS=\"/path/to/your/projects:/path/to/another/project\" npm run dev",
+    "start": "tsx src/index.ts",
+    "start:local": "DEVDIARY_PROJECT_ROOTS=\"/path/to/your/projects:/path/to/another/project\" npm start",
+    "seed": "tsx src/db/seed.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}

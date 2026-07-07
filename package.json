@@ -1,0 +1,31 @@
+{
+  "name": "devdiary-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "自動開發日記 (DevDiary) macOS App — React UI（從 Open Design prototype 移植）",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test src/api/*.test.js",
+    "tauri:dev": "tauri dev",
+    "package:mac": "tauri build --bundles app && ./scripts/package-mac-dmg.sh",
+    "package:mac:debug": "tauri build --debug --bundles app",
+    "background:run": "bash scripts/devdiary-background-launcher.sh run",
+    "background:once": "bash scripts/devdiary-background-launcher.sh once",
+    "background:install": "bash scripts/devdiary-background-agent.sh install",
+    "background:uninstall": "bash scripts/devdiary-background-agent.sh uninstall",
+    "background:status": "bash scripts/devdiary-background-agent.sh status"
+  },
+  "dependencies": {
+    "@tauri-apps/plugin-dialog": "^2.7.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
+  }
+}
