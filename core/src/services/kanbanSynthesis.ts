@@ -13,7 +13,7 @@ const SECRET_PATTERNS = [
   /\b(?:sk|ghp|gho|github_pat|xoxb|xoxp)_[\w-]{12,}/gi,
 ];
 
-const ABSOLUTE_PATH_PATTERN = /(?:\/(?:Applications|Users|Volumes|private|tmp|var)\/[^\s`'"，。；,;)]+)|(?:[A-Za-z]:\\[^\s`'"，。；,;)]+)/g;
+const ABSOLUTE_PATH_PATTERN = /(?:~(?:[A-Za-z0-9._-]+)?\/[^\s`'"，。；,;)]+)|(?:\/(?:Applications|Users|Volumes|private|tmp|var)\/[^\s`'"，。；,;)]+)|(?:[A-Za-z]:\\[^\s`'"，。；,;)]+)/g;
 const TASK_DEBT_PATTERNS = [
   /\b(?:todo|fixme|blocker|blocked|unfinished)\b/i,
   /\b(?:failed|failing)\s+tests?\b/i,
