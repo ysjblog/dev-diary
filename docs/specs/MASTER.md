@@ -2,7 +2,7 @@
 
 > 唯一的系統現況文件。任何新 session 讀此檔即可上手，不需讀完整對話歷史。
 > 詳細需求規格見 `docs/specs/dev-diary-macos-app.md`（Review Level 3, converged）。
-> Last updated: 2026-07-08
+> Last updated: 2026-07-10
 
 ## 產品
 
@@ -102,6 +102,7 @@
 - `deltas/kanban-ai-suggested-cards-delta.md` — AI auto-added Kanban cards strict JSON contract、Core validation gates、manual lock safeguards（implemented, branch feature/core-engine）
 - `deltas/kanban-doc-folder-settings-regression-delta.md` — Project Docs folder picker 相對路徑 regression、Kanban stale route 404 guidance、`kanban.ai-sync` runtime capability gate（implemented, branch feature/core-engine）
 - `deltas/readme-product-guide-redaction-delta.md` — GitHub README 改為產品/下載/AI 設定導向，並修正 `~/...` path redaction 測試失敗（merged, branch main）
+- `deltas/revised-brag-video-asset-delta.md` — 新增已更新的 DevDiary launch video 展示資產（implemented, branch codex/brag-video-revision）
 
 ## Spec / Delta 流程備註
 
