@@ -103,6 +103,7 @@
 - `deltas/kanban-doc-folder-settings-regression-delta.md` — Project Docs folder picker 相對路徑 regression、Kanban stale route 404 guidance、`kanban.ai-sync` runtime capability gate（implemented, branch feature/core-engine）
 - `deltas/readme-product-guide-redaction-delta.md` — GitHub README 改為產品/下載/AI 設定導向，並修正 `~/...` path redaction 測試失敗（merged, branch main）
 - `deltas/revised-brag-video-asset-delta.md` — 新增已更新的 DevDiary launch video 展示資產（implemented, branch codex/brag-video-revision）
+- `deltas/brag-video-polish-delta.md` — 精簡第二頁文案、移除 Settings 空白進場與 QR 音效（implemented, branch codex/brag-video-polish）
 
 ## Spec / Delta 流程備註
 
