@@ -1,5 +1,5 @@
 # DevDiary
-
+/tmp/devdiary-readme.mp4
 DevDiary 是一個 local-first 的 macOS 開發日記 App。它會整理你用 Claude Code、Codex CLI、Antigravity CLI 或自訂本機 AI agent 開發時留下的紀錄，幫你把每天做了什麼、每個專案目前卡在哪裡、用了多少 token、有哪些待辦，自動整理成可以回顧和交接的日記。
 
 資料預設存在你的 Mac 本機，不需要把專案原始碼或私人紀錄上傳到雲端。
