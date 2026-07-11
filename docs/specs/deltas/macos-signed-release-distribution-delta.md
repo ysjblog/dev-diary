@@ -22,6 +22,7 @@
 - README 明確說明這是未經 Developer ID 驗證的手動允許流程，並禁止建議移除 quarantine。
 - Packaged Core 不再把 Node 固定為單一 Homebrew Node 22 路徑；依序使用明確 `DEVDIARY_NODE_BIN`、已安裝 Node 22、或 GUI process PATH 中的可執行 Node，並將實際選用 runtime 寫入 Core log。
 - Release verifier 除確認背景圖檔存在外，還必須確認 Finder `.DS_Store` 實際引用該背景，避免白底 DMG 誤通過。
+- 因為 CI 與 macOS 26 無法可靠以 Finder AppleScript 建立 metadata，改由固定版本的 `ds-store`／`mac-alias` build-time helper 直接產生 `.DS_Store`。
 
 ## 移除（Removed）
 
@@ -42,5 +43,5 @@
 - [x] 對 quarantine copy 的 Gatekeeper 結果是 rejected，但不含 sealed resource、bundle format 或 invalid signature error。
 - [x] GitHub workflow 只在 staging sign、mounted-DMG verifier 與 checksum 成功後上傳 DMG，並附上手動允許說明。
 - [ ] 新裝置缺少 `/opt/homebrew/opt/node@22/bin/node` 時，能以現有 PATH Node 啟動 Core 並回應 `/api/health`。
-- [ ] 新 DMG 的 `.DS_Store` 實際引用 `dmg-background.png`，且第二台 Mac Finder 顯示背景。
-- [ ] Release artifact 的 `CFBundleIdentifier` 為 `com.ysjblog.devdiary`，而非舊 private identifier。
+- [x] 新 DMG 的 `.DS_Store` 實際引用 `dmg-background.png`；本機 macOS 26 package／mounted verifier 已通過，第二台 Mac Finder 顯示仍待 release install QA。
+- [x] Release artifact 的 `CFBundleIdentifier` 為 `com.ysjblog.devdiary`，而非舊 private identifier。
