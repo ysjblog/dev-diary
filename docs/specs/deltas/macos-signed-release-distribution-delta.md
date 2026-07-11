@@ -24,6 +24,7 @@
 - Release verifier 除確認背景圖檔存在外，還必須確認 Finder `.DS_Store` 實際引用該背景，避免白底 DMG 誤通過。
 - 因為 CI 與 macOS 26 無法可靠以 Finder AppleScript 建立 metadata，改由固定版本的 `ds-store`／`mac-alias` build-time helper 直接產生 `.DS_Store`。
 - 在乾淨 CI dependency tree 中，outer `codesign --deep` 不保證會簽署 optional native modules；改為先逐一簽署所有 Mach-O，再完成 outer app seal。
+- 公開 Apple Silicon DMG 帶入經 SHA-256 驗證的官方 Node 22.23.1 runtime；Tauri 優先使用 bundle runtime，避免使用者現有 Node 與 `better-sqlite3` ABI 不一致。
 
 ## 移除（Removed）
 
@@ -47,3 +48,4 @@
 - [x] 新 DMG 的 `.DS_Store` 實際引用 `dmg-background.png`；本機 macOS 26 package／mounted verifier 已通過，第二台 Mac Finder 顯示仍待 release install QA。
 - [x] Release artifact 的 `CFBundleIdentifier` 為 `com.ysjblog.devdiary`，而非舊 private identifier。
 - [ ] 乾淨 CI dependency tree 的每個 Mach-O（包括 optional native module）都通過 mounted signature verification。
+- [ ] 在 MacBook Air 使用 bundled Node 22.23.1 產生可連線 `/api/health` 的 Core runtime。

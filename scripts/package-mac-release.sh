@@ -7,12 +7,16 @@ fail() {
 }
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+node_version="22.23.1"
+node_archive="node-v${node_version}-darwin-arm64.tar.gz"
+node_sha256="ef28d8fab2c0e4314522d4bb1b7173270aa3937e93b92cb7de79c112ac1fa953"
 marker="$(mktemp "${TMPDIR:-/tmp}/devdiary-macos-release.XXXXXX")"
 stage_dir="$(mktemp -d "${TMPDIR:-/tmp}/devdiary-macos-release.XXXXXX")"
 rw_dmg="$stage_dir/DevDiary-rw.dmg"
 unsigned_dmg="$stage_dir/DevDiary-unsigned.dmg"
 mount_dir="$stage_dir/mount"
 python_deps="$stage_dir/python-deps"
+node_archive_path="$stage_dir/$node_archive"
 cleanup() {
   hdiutil detach "$mount_dir" -quiet 2>/dev/null || true
   rm -f "$marker"
@@ -26,11 +30,23 @@ npx tauri build --bundles dmg --no-sign
 dmg_path="$(find "$root_dir/src-tauri/target/release/bundle/dmg" -type f -name '*.dmg' -newer "$marker" -print | head -n 1)"
 [[ -n "$dmg_path" ]] || fail "Tauri did not create a fresh DMG artifact."
 hdiutil convert "$dmg_path" -format UDRW -o "$rw_dmg" -ov >/dev/null
+hdiutil resize -size 350m "$rw_dmg" >/dev/null
 mkdir -p "$mount_dir"
 hdiutil attach "$rw_dmg" -nobrowse -mountpoint "$mount_dir" -quiet
 app_path="$mount_dir/DevDiary.app"
 main_binary="$app_path/Contents/MacOS/app"
 [[ -f "$main_binary" ]] || fail "Tauri DMG is missing DevDiary's main executable."
+[[ "$(uname -m)" == "arm64" ]] || fail "The public DevDiary DMG currently targets Apple Silicon only."
+if [[ -n "${DEVDIARY_NODE_ARCHIVE:-}" ]]; then
+  [[ -f "$DEVDIARY_NODE_ARCHIVE" ]] || fail "DEVDIARY_NODE_ARCHIVE does not exist."
+  cp "$DEVDIARY_NODE_ARCHIVE" "$node_archive_path"
+else
+  curl --fail --location --retry 3 --output "$node_archive_path" "https://nodejs.org/dist/v${node_version}/${node_archive}"
+fi
+printf '%s  %s\n' "$node_sha256" "$node_archive_path" | shasum -a 256 -c - >/dev/null
+mkdir -p "$app_path/Contents/Resources/core/node/bin"
+tar -xzf "$node_archive_path" -C "$app_path/Contents/Resources/core/node/bin" --strip-components=2 "node-v${node_version}-darwin-arm64/bin/node"
+"$app_path/Contents/Resources/core/node/bin/node" --version | grep -qx "v${node_version}" || fail "Bundled Node runtime version check failed."
 while IFS= read -r -d '' executable; do
   if /usr/bin/file -b "$executable" | grep -q 'Mach-O'; then
     codesign --force --sign - "$executable"

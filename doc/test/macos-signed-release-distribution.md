@@ -67,3 +67,7 @@
 ## [ ] 【狀態回歸】乾淨依賴樹的所有 Mach-O 都已簽署
 **範例輸入**：CI 使用 `npm ci` 後建立的正式 DMG，包含 optional native dependencies。
 **期待輸出**：所有 Mach-O（含 `fsevents.node`）在 outer app seal 前個別完成 ad-hoc signing，mounted verifier 不得出現 `code object is not signed at all`。
+
+## [ ] 【整合流程】正式 DMG 使用 bundled Node runtime 啟動 Core
+**範例輸入**：新電腦只有與 bundled native module ABI 不相容的 Node，或完全沒有 PATH Node。
+**期待輸出**：App 優先使用 bundle 內的 Node 22.23.1；Core 可載入 `better-sqlite3` 並回應 `/api/health`。

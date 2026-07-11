@@ -79,8 +79,8 @@ fn first_executable_node(candidates: &[PathBuf]) -> Option<PathBuf> {
   candidates.iter().find(|path| is_executable_file(path)).cloned()
 }
 
-fn resolve_core_node() -> Option<PathBuf> {
-  let mut candidates = Vec::new();
+fn resolve_core_node(core_dir: &Path) -> Option<PathBuf> {
+  let mut candidates = vec![core_dir.join("node").join("bin").join("node")];
   if let Ok(explicit) = env::var("DEVDIARY_NODE_BIN") {
     let explicit = PathBuf::from(explicit.trim());
     if !explicit.as_os_str().is_empty() {
@@ -349,10 +349,10 @@ fn spawn_core<R: tauri::Runtime>(app: &tauri::App<R>) -> Option<Child> {
   let core_dir = resolve_core_dir(app)?;
   let port = env::var("DEVDIARY_PORT").unwrap_or_else(|_| "4317".to_string());
   let launch_path = core_launch_path();
-  let node_bin = match resolve_core_node() {
+  let node_bin = match resolve_core_node(&core_dir) {
     Some(path) => path,
     None => {
-      append_core_log("DevDiary Core could not start: no executable Node.js runtime was found. Install Node.js or set DEVDIARY_NODE_BIN.");
+      append_core_log("DevDiary Core could not start: no executable Node.js runtime was found.");
       return None;
     }
   };
@@ -514,5 +514,15 @@ mod tests {
     assert_eq!(resolved, Some(first));
     fs::remove_dir_all(first_dir).unwrap();
     fs::remove_dir_all(second_dir).unwrap();
+  }
+
+  #[test]
+  fn core_node_resolution_prefers_the_bundled_runtime() {
+    let (bundle_dir, bundled_node) = temporary_executable("node");
+    let (fallback_dir, fallback_node) = temporary_executable("node-fallback");
+    let resolved = first_executable_node(&[bundled_node.clone(), fallback_node]);
+    assert_eq!(resolved, Some(bundled_node));
+    fs::remove_dir_all(bundle_dir).unwrap();
+    fs::remove_dir_all(fallback_dir).unwrap();
   }
 }
