@@ -56,10 +56,10 @@
 **範例輸入**：沒有 `/opt/homebrew/opt/node@22/bin/node`、但 PATH 有可執行 Node 的 macOS App 環境。
 **期待輸出**：Tauri 解析並使用可用 Node 啟動 Core，`/api/health` 可連線；不再因固定 Homebrew 路徑使 Settings 顯示 `Load failed`。
 
-## [ ] 【整合流程】DMG background 必須被 Finder metadata 實際引用
+## [x] 【整合流程】DMG background 必須被 Finder metadata 實際引用
 **範例輸入**：本輪正式 DMG。
-**期待輸出**：除 `.background/dmg-background.png` 存在外，`.DS_Store` 亦含該檔案參照；Finder 顯示拖拉安裝背景，而非白底。
+**期待輸出**：打包 helper 直接寫入 `.DS_Store` 的 background alias；除 `.background/dmg-background.png` 存在外，`.DS_Store` 亦含該檔案參照；Finder 顯示拖拉安裝背景，而非白底。
 
-## [ ] 【狀態回歸】Release artifact 使用公開 bundle identifier
+## [x] 【狀態回歸】Release artifact 使用公開 bundle identifier
 **範例輸入**：從目前 `main` 建置的 DMG 內 `DevDiary.app/Contents/Info.plist`。
 **期待輸出**：`CFBundleIdentifier` 為 `com.ysjblog.devdiary`，不可再發布含舊 private identifier 的 stale artifact。
