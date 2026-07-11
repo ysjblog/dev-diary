@@ -6,9 +6,7 @@
   "description": "DevDiary Core Engine — TypeScript Node.js (SQLite + Local HTTP API)",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "dev:local": "DEVDIARY_PROJECT_ROOTS=\"/path/to/your/projects:/path/to/another/project\" npm run dev",
     "start": "tsx src/index.ts",
-    "start:local": "DEVDIARY_PROJECT_ROOTS=\"/path/to/your/projects:/path/to/another/project\" npm start",
     "seed": "tsx src/db/seed.ts",
     "test": "vitest run",
     "test:watch": "vitest",

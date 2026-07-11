@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { openDb } from '../src/db/index.js';
 import { SCHEMA_VERSION } from '../src/db/schema.js';
-import { LOCAL_DEV_PROJECT_ROOTS, defaultDbPath, parseProjectRoots, resolveRuntimeConfig } from '../src/runtimeConfig.js';
+import { defaultDbPath, parseProjectRoots, resolveRuntimeConfig } from '../src/runtimeConfig.js';
 
 const roots: string[] = [];
 
@@ -39,15 +39,15 @@ describe('Runtime config', () => {
     expect(
       resolveRuntimeConfig(
         {
-          DEVDIARY_PROJECT_ROOTS: '~/Projects:~/Workspace/side-projects',
+          DEVDIARY_PROJECT_ROOTS: '/tmp/projects-a:/tmp/projects-b',
         },
         { homeDir },
       ).projectRoots,
-    ).toEqual(['~/Projects', '~/Workspace/side-projects']);
+    ).toEqual(['/tmp/projects-a', '/tmp/projects-b']);
   });
 
-  it('explicit :memory: dev runtime 保留 local project root preset', () => {
-    expect(resolveRuntimeConfig({ DEVDIARY_DB: ':memory:' }).projectRoots).toEqual(LOCAL_DEV_PROJECT_ROOTS);
+  it('in-memory runtime 也必須明確設定 project roots', () => {
+    expect(resolveRuntimeConfig({ DEVDIARY_DB: ':memory:' }).projectRoots).toEqual([]);
   });
 
   it('project root env parser 去除空白與空段落', () => {

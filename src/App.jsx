@@ -60,7 +60,7 @@ import TrendChart from './components/TrendChart.jsx';
         id: 1,
         name: "Development log UI",
         status: "active",
-        path: "~/Workspace/side-projects/Development log UI",
+        path: "/Users/demo/Developer/dev-diary-ui",
         agents: ["antigravity-cli", "claude-code"],
         logsCount: 12,
         tokensCount: "24.5k",
@@ -97,11 +97,11 @@ import TrendChart from './components/TrendChart.jsx';
         id: 2,
         name: "Open Design CLI",
         status: "idle",
-        path: "~/Projects/cli-toolkit",
+        path: "/Users/demo/Developer/projects/od-cli",
         agents: ["antigravity-cli"],
         logsCount: 8,
         tokensCount: "12.8k",
-        logs: `## Open Design CLI (cli-toolkit) v1.0.1
+        logs: `## Open Design CLI (od-cli) v1.0.1
 ### 2026-06-25 工作摘要
 - 完成媒體資源下載模組 (wan-2.1-t2v / veo-3-fal)。
 - 支援 POSIX 終端機下的非同步輪詢機制。
@@ -116,7 +116,7 @@ import TrendChart from './components/TrendChart.jsx';
           { id: 203, text: "需要支援 --aspect 比例設定參數，預設為 1:1。", pinned: false, date: "2026-06-25 11:20", tags: ["Feature"] }
         ],
         docs: [
-          { name: "master.md", content: "# cli-toolkit master\nOpen Design Command Line Interface tool specs." }
+          { name: "master.md", content: "# od-cli master\nOpen Design Command Line Interface tool specs." }
         ],
         sessions: [
           { id: "s3", cmd: "agy media generate --surface image", time: "2026-06-25 15:10", duration: "25s", tokens: "2.1k", status: "success", logs: "[info] Fal AI task generated: 9283712\n[info] Finished download to ./assets/out.png" }
@@ -126,7 +126,7 @@ import TrendChart from './components/TrendChart.jsx';
         id: 3,
         name: "SQLite Auth Service",
         status: "idle",
-        path: "~/Projects/auth-service",
+        path: "/Users/demo/Developer/projects/sqlite-auth",
         agents: ["claude-code"],
         logsCount: 5,
         tokensCount: "5.2k",
@@ -1468,7 +1468,7 @@ import TrendChart from './components/TrendChart.jsx';
                       rows={5}
                       value={onboardingRootsText}
                       onChange={(e) => setOnboardingRootsText(e.target.value)}
-                      placeholder="~/Projects"
+                      placeholder="/Users/demo/Developer/projects"
                     />
                     <label>預設 AI Diary Agent</label>
                     <select className="wizard-input" value={onboardingAgent} onChange={(e) => setOnboardingAgent(e.target.value)}>

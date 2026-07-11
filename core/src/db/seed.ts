@@ -42,9 +42,9 @@ interface SeedProject {
 }
 
 const SEED_PROJECTS: SeedProject[] = [
-  { id: 1, name: 'Development log', root_path: '~/Workspace/side-projects/Development log', tracking_status: 'active', activity: 1.0, detected_agents: ['claude-code', 'antigravity-cli'] },
-  { id: 2, name: 'Media Pipeline', root_path: '~/Projects/Media Pipeline', tracking_status: 'idle', activity: 0.55, detected_agents: ['codex-cli', 'claude-code'] },
-  { id: 3, name: 'DevDiary Core', root_path: '~/Workspace/side-projects/devdiary-core', tracking_status: 'active', activity: 0.7, detected_agents: ['claude-code', 'codex-cli', 'antigravity-cli'] },
+  { id: 1, name: 'Development log', root_path: '/Users/demo/Developer/dev-diary', tracking_status: 'active', activity: 1.0, detected_agents: ['claude-code', 'antigravity-cli'] },
+  { id: 2, name: 'Hermes agent', root_path: '/Users/demo/Developer/projects/Hermes agent', tracking_status: 'idle', activity: 0.55, detected_agents: ['codex-cli', 'claude-code'] },
+  { id: 3, name: 'DevDiary Core', root_path: '/Users/demo/Developer/devdiary-core', tracking_status: 'active', activity: 0.7, detected_agents: ['claude-code', 'codex-cli', 'antigravity-cli'] },
 ];
 
 export interface SeedOptions {
@@ -261,7 +261,7 @@ export function seedDatabase(db: DB, opts: SeedOptions): void {
       { project_id: 1, name: 'MASTER.md', content: '# Master Spec\n主分支的系統現況文件，定義專案生命週期與 Core API 同步合約。' },
       { project_id: 1, name: 'dev-diary-macos-app.md', content: '# Spec Specification\nmacOS App 的界面與功能規格書，Tauri 封裝的 Webview 設計。' },
       { project_id: 1, name: 'dashboard-wiring-delta.md', content: '# Delta Spec\nDashboard 接 Core API snapshot 的差量規格。' },
-      { project_id: 2, name: 'README.md', content: '# cli-toolkit\nOpen Design Command Line Interface tool。媒體資源下載與生成。' },
+      { project_id: 2, name: 'README.md', content: '# od-cli\nOpen Design Command Line Interface tool。媒體資源下載與生成。' },
       { project_id: 3, name: 'README.md', content: '# DevDiary Core\n本機 SQLite + Express Core Engine，提供 Dashboard 與 Workspace 聚合 API。' },
     ];
     DOCS.forEach((d) => {

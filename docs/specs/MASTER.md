@@ -2,7 +2,7 @@
 
 > 唯一的系統現況文件。任何新 session 讀此檔即可上手，不需讀完整對話歷史。
 > 詳細需求規格見 `docs/specs/dev-diary-macos-app.md`（Review Level 3, converged）。
-> Last updated: 2026-07-10
+> Last updated: 2026-07-11
 
 ## 產品
 
@@ -15,7 +15,7 @@
 - Core Engine：Node.js / TypeScript
 - Core ↔ UI：Local HTTP API（僅本機，不對外）
 - 儲存：SQLite + app data folder（`~/Library/Application Support/DevDiary/`）
-- 打包：unsigned `.app` / `.dmg`
+- 打包：Tauri 原生、最終完整 ad-hoc seal 的 GitHub Release DMG；使用者透過右鍵 Open 或 Privacy & Security 手動允許，不需要 Developer ID
 
 邊界：React UI 不可直接讀 project folder、解析 log、讀寫 SQLite 或執行 mutating 指令；一律經 Core API。對 project folder 永遠 read-only。
 
@@ -34,7 +34,7 @@
 | CLI log parser（Claude/Codex/Antigravity） | ✅ Claude Code / Codex CLI JSONL parser provider 已接入 scan contract 並成為 default scan provider；Antigravity CLI glog / transcript metadata parser 已可建立低信心 sessions，token 欄位仍可能為 0 並清楚保留 experimental/低信心語意 |
 | AI Diary Agent + fallback | ✅ Workspace summary regenerate 已接 Core Diary Agent contract；default diary agent 為 enabled `antigravity-cli` 時會透過 Node `execFile` argv 執行 `agy --print` 並取得 Markdown draft；default diary agent 也可指向 configured local Ollama custom agent，透過 loopback `/api/generate` 使用 selected model（例如 `qwen3.6:27b`）產生 Markdown draft；失敗/逾時/disabled 會寫 deterministic fallback draft；Core in-app daily scheduler 已可每日產生白話 global daily highlight、刷新 project AI drafts、同步 Kanban synthesis，並在 Run now 回傳分層 preflight 狀態 |
 | UI 接 Core API（取代 mock） | ✅ Dashboard 全頁 + sidebar 24h 已接；Dashboard AI Global Summary List 改讀 Core `daily_highlights` 並移除固定 mock；Projects Workspace 讀取路徑與主要寫入路徑已接（comments、Kanban status、summary override / AI draft、daily diary entry）；Logs 清除日期會回 project summary；Docs preview 已改大型 rich Markdown modal；Settings UI 已接 `GET/PATCH /api/settings`、Local HTTP API runtime status/stale warning、daily scheduler 設定/Run now、Markdown daily export、redacted structured backup、project docs filename allowlist、AI prompt overrides；CLI Agents 頁已接 settings enabled toggle、Core safe agent detection、custom agent safe probe/persist、default diary agent selector、agent model/reasoning preferences；first-launch onboarding 已接 Core settings/detection/scan |
-| Tauri shell + 打包 | ✅ Tauri shell scaffold 已完成；`npm run package:mac` 可產出 unsigned `.app` / `.dmg`；packaged app 可啟動 loopback Core 並在 quit 後清理 process |
+| Tauri shell + 打包 | ✅ Tauri shell 可啟動 loopback Core 並在 quit 後清理 process；正式 `npm run package:mac` 使用 Tauri `--no-sign` 加 staging DMG 的最終完整 ad-hoc seal，含 Applications drag-install DMG、quarantine 診斷與 GitHub workflow；LaunchAgent 不會改寫 bundle；使用者首次開啟需手動允許 |
 
 ## 已知 prototype-only 行為（正式實作須修正，spec §15）
 
@@ -42,7 +42,7 @@
 - Custom date range 用 proportional mock 常數 → 須聚合 persisted 資料。
 - Dashboard 與 Workspace range state 已拆分；Workspace selected-project range 已接 Core ranged snapshot。
 - Manual Scan / Project Rescan 已改走 Core API，且 repeated scan 以 stable source identity 去重；CLI provider 可解析 Claude Code / Codex CLI JSONL 與 Antigravity CLI glog / transcript metadata；app-facing runtime 無 matching logs 時不寫 mock records。
-- Project root discovery 已可從 configured roots upsert app-owned `projects` records；`npm start` 預設使用 persistent SQLite path；本機 development roots 可用 `npm run start:local` / `npm run dev:local` 明確帶入 `~/Projects` 與 `~/Workspace/side-projects`，一般 persistent runtime 未設定 `DEVDIARY_PROJECT_ROOTS` 時不自動掃私人路徑。
+- Project root discovery 已可從 configured roots upsert app-owned `projects` records；`npm start` 預設使用 persistent SQLite path；persistent 與 in-memory runtime 都只會掃明確設定的 `DEVDIARY_PROJECT_ROOTS`，不提供 repository 內的私人路徑 preset。
 - Settings backend 已可用 `GET/PATCH /api/settings` 持久化 project roots、excluded paths、project docs filename allowlist、project docs folder full-scan rules、scan interval、default diary agent、agent model/reasoning preferences、AI prompt overrides、privacy、appearance、data storage desired path、scan provider policy 與 agent enabled state；`/api/scan` 會使用 persisted project roots 與 docs allowlist/folder rules。
 - Settings UI 已使用 Core settings snapshot 作為來源；React 只送 structured settings patch，不直接讀 SQLite、掃 project folders 或執行 configured path；agent enable/disable、model/reasoning 與 default diary agent 選擇集中在 CLI Agents 頁，避免 Settings 重複顯示同一組 agent controls。
 - Settings page 已重排為 Core runtime status-first 分組：頁首只保留不可編輯的 Runtime 狀態；Daily Scheduler、Storage 與其他可編輯設定集中在下方分組，不顯示不可互動的 capability chips。
@@ -89,6 +89,8 @@
 - `deltas/daily-ai-highlight-plain-language-delta.md` — 每日 AI 重點改白話敘事（取代計數式文案）+ Dashboard summary panel 接 Core 真實資料（implemented, branch feature/core-engine）
 - `deltas/scheduler-preflight-recovery-delta.md` — Daily scheduler Run now preflight 分層狀態與 Core wake/recovery tick（implemented, branch feature/core-engine）
 - `deltas/tauri-packaging-delta.md` — Tauri shell 與 unsigned macOS `.app` / `.dmg` 打包（implemented, branch feature/core-engine）
+- `deltas/macos-signed-release-distribution-delta.md` — 最終 ad-hoc seal、Tauri native DMG、Applications drag-install DMG、LaunchAgent bundle-write fix 與 GitHub Release workflow（merged；clean second-Mac download click 待補 QA）
+- `deltas/public-repository-privacy-scrub-delta.md` — 公開 repository 移除私人 paths／identifier、改採 sanitized snapshot publish（implementing）
 - `deltas/app-startup-auto-scan-delta.md` — Packaged app 啟動後 Core startup retry 與已設定 roots 的自動掃描（implemented, branch feature/core-engine）
 - `deltas/custom-agent-safe-probe-delta.md` — Custom Agent Core safe probe、persistence、enable/disable/remove 與 browser/RWD 驗證（implemented, branch feature/core-engine）
 - `deltas/onboarding-core-backed-delta.md` — First-launch onboarding 接 Core settings/detection/scan 並完成 browser/RWD 驗證（implemented, branch feature/core-engine）
@@ -101,9 +103,6 @@
 - `deltas/kanban-hybrid-status-lock-delta.md` — Kanban mixed status rules、explicit TODO signals、manual status lock badge（implemented, branch feature/core-engine）
 - `deltas/kanban-ai-suggested-cards-delta.md` — AI auto-added Kanban cards strict JSON contract、Core validation gates、manual lock safeguards（implemented, branch feature/core-engine）
 - `deltas/kanban-doc-folder-settings-regression-delta.md` — Project Docs folder picker 相對路徑 regression、Kanban stale route 404 guidance、`kanban.ai-sync` runtime capability gate（implemented, branch feature/core-engine）
-- `deltas/readme-product-guide-redaction-delta.md` — GitHub README 改為產品/下載/AI 設定導向，並修正 `~/...` path redaction 測試失敗（merged, branch main）
-- `deltas/revised-brag-video-asset-delta.md` — 新增已更新的 DevDiary launch video 展示資產（implemented, branch codex/brag-video-revision）
-- `deltas/brag-video-polish-delta.md` — 精簡第二頁文案、移除 Settings 空白進場與 QR 音效（implemented, branch codex/brag-video-polish）
 
 ## Spec / Delta 流程備註
 
@@ -117,7 +116,7 @@
 
 - **Kanban 文案品質**：v1 以 deterministic mixed rules 從 explicit TODO signals、recent sessions、recent commits 合成卡片；agent-authored card copy 需等嚴格 JSON contract 後再開。
 - **AI auto-added Kanban cards**：strict JSON contract、Core validation / redaction / confidence / status-lock gates、Settings opt-in、manual sync 與 scan/scheduler/background runner integration 已完成；real provider 長時間 soak、配額/timeout telemetry 與更細緻的使用者審核策略留待後續 hardening。
-- **Packaged app lifecycle**：Tauri shell 會啟動 bundled Core source + `core/node_modules` 並由 UI 指向 loopback Core；v1 unsigned package 仍需要本機 Node runtime，完全免 Node 的 native sidecar 留待後續 hardening。
+- **Packaged app lifecycle**：Tauri shell 會啟動 bundled Core source + `core/node_modules` 並由 UI 指向 loopback Core；GitHub Release 以 Tauri `--no-sign` 先產生完整 resources，再加上最終 ad-hoc bundle seal，讓 Gatekeeper 走未知開發者的手動允許流程；Developer ID/notarization 可在日後另行啟用；完全免 Node 的 native sidecar 留待後續 hardening。
 - **OS-level catch-up**：Core process 內 scheduler 已有 sleep/recovery tick；LaunchAgent background runner 已補上 app 完全關閉期間的 interval-based scan 與 daily-time AI diary 寫入，且 packaged app startup 會自動安裝 / 更新 LaunchAgent。仍待長時間本機 soak。
 - **Cost / raw DB export**：Token Detail 仍不顯示 estimated cost；redacted structured backup 已完成，raw SQLite dump 與 cost calculation 維持 Non-Goal。
 

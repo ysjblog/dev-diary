@@ -48,7 +48,7 @@ describe('Kanban AI auto-add', () => {
       db.prepare(`INSERT INTO project_docs (project_id, name, content, updated_at) VALUES (?, ?, ?, ?)`).run(
         1,
         'docs/private.md',
-        'SECRET_TOKEN=abc123\n~/Workspace/side-projects/Development log/raw transcript',
+        'SECRET_TOKEN=abc123\n/Users/demo/Developer/dev-diary/raw transcript',
         `${TODAY}T00:00:00.000Z`,
       );
       db.prepare(`INSERT INTO comments (project_id, content, tags, pinned, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`).run(
@@ -65,7 +65,7 @@ describe('Kanban AI auto-add', () => {
       const serialized = JSON.stringify(prompt.input);
 
       expect(serialized).toContain('Development log');
-      expect(serialized).not.toContain('~/Workspace/side-projects');
+      expect(serialized).not.toContain('/Users/demo/Developer/projects');
       expect(serialized).not.toContain('source_log_ref');
       expect(serialized).not.toContain('docs/private.md');
       expect(serialized).not.toContain('SECRET_TOKEN');

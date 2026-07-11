@@ -3,7 +3,6 @@ import { join } from 'node:path';
 
 export const DEFAULT_APP_DATA_FOLDER = 'DevDiary';
 export const DEFAULT_DB_FILENAME = 'DevDiary.sqlite';
-export const LOCAL_DEV_PROJECT_ROOTS = ['/path/to/your/projects', '/path/to/another/project'];
 
 export interface RuntimeConfigEnv {
   DEVDIARY_DB?: string;
@@ -40,7 +39,7 @@ export function resolveRuntimeConfig(
 ): RuntimeConfig {
   const dbPath = env.DEVDIARY_DB?.trim() || defaultDbPath(options.homeDir);
   const configuredRoots = parseProjectRoots(env.DEVDIARY_PROJECT_ROOTS);
-  const projectRoots = configuredRoots.length > 0 ? configuredRoots : dbPath === ':memory:' ? LOCAL_DEV_PROJECT_ROOTS : [];
+  const projectRoots = configuredRoots;
 
   return { dbPath, projectRoots };
 }

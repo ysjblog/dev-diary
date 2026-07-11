@@ -2,12 +2,12 @@
 
 > Status: implemented
 > Created: 2026-06-27
-> Project folder: `~/Workspace/side-projects/Development log`
+> Project folder: `/Users/demo/Developer/dev-diary`
 > Source inputs:
-> - `~/Downloads/自動開發日記功能需求書.pdf`
-> - `~/Workspace/side-projects/Development log UI/自動開發日記 macOS App UI 設計需求書.pdf`
+> - `/path/to/original-requirements.pdf`
+> - `/Users/demo/Developer/dev-diary-ui/自動開發日記 macOS App UI 設計需求書.pdf`
 > - Open Design UI draft shared in kickoff discussion
-> - `~/Library/Application Support/Open Design/namespaces/release-stable/data/projects/990a3245-c1fd-40ce-b469-5553f74440a4`
+> - `/path/to/open-design-project`
 
 ## 1. Product Summary
 
@@ -46,7 +46,7 @@ v1 必須讓使用者可以：
 - 設定 app appearance：light / dark / follow macOS system。
 - 匯出 Markdown daily diary。
 - 匯出或備份 app-owned SQLite data。
-- build 出可分享的 unsigned `.app` / `.dmg`。
+- build 出可從 GitHub Releases 分享、完整 ad-hoc signed 但未經 Developer ID 驗證的 `.dmg`，並提供標準 Applications drag-install 視窗與 macOS 手動允許指引。
 
 ## 3. Non-Goals
 
@@ -56,7 +56,6 @@ v1 明確不做：
 - cloud sync。
 - team / multi-user permissions。
 - cost calculation。
-- signed + notarized app。
 - LaunchAgent background runner。
 - marketplace plugin system。
 - full weekly / monthly reports。
@@ -90,14 +89,14 @@ Open Design prototype 中出現的 cost 欄位與 `預估成本 (USD)` 在 v1 �
 本專案開發資料夾：
 
 ```text
-~/Workspace/side-projects/Development log
+/Users/demo/Developer/dev-diary
 ```
 
 developer / test mode 可使用下列測試資料 preset，但不可成為一般使用者預設值：
 
 ```text
-~/Projects
-~/Workspace/side-projects
+/Users/demo/Developer/projects
+/Users/demo/Developer/projects
 ```
 
 ### 4.2 Read-only Project Access
@@ -241,7 +240,7 @@ Workspace header must support:
 - Core Engine: Node.js / TypeScript。
 - Core/UI communication: Local HTTP API。
 - Storage: SQLite + app data folder。
-- Packaging target: unsigned `.app` / `.dmg` for v1。
+- Packaging target: Tauri `--no-sign` 產生 resources 後再完成最終 ad-hoc seal 的 `.dmg` for GitHub Releases；首次開啟依 macOS 以右鍵 Open 或 Privacy & Security 手動允許。
 
 ### 6.2 Responsibility Boundaries
 
@@ -1037,8 +1036,8 @@ Before implementation completion:
 - Run desktop and mobile-width visual checks for web-rendered UI where applicable.
 - Build unsigned `.app` / `.dmg`.
 - Perform manual smoke with developer test roots:
-  - `~/Projects`
-  - `~/Workspace/side-projects`
+  - `/Users/demo/Developer/projects`
+  - `/Users/demo/Developer/projects`
 
 ## 18. Resolved / Deferred Questions
 

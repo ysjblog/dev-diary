@@ -41,4 +41,4 @@
 - [x] 全套件 183 passed(含新增 8 個測試)。
 - [x] gate 失效後 cooldown 內不再 probe(單元測試驗證 probe 呼叫次數)。
 - [x] 背景 cycle 在 session 失效時 `antigravity_skipped=true`、kanban AI 不插卡、diary 改用 deterministic fallback。
-- [ ] 手動:重啟 `com.devdiary.app.background` 後,session 過期時登入視窗最多再出現一次(探針),之後 cooldown 內安靜。
+- [ ] 手動:重啟 `com.ysjblog.devdiary.background` 後,session 過期時登入視窗最多再出現一次(探針),之後 cooldown 內安靜。

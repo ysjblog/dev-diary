@@ -37,7 +37,9 @@ DevDiary_0.1.0_aarch64.dmg
 2. 把 `DevDiary.app` 拖到 `Applications`。
 3. 第一次開啟時，如果 macOS 顯示「無法驗證開發者」，到 `System Settings > Privacy & Security` 允許開啟，或在 Finder 對 `DevDiary.app` 按右鍵選 `Open`。
 
-目前是 unsigned local package，適合個人使用與測試；正式簽章和 notarization 仍是後續工作。
+正式 release 使用完整的 ad-hoc bundle signing，但沒有 Apple `Developer ID` 或 notarization。從瀏覽器下載或透過 AirDrop 傳送後，請先拖到 Applications，再 Control-click `DevDiary` 選 **Open**，並在第二個提示按 **Open**；也可以先嘗試開啟一次，再到 System Settings → Privacy & Security 按 **Open Anyway**。這是 macOS 的未知開發者手動允許流程，不需要、也不應使用終端機移除 quarantine。
+
+如果 macOS 顯示「app 已損毀」而不是未知開發者警告，請不要繞過它：確認使用的是最新 GitHub Release，並回報 DMG 版本與 macOS 版本。
 
 ## 第一次使用
 
@@ -131,18 +133,22 @@ Core 預設使用：
 ~/Library/Application Support/DevDiary/DevDiary.sqlite
 ```
 
-如果要使用本機 development preset 掃描常用 project roots：
+要掃描 project folders，請明確設定自己的 project roots：
 
 ```bash
 cd core
-npm run start:local
+DEVDIARY_PROJECT_ROOTS="/path/to/projects:/path/to/another-project" npm start
 ```
+
+`npm start` 不會自動掃描任何私人目錄。
 
 ## 打包 Mac DMG
 
 ```bash
 npm run package:mac
 ```
+
+Tauri 會先完成 DMG 的所有 resources，再在 staging image 對完整 app 做一次 ad-hoc seal。GitHub Actions 只會在 mounted verifier 通過後上傳 DMG 與 SHA-256 checksum；不需要 Apple certificate 或 notarization credentials。
 
 成功後會產生：
 

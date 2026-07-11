@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="660" height="400" viewBox="0 0 660 400">
+  <defs>
+    <linearGradient id="background" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#0b1120"/>
+      <stop offset="1" stop-color="#16233d"/>
+    </linearGradient>
+    <linearGradient id="arrow" x1="0" x2="1">
+      <stop offset="0" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+  </defs>
+  <rect width="660" height="400" rx="20" fill="url(#background)"/>
+  <circle cx="72" cy="68" r="88" fill="#6366f1" opacity=".12"/>
+  <circle cx="599" cy="350" r="124" fill="#38bdf8" opacity=".08"/>
+  <text x="330" y="56" fill="#f8fafc" font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif" font-size="25" font-weight="700" text-anchor="middle">Install DevDiary</text>
+  <text x="330" y="86" fill="#b8c5dd" font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif" font-size="15" text-anchor="middle">Drag DevDiary to Applications to install</text>
+  <path d="M252 222 H394" fill="none" stroke="url(#arrow)" stroke-linecap="round" stroke-width="9"/>
+  <path d="M374 199 L407 222 L374 245" fill="none" stroke="#38bdf8" stroke-linecap="round" stroke-linejoin="round" stroke-width="9"/>
+  <text x="181" y="330" fill="#d8e2f3" font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif" font-size="13" text-anchor="middle">DevDiary</text>
+  <text x="480" y="330" fill="#d8e2f3" font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif" font-size="13" text-anchor="middle">Applications</text>
+</svg>

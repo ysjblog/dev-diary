@@ -26,7 +26,7 @@
 ## 影響範圍（Impact）
 
 - Core services：新增 background runner orchestration，重用 `runManualScan`、`DailySchedulerRuntime`、Settings、scan provider 與 diary agent。
-- macOS runtime：新增 `~/Library/LaunchAgents/com.devdiary.app.background.plist` 安裝路徑與 app data log files；packaged app 會在 startup 寫入固定 launcher script 與 plist。
+- macOS runtime：新增 `~/Library/LaunchAgents/com.ysjblog.devdiary.background.plist` 安裝路徑與 app data log files；packaged app 會在 startup 寫入固定 launcher script 與 plist。
 - 安全邊界：背景 runner 只寫 app-owned SQLite；project folders 仍 read-only；LaunchAgent 不讀 secrets、不輸出 token、不接受 UI/user supplied shell command；packaged launcher 只使用 app resolved resource path 與 app data path。
 
 ## 驗收條件

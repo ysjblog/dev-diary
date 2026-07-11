@@ -2,7 +2,7 @@
 name = "app"
 version = "0.1.0"
 description = "DevDiary local-first desktop shell"
-authors = ["DevDiary"]
+authors = ["ysjblog"]
 license = ""
 repository = ""
 edition = "2021"

@@ -26,7 +26,7 @@
   Actual: `GET /api/health` returned HTTP 200, contract version 4, 12 capabilities, runtime port 4317, pid 21381.
 - [PASS] Verify Settings API startup recovery.
   Expected: Settings does not remain on `Settings API 發生錯誤 / Load failed` and shows persisted roots.
-  Actual: Settings displayed Core runtime connected, contract v4, persisted roots `~/Projects` and `~/Workspace/side-projects`; no `Load failed` text.
+  Actual: Settings displayed Core runtime connected, contract v4, persisted roots `/Users/demo/Developer/projects` and `/Users/demo/Developer/projects`; no `Load failed` text.
 - [PASS] Verify UI startup auto scan.
   Expected: with persisted project roots and connected Core, the UI triggers one global startup scan.
   Actual: Playwright/Chrome observed `POST http://127.0.0.1:5174/api/scan?range=all`; page had no Core load-failed text.

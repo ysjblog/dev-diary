@@ -36,7 +36,7 @@ describe('Kanban auto synthesis', () => {
             ...baseSession,
             agent_name: 'codex-cli',
             command: 'TODO fix failing settings test token=abc123456',
-            excerpt: 'Blocker: failed test in ~/Workspace/side-projects/app raw transcript',
+            excerpt: 'Blocker: failed test in /Users/demo/Developer/projects/app raw transcript',
             status: 'completed',
           },
           ...snapshot.sessions.slice(1),
@@ -70,7 +70,7 @@ describe('Kanban auto synthesis', () => {
     });
 
     it('redaction removes absolute paths, secrets, and raw transcript wording', () => {
-      const text = redactSensitiveText('open ~/Workspace/side-projects/app token=abc123456 raw transcript password=hunter222');
+      const text = redactSensitiveText('open /Users/demo/Developer/projects/app token=abc123456 raw transcript password=hunter222');
 
       expect(text).not.toContain('/Applications/');
       expect(text).not.toContain('token=abc123456');

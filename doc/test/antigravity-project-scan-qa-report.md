@@ -13,9 +13,9 @@
 ## Scenarios
 
 - [PASS] Health endpoint reachable. Expected `GET /api/health` to return 200; actual 200.
-- [PASS] Global scan discovers configured root folders. Expected `/api/scan?range=all` to discover projects under `~/Projects` and `~/Workspace/side-projects`; actual project count 20, side-projects count 14, Sample_projects count 6.
+- [PASS] Global scan discovers configured root folders. Expected `/api/scan?range=all` to discover projects under `/Users/demo/Developer/projects` and `/Users/demo/Developer/projects`; actual project count 20, side-projects count 14, Sample_projects count 6.
 - [PASS] Global scan persists externally observable sessions without mock fallback. Expected `DEVDIARY_SCAN_FALLBACK=none` scan to return success and real parser records; actual `scan_status=success`, `inserted_sessions=428`.
-- [PASS] Antigravity CLI records are visible through project detail API. Expected at least one session with `source_log_ref` beginning `antigravity-cli://`; actual 50 sessions, sample project root `~/Workspace/side-projects/house rental cron`.
+- [PASS] Antigravity CLI records are visible through project detail API. Expected at least one session with `source_log_ref` beginning `antigravity-cli://`; actual 50 sessions, sample project root `/Users/demo/Developer/projects/house rental cron`.
 
 ## Evidence
 

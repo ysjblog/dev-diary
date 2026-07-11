@@ -148,7 +148,7 @@ skipped: []
 
 Evidence checked:
 
-- Open Design folder: `~/Library/Application Support/Open Design/namespaces/release-stable/data/projects/990a3245-c1fd-40ce-b469-5553f74440a4`
+- Open Design folder: `/path/to/open-design-project`
 - Prototype file: `app.html`
 - Prototype test notes: `doc/test/workspace-dashboard-refinement.md`, `doc/test/dashboard-layout-refinement.md`
 - Spec file: `docs/specs/dev-diary-macos-app.md`
@@ -319,8 +319,8 @@ Second author landed checks:
 
 - verifyStrings / `rg -F`: all second author strings found.
 - Updated Open Design prototype docs:
-  - `~/Library/Application Support/Open Design/namespaces/release-stable/data/projects/990a3245-c1fd-40ce-b469-5553f74440a4/doc/test/workspace-dashboard-refinement.md`
-  - `~/Library/Application Support/Open Design/namespaces/release-stable/data/projects/990a3245-c1fd-40ce-b469-5553f74440a4/doc/test/dashboard-layout-refinement.md`
+  - `/path/to/open-design-project/doc/test/workspace-dashboard-refinement.md`
+  - `/path/to/open-design-project/doc/test/dashboard-layout-refinement.md`
 - unlandedFixes: none.
 
 Pending after second author pass:
