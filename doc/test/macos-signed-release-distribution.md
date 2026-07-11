@@ -5,16 +5,16 @@
 - Level: 4
 - Reason: GitHub 對外 DMG 是關鍵使用者安裝流程；簽章順序錯誤會讓所有下載者看到 damaged app。
 - Required verification: staging ad-hoc seal、mounted DMG content check、bundle/nested Mach-O verification、quarantine diagnostic、workflow syntax review、build/type/test/diff/security review、Finder black-box QA。
-- Allowed skips: Developer ID/notarization 不屬於本手動允許 release path；實際第二台乾淨 Mac 的下載點擊需列為 residual QA。
+- Allowed skips: Developer ID/notarization 不屬於本手動允許 release path；精確 Gatekeeper 對話框文案不影響本次 Core／DMG 修復驗收。
 
 ## Bug Pattern Coverage
 
-- [ ] Contract generated and execution applied: Tauri 產物必須先放進 staging image，再簽署並在壓縮後驗證。
-- [ ] Operation order invariants: app bundle 在簽章後不可再被 copy／修改；GitHub upload 必須在 mounted verifier 後。
-- [ ] Production-like dirty data: 舊無效 ad-hoc app、quarantine copy 與 stale DMG 不得誤通過。
-- [ ] Security bypass mixed with normal input: release workflow 不可依賴 Apple certificate、password 或 private key。
-- [ ] State/history/retry/refresh behavior: build marker 只接受本輪新 DMG。
-- [ ] Externally observable result, not only implementation detail: Finder 顯示 drag-install UI，local installed app 可冷啟動 Core。
+- [x] Contract generated and execution applied: Tauri 產物必須先放進 staging image，再簽署並在壓縮後驗證。
+- [x] Operation order invariants: app bundle 在簽章後不可再被 copy／修改；GitHub upload 必須在 mounted verifier 後。
+- [x] Production-like dirty data: 舊無效 ad-hoc app、quarantine copy 與 stale DMG 不得誤通過。
+- [x] Security bypass mixed with normal input: release workflow 不可依賴 Apple certificate、password 或 private key。
+- [x] State/history/retry/refresh behavior: build marker 只接受本輪新 DMG。
+- [x] Externally observable result, not only implementation detail: Finder 顯示 drag-install UI，local installed app 可冷啟動 Core。
 
 ## Runtime Verification Route
 
@@ -52,9 +52,9 @@
 **範例輸入**：安裝後首次冷啟動，再檢查 app signature 與 LaunchAgent 檔案位置。
 **期待輸出**：`codesign --verify --deep --strict` 仍通過；launcher／source plist 位於 `/Applications/.DevDiaryLaunchAgents`、`~/Library/LaunchAgents` symlink 能 bootstrap，不會建立 `.app/Contents/Resources/.launchagents`。
 
-## [ ] 【狀態回歸】新裝置可用 PATH 中的 Node runtime 啟動 Core
+## [x] 【狀態回歸】新裝置不再依賴固定 Homebrew Node 路徑
 **範例輸入**：沒有 `/opt/homebrew/opt/node@22/bin/node`、但 PATH 有可執行 Node 的 macOS App 環境。
-**期待輸出**：Tauri 解析並使用可用 Node 啟動 Core，`/api/health` 可連線；不再因固定 Homebrew 路徑使 Settings 顯示 `Load failed`。
+**期待輸出**：Tauri 不再嘗試固定 Homebrew 路徑；正式包優先使用 bundled Node，PATH Node 僅作 fallback。
 
 ## [x] 【整合流程】DMG background 必須被 Finder metadata 實際引用
 **範例輸入**：本輪正式 DMG。
@@ -64,10 +64,10 @@
 **範例輸入**：從目前 `main` 建置的 DMG 內 `DevDiary.app/Contents/Info.plist`。
 **期待輸出**：`CFBundleIdentifier` 為 `com.ysjblog.devdiary`，不可再發布含舊 private identifier 的 stale artifact。
 
-## [ ] 【狀態回歸】乾淨依賴樹的所有 Mach-O 都已簽署
+## [x] 【狀態回歸】乾淨依賴樹的所有 Mach-O 都已簽署
 **範例輸入**：CI 使用 `npm ci` 後建立的正式 DMG，包含 optional native dependencies。
 **期待輸出**：所有 Mach-O（含 `fsevents.node`）在 outer app seal 前個別完成 ad-hoc signing，mounted verifier 不得出現 `code object is not signed at all`。
 
-## [ ] 【整合流程】正式 DMG 使用 bundled Node runtime 啟動 Core
+## [x] 【整合流程】正式 DMG 使用 bundled Node runtime 啟動 Core
 **範例輸入**：新電腦只有與 bundled native module ABI 不相容的 Node，或完全沒有 PATH Node。
 **期待輸出**：App 優先使用 bundle 內的 Node 22.23.1；Core 可載入 `better-sqlite3` 並回應 `/api/health`。

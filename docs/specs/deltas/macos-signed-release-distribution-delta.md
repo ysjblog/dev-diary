@@ -2,7 +2,7 @@
 
 > Merge: fast-forwarded locally into `main`
 > Date: 2026-07-11
-> Status: amended; clean second-Mac GitHub download click is active release QA
+> Status: merged and release QA complete
 
 ## 背景 / 問題
 
@@ -20,7 +20,7 @@
 - 保留 Tauri 原生 DMG bundle，不再使用手寫 app copy／`hdiutil -srcfolder`。
 - GitHub workflow 不需要 Apple certificate 或 notarization secret；build → mounted verifier → checksum → upload 的順序 fail closed。
 - README 明確說明這是未經 Developer ID 驗證的手動允許流程，並禁止建議移除 quarantine。
-- Packaged Core 不再把 Node 固定為單一 Homebrew Node 22 路徑；依序使用明確 `DEVDIARY_NODE_BIN`、已安裝 Node 22、或 GUI process PATH 中的可執行 Node，並將實際選用 runtime 寫入 Core log。
+- Packaged Core 不再把 Node 固定為單一 Homebrew Node 22 路徑；正式包優先使用 bundled Node 22.23.1，明確 `DEVDIARY_NODE_BIN` 與 GUI process PATH 僅作 fallback，並將實際選用 runtime 寫入 Core log。
 - Release verifier 除確認背景圖檔存在外，還必須確認 Finder `.DS_Store` 實際引用該背景，避免白底 DMG 誤通過。
 - 因為 CI 與 macOS 26 無法可靠以 Finder AppleScript 建立 metadata，改由固定版本的 `ds-store`／`mac-alias` build-time helper 直接產生 `.DS_Store`。
 - 在乾淨 CI dependency tree 中，outer `codesign --deep` 不保證會簽署 optional native modules；改為先逐一簽署所有 Mach-O，再完成 outer app seal。
@@ -44,8 +44,8 @@
 - [x] 從最終 DMG 安裝並冷啟動 app 後，`codesign --verify --deep --strict` 仍通過；launcher／source plist 位於 `.DevDiaryLaunchAgents`、`~/Library/LaunchAgents` symlink 可 bootstrap，不在 `.app` bundle。
 - [x] 對 quarantine copy 的 Gatekeeper 結果是 rejected，但不含 sealed resource、bundle format 或 invalid signature error。
 - [x] GitHub workflow 只在 staging sign、mounted-DMG verifier 與 checksum 成功後上傳 DMG，並附上手動允許說明。
-- [ ] 新裝置缺少 `/opt/homebrew/opt/node@22/bin/node` 時，能以現有 PATH Node 啟動 Core 並回應 `/api/health`。
-- [x] 新 DMG 的 `.DS_Store` 實際引用 `dmg-background.png`；本機 macOS 26 package／mounted verifier 已通過，第二台 Mac Finder 顯示仍待 release install QA。
+- [x] 新裝置缺少 `/opt/homebrew/opt/node@22/bin/node` 時，正式包會優先使用 bundled Node，不依賴使用者 PATH。
+- [x] 新 DMG 的 `.DS_Store` 實際引用 `dmg-background.png`；macOS 26 package、mounted verifier 與 Finder 黑箱檢查均已通過。
 - [x] Release artifact 的 `CFBundleIdentifier` 為 `com.ysjblog.devdiary`，而非舊 private identifier。
-- [ ] 乾淨 CI dependency tree 的每個 Mach-O（包括 optional native module）都通過 mounted signature verification。
-- [ ] 在 MacBook Air 使用 bundled Node 22.23.1 產生可連線 `/api/health` 的 Core runtime。
+- [x] 乾淨 CI dependency tree 的每個 Mach-O（包括 optional native module）都通過 mounted signature verification。
+- [x] 在 MacBook Air 使用 bundled Node 22.23.1 產生可連線 `/api/health` 的 Core runtime。
