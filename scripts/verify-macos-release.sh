@@ -25,6 +25,10 @@ app_path="$mount_dir/DevDiary.app"
 [[ -L "$mount_dir/Applications" ]] || { echo "Release DMG is missing the Applications drag-install shortcut." >&2; exit 1; }
 [[ "$(readlink "$mount_dir/Applications")" == "/Applications" ]] || { echo "Release DMG Applications shortcut does not point to /Applications." >&2; exit 1; }
 [[ -f "$mount_dir/.background/dmg-background.png" ]] || { echo "Release DMG is missing the drag-install background." >&2; exit 1; }
+strings "$mount_dir/.DS_Store" | grep -q 'dmg-background.png' || {
+  echo "Release DMG includes the background file but Finder is not configured to use it." >&2
+  exit 1
+}
 
 codesign --verify --deep --strict --verbose=4 "$app_path"
 signature_output="$(codesign --display --verbose=4 "$app_path" 2>&1)"
