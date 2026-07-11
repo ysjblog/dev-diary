@@ -31,7 +31,12 @@ hdiutil attach "$rw_dmg" -nobrowse -mountpoint "$mount_dir" -quiet
 app_path="$mount_dir/DevDiary.app"
 main_binary="$app_path/Contents/MacOS/app"
 [[ -f "$main_binary" ]] || fail "Tauri DMG is missing DevDiary's main executable."
-codesign --force --deep --sign - "$app_path"
+while IFS= read -r -d '' executable; do
+  if /usr/bin/file -b "$executable" | grep -q 'Mach-O'; then
+    codesign --force --sign - "$executable"
+  fi
+done < <(find "$app_path" -type f -print0)
+codesign --force --sign - "$app_path"
 codesign --verify --deep --strict --verbose=2 "$app_path"
 signature_output="$(codesign --display --verbose=4 "$app_path" 2>&1)"
 grep -q '^Signature=adhoc$' <<<"$signature_output" || fail "Unable to confirm the final ad-hoc bundle seal: $signature_output"

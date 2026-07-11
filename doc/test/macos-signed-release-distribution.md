@@ -63,3 +63,7 @@
 ## [x] 【狀態回歸】Release artifact 使用公開 bundle identifier
 **範例輸入**：從目前 `main` 建置的 DMG 內 `DevDiary.app/Contents/Info.plist`。
 **期待輸出**：`CFBundleIdentifier` 為 `com.ysjblog.devdiary`，不可再發布含舊 private identifier 的 stale artifact。
+
+## [ ] 【狀態回歸】乾淨依賴樹的所有 Mach-O 都已簽署
+**範例輸入**：CI 使用 `npm ci` 後建立的正式 DMG，包含 optional native dependencies。
+**期待輸出**：所有 Mach-O（含 `fsevents.node`）在 outer app seal 前個別完成 ad-hoc signing，mounted verifier 不得出現 `code object is not signed at all`。
