@@ -12,6 +12,7 @@ stage_dir="$(mktemp -d "${TMPDIR:-/tmp}/devdiary-macos-release.XXXXXX")"
 rw_dmg="$stage_dir/DevDiary-rw.dmg"
 unsigned_dmg="$stage_dir/DevDiary-unsigned.dmg"
 mount_dir="$stage_dir/mount"
+python_deps="$stage_dir/python-deps"
 cleanup() {
   hdiutil detach "$mount_dir" -quiet 2>/dev/null || true
   rm -f "$marker"
@@ -35,6 +36,8 @@ codesign --verify --deep --strict --verbose=2 "$app_path"
 signature_output="$(codesign --display --verbose=4 "$app_path" 2>&1)"
 grep -q '^Signature=adhoc$' <<<"$signature_output" || fail "Unable to confirm the final ad-hoc bundle seal: $signature_output"
 grep -q '^Sealed Resources version=2' <<<"$signature_output" || fail "Final ad-hoc bundle seal has no sealed resources: $signature_output"
+python3 -m pip install --disable-pip-version-check --quiet --target "$python_deps" 'ds-store==1.3.3' 'mac-alias==2.2.3'
+PYTHONPATH="$python_deps" python3 "$root_dir/scripts/configure-dmg-finder-layout.py" "$mount_dir"
 hdiutil detach "$mount_dir" -quiet
 hdiutil convert "$rw_dmg" -format UDZO -o "$unsigned_dmg" -ov >/dev/null
 mv "$unsigned_dmg" "$dmg_path"
