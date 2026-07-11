@@ -34,7 +34,7 @@
 | CLI log parser（Claude/Codex/Antigravity） | ✅ Claude Code / Codex CLI JSONL parser provider 已接入 scan contract 並成為 default scan provider；Antigravity CLI glog / transcript metadata parser 已可建立低信心 sessions，token 欄位仍可能為 0 並清楚保留 experimental/低信心語意 |
 | AI Diary Agent + fallback | ✅ Workspace summary regenerate 已接 Core Diary Agent contract；default diary agent 為 enabled `antigravity-cli` 時會透過 Node `execFile` argv 執行 `agy --print` 並取得 Markdown draft；default diary agent 也可指向 configured local Ollama custom agent，透過 loopback `/api/generate` 使用 selected model（例如 `qwen3.6:27b`）產生 Markdown draft；失敗/逾時/disabled 會寫 deterministic fallback draft；Core in-app daily scheduler 已可每日產生白話 global daily highlight、刷新 project AI drafts、同步 Kanban synthesis，並在 Run now 回傳分層 preflight 狀態 |
 | UI 接 Core API（取代 mock） | ✅ Dashboard 全頁 + sidebar 24h 已接；Dashboard AI Global Summary List 改讀 Core `daily_highlights` 並移除固定 mock；Projects Workspace 讀取路徑與主要寫入路徑已接（comments、Kanban status、summary override / AI draft、daily diary entry）；Logs 清除日期會回 project summary；Docs preview 已改大型 rich Markdown modal；Settings UI 已接 `GET/PATCH /api/settings`、Local HTTP API runtime status/stale warning、daily scheduler 設定/Run now、Markdown daily export、redacted structured backup、project docs filename allowlist、AI prompt overrides；CLI Agents 頁已接 settings enabled toggle、Core safe agent detection、custom agent safe probe/persist、default diary agent selector、agent model/reasoning preferences；first-launch onboarding 已接 Core settings/detection/scan |
-| Tauri shell + 打包 | ✅ Tauri shell 可啟動 loopback Core 並在 quit 後清理 process；正式 `npm run package:mac` 使用 Tauri `--no-sign` 加 staging DMG 的最終完整 ad-hoc seal，含 Applications drag-install DMG、quarantine 診斷與 GitHub workflow；LaunchAgent 不會改寫 bundle；使用者首次開啟需手動允許 |
+| Tauri shell + 打包 | ✅ Tauri shell 可啟動 loopback Core 並在 quit 後清理 process；正式 `npm run package:mac` 使用 Tauri `--no-sign` 加 staging DMG 的最終完整 ad-hoc seal，含 Applications drag-install 背景、bundled official Node 22.23.1、quarantine 診斷與 GitHub workflow；LaunchAgent 不會改寫 bundle；使用者首次開啟需手動允許 |
 
 ## 已知 prototype-only 行為（正式實作須修正，spec §15）
 
@@ -89,7 +89,7 @@
 - `deltas/daily-ai-highlight-plain-language-delta.md` — 每日 AI 重點改白話敘事（取代計數式文案）+ Dashboard summary panel 接 Core 真實資料（implemented, branch feature/core-engine）
 - `deltas/scheduler-preflight-recovery-delta.md` — Daily scheduler Run now preflight 分層狀態與 Core wake/recovery tick（implemented, branch feature/core-engine）
 - `deltas/tauri-packaging-delta.md` — Tauri shell 與 unsigned macOS `.app` / `.dmg` 打包（implemented, branch feature/core-engine）
-- `deltas/macos-signed-release-distribution-delta.md` — 最終 ad-hoc seal、Tauri native DMG、Applications drag-install DMG、LaunchAgent bundle-write fix 與 GitHub Release workflow（merged；clean second-Mac download click 待補 QA）
+- `deltas/macos-signed-release-distribution-delta.md` — 最終 ad-hoc seal、Finder drag-install metadata、bundled Node 22、LaunchAgent bundle-write fix 與 GitHub Release workflow（merged；MacBook Air release QA passed）
 - `deltas/public-repository-privacy-scrub-delta.md` — 公開 repository 移除私人 paths／identifier、改採 sanitized snapshot publish（merged）
 - `deltas/app-startup-auto-scan-delta.md` — Packaged app 啟動後 Core startup retry 與已設定 roots 的自動掃描（implemented, branch feature/core-engine）
 - `deltas/custom-agent-safe-probe-delta.md` — Custom Agent Core safe probe、persistence、enable/disable/remove 與 browser/RWD 驗證（implemented, branch feature/core-engine）
@@ -116,7 +116,7 @@
 
 - **Kanban 文案品質**：v1 以 deterministic mixed rules 從 explicit TODO signals、recent sessions、recent commits 合成卡片；agent-authored card copy 需等嚴格 JSON contract 後再開。
 - **AI auto-added Kanban cards**：strict JSON contract、Core validation / redaction / confidence / status-lock gates、Settings opt-in、manual sync 與 scan/scheduler/background runner integration 已完成；real provider 長時間 soak、配額/timeout telemetry 與更細緻的使用者審核策略留待後續 hardening。
-- **Packaged app lifecycle**：Tauri shell 會啟動 bundled Core source + `core/node_modules` 並由 UI 指向 loopback Core；GitHub Release 以 Tauri `--no-sign` 先產生完整 resources，再加上最終 ad-hoc bundle seal，讓 Gatekeeper 走未知開發者的手動允許流程；Developer ID/notarization 可在日後另行啟用；完全免 Node 的 native sidecar 留待後續 hardening。
+- **Packaged app lifecycle**：Tauri shell 會以 App 內附、checksum-pinned 的官方 Node 22.23.1 啟動 bundled Core source + `core/node_modules`，UI 再指向 loopback Core；GitHub Release 以 Tauri `--no-sign` 先產生完整 resources，再加上最終 ad-hoc bundle seal，讓 Gatekeeper 走未知開發者的手動允許流程；Developer ID/notarization 可在日後另行啟用；完全免 Node 的 native sidecar 留待後續 hardening。
 - **OS-level catch-up**：Core process 內 scheduler 已有 sleep/recovery tick；LaunchAgent background runner 已補上 app 完全關閉期間的 interval-based scan 與 daily-time AI diary 寫入，且 packaged app startup 會自動安裝 / 更新 LaunchAgent。仍待長時間本機 soak。
 - **Cost / raw DB export**：Token Detail 仍不顯示 estimated cost；redacted structured backup 已完成，raw SQLite dump 與 cost calculation 維持 Non-Goal。
 
