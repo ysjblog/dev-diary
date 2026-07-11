@@ -90,7 +90,7 @@
 - `deltas/scheduler-preflight-recovery-delta.md` — Daily scheduler Run now preflight 分層狀態與 Core wake/recovery tick（implemented, branch feature/core-engine）
 - `deltas/tauri-packaging-delta.md` — Tauri shell 與 unsigned macOS `.app` / `.dmg` 打包（implemented, branch feature/core-engine）
 - `deltas/macos-signed-release-distribution-delta.md` — 最終 ad-hoc seal、Tauri native DMG、Applications drag-install DMG、LaunchAgent bundle-write fix 與 GitHub Release workflow（merged；clean second-Mac download click 待補 QA）
-- `deltas/public-repository-privacy-scrub-delta.md` — 公開 repository 移除私人 paths／identifier、改採 sanitized snapshot publish（implementing）
+- `deltas/public-repository-privacy-scrub-delta.md` — 公開 repository 移除私人 paths／identifier、改採 sanitized snapshot publish（merged）
 - `deltas/app-startup-auto-scan-delta.md` — Packaged app 啟動後 Core startup retry 與已設定 roots 的自動掃描（implemented, branch feature/core-engine）
 - `deltas/custom-agent-safe-probe-delta.md` — Custom Agent Core safe probe、persistence、enable/disable/remove 與 browser/RWD 驗證（implemented, branch feature/core-engine）
 - `deltas/onboarding-core-backed-delta.md` — First-launch onboarding 接 Core settings/detection/scan 並完成 browser/RWD 驗證（implemented, branch feature/core-engine）

@@ -1,7 +1,7 @@
 # Delta Spec: Public Repository Privacy Scrub
 
 > Date: 2026-07-11
-> Status: implementing
+> Status: merged
 
 ## 新增（Added）
 
@@ -20,7 +20,7 @@
 
 ## 驗收條件
 
-- [x] current tree 不含個人絕對路徑或舊 identifier。
+- [x] current tree 與公開 snapshot 都不含個人絕對路徑或舊 identifier。
 - [x] 未設定 `DEVDIARY_PROJECT_ROOTS` 時，任何 runtime 都不會載入 repository-local roots。
 - [x] Core tests/typecheck、root tests/build 通過。
-- [ ] sanitized snapshot 以 fast-forward 推送到 `origin/main`，不 force-push 或改寫遠端 history。
+- [x] sanitized snapshot 以 fast-forward 推送到 `origin/main`，不 force-push 或改寫遠端 history。
