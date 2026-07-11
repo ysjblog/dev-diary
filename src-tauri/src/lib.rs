@@ -52,6 +52,9 @@ fn core_launch_path() -> String {
   entries.push("/opt/homebrew/opt/node@22/bin".to_string());
   if let Some(home) = env::var_os("HOME").map(PathBuf::from) {
     entries.push(home.join(".local").join("bin").to_string_lossy().to_string());
+    entries.push(home.join(".bun").join("bin").to_string_lossy().to_string());
+    entries.push(home.join(".npm-global").join("bin").to_string_lossy().to_string());
+    entries.push(home.join(".nvm").join("current").join("bin").to_string_lossy().to_string());
   }
   if let Ok(nvm_bin) = env::var("NVM_BIN") {
     entries.push(nvm_bin);
@@ -64,6 +67,34 @@ fn core_launch_path() -> String {
     entries.push(existing);
   }
   entries.join(":")
+}
+
+fn is_executable_file(path: &Path) -> bool {
+  fs::metadata(path)
+    .map(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+    .unwrap_or(false)
+}
+
+fn first_executable_node(candidates: &[PathBuf]) -> Option<PathBuf> {
+  candidates.iter().find(|path| is_executable_file(path)).cloned()
+}
+
+fn resolve_core_node() -> Option<PathBuf> {
+  let mut candidates = Vec::new();
+  if let Ok(explicit) = env::var("DEVDIARY_NODE_BIN") {
+    let explicit = PathBuf::from(explicit.trim());
+    if !explicit.as_os_str().is_empty() {
+      candidates.push(explicit);
+    }
+  }
+  candidates.push(PathBuf::from("/opt/homebrew/opt/node@22/bin/node"));
+  candidates.extend(
+    core_launch_path()
+      .split(':')
+      .filter(|entry| !entry.is_empty())
+      .map(|entry| PathBuf::from(entry).join("node")),
+  );
+  first_executable_node(&candidates)
 }
 
 fn app_data_dir() -> Option<PathBuf> {
@@ -318,6 +349,13 @@ fn spawn_core<R: tauri::Runtime>(app: &tauri::App<R>) -> Option<Child> {
   let core_dir = resolve_core_dir(app)?;
   let port = env::var("DEVDIARY_PORT").unwrap_or_else(|_| "4317".to_string());
   let launch_path = core_launch_path();
+  let node_bin = match resolve_core_node() {
+    Some(path) => path,
+    None => {
+      append_core_log("DevDiary Core could not start: no executable Node.js runtime was found. Install Node.js or set DEVDIARY_NODE_BIN.");
+      return None;
+    }
+  };
   let mut command = Command::new("/bin/zsh");
   command.process_group(0);
   command.env_clear();
@@ -333,14 +371,14 @@ fn spawn_core<R: tauri::Runtime>(app: &tauri::App<R>) -> Option<Child> {
     .env("DEVDIARY_TAURI_PARENT_PID", std::process::id().to_string())
     .env("PATH", &launch_path)
     .arg("-lc")
-    .arg("parent=\"$DEVDIARY_TAURI_PARENT_PID\"; /opt/homebrew/opt/node@22/bin/node ./node_modules/tsx/dist/cli.mjs src/index.ts & child=$!; trap 'kill \"$child\" 2>/dev/null' INT TERM EXIT; while kill -0 \"$parent\" 2>/dev/null; do kill -0 \"$child\" 2>/dev/null || { wait \"$child\"; exit $?; }; sleep 1; done; kill \"$child\" 2>/dev/null; wait \"$child\" 2>/dev/null")
+    .arg(format!("parent=\"$DEVDIARY_TAURI_PARENT_PID\"; {} ./node_modules/tsx/dist/cli.mjs src/index.ts & child=$!; trap 'kill \"$child\" 2>/dev/null' INT TERM EXIT; while kill -0 \"$parent\" 2>/dev/null; do kill -0 \"$child\" 2>/dev/null || {{ wait \"$child\"; exit $?; }}; sleep 1; done; kill \"$child\" 2>/dev/null; wait \"$child\" 2>/dev/null", shell_quote(&node_bin)))
     .stdin(Stdio::null());
 
   if let Some(mut log_file) = open_core_log() {
     let _ = writeln!(
       log_file,
       "\n--- launching DevDiary Core from Tauri (node={}, core={}) ---",
-      "/opt/homebrew/opt/node@22/bin/node",
+      node_bin.display(),
       core_dir.display()
     );
     if let Ok(stdout_file) = log_file.try_clone() {
@@ -426,8 +464,18 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-  use super::{launch_agent_storage_dir, packaged_launch_agent_storage_dir};
-  use std::path::Path;
+  use super::{first_executable_node, launch_agent_storage_dir, packaged_launch_agent_storage_dir};
+  use std::{fs, os::unix::fs::PermissionsExt, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
+
+  fn temporary_executable(name: &str) -> (PathBuf, PathBuf) {
+    let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let directory = std::env::temp_dir().join(format!("devdiary-node-test-{unique}"));
+    fs::create_dir_all(&directory).unwrap();
+    let executable = directory.join(name);
+    fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
+    fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
+    (directory, executable)
+  }
 
   #[test]
   fn launch_agent_files_stay_in_application_support() {
@@ -445,5 +493,26 @@ mod tests {
       packaged_launch_agent_storage_dir(core_dir),
       Some(Path::new("/Applications/.DevDiaryLaunchAgents").to_path_buf())
     );
+  }
+
+  #[test]
+  fn core_node_resolution_falls_back_when_the_homebrew_node22_path_is_missing() {
+    let (directory, fallback) = temporary_executable("node");
+    let resolved = first_executable_node(&[
+      directory.join("missing-node"),
+      fallback.clone(),
+    ]);
+    assert_eq!(resolved, Some(fallback));
+    fs::remove_dir_all(directory).unwrap();
+  }
+
+  #[test]
+  fn core_node_resolution_keeps_the_first_available_runtime() {
+    let (first_dir, first) = temporary_executable("node-first");
+    let (second_dir, second) = temporary_executable("node-second");
+    let resolved = first_executable_node(&[first.clone(), second]);
+    assert_eq!(resolved, Some(first));
+    fs::remove_dir_all(first_dir).unwrap();
+    fs::remove_dir_all(second_dir).unwrap();
   }
 }
