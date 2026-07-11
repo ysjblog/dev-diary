@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "DevDiary",
   "version": "0.1.0",
-  "identifier": "com.devdiary.app",
+  "identifier": "com.ysjblog.devdiary",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -44,6 +44,25 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "macOS": {
+      "hardenedRuntime": true,
+      "minimumSystemVersion": "11.0",
+      "dmg": {
+        "background": "icons/dmg-background.png",
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        },
+        "appPosition": {
+          "x": 180,
+          "y": 220
+        },
+        "applicationFolderPosition": {
+          "x": 480,
+          "y": 220
+        }
+      }
+    },
     "android": {
       "debugApplicationIdSuffix": ".debug"
     }

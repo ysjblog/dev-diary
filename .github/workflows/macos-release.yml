@@ -1,0 +1,52 @@
+name: macOS manual-approval release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'GitHub Release tag to create or update'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install release dependencies
+        run: |
+          npm ci
+          npm --prefix core ci
+
+      - name: Build and verify manual-approval DMG
+        run: npm run package:mac
+
+      - name: Publish verified DMG
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          release_notes="$RUNNER_TEMP/devdiary-release-notes.md"
+          cat > "$release_notes" <<'EOF'
+          ## Install on macOS
+
+          This build is ad-hoc signed but not signed with Apple Developer ID. After dragging DevDiary to Applications, Control-click DevDiary and choose Open, then confirm Open. Alternatively, open System Settings > Privacy & Security and choose Open Anyway after the first launch attempt.
+
+          Do not use terminal commands to remove quarantine. If macOS says the app is damaged rather than showing an unidentified-developer warning, download a newer release and report the version and macOS version.
+          EOF
+          shasum -a 256 src-tauri/target/release/bundle/dmg/*.dmg > src-tauri/target/release/bundle/dmg/SHA256SUMS.txt
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --notes-file "$release_notes"
+          gh release upload "$RELEASE_TAG" src-tauri/target/release/bundle/dmg/*.dmg src-tauri/target/release/bundle/dmg/SHA256SUMS.txt --clobber

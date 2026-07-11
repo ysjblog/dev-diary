@@ -72,6 +72,18 @@ fn app_data_dir() -> Option<PathBuf> {
     .map(|home| home.join("Library").join("Application Support").join("DevDiary"))
 }
 
+fn launch_agent_storage_dir(app_dir: &Path) -> PathBuf {
+  app_dir.join("LaunchAgents")
+}
+
+fn packaged_launch_agent_storage_dir(core_dir: &Path) -> Option<PathBuf> {
+  core_dir
+    .ancestors()
+    .find(|path| path.extension().map(|extension| extension == "app").unwrap_or(false))
+    .and_then(Path::parent)
+    .map(|parent| parent.join(".DevDiaryLaunchAgents"))
+}
+
 fn open_core_log() -> Option<std::fs::File> {
   let dir = app_data_dir()?;
   create_dir_all(&dir).ok()?;
@@ -237,51 +249,29 @@ fn background_launch_agent_plist(label: &str, launcher: &Path, root_dir: &Path, 
 }
 
 fn install_background_launch_agent(core_dir: &Path) -> Result<(), String> {
-  let label = "com.devdiary.app.background";
+  let label = "com.ysjblog.devdiary.background";
   let app_dir = app_data_dir().ok_or_else(|| "HOME is unavailable for LaunchAgent install".to_string())?;
   let home = env::var_os("HOME").map(PathBuf::from).ok_or_else(|| "HOME is unavailable for LaunchAgent install".to_string())?;
   let uid = current_uid().ok_or_else(|| "could not resolve current uid".to_string())?;
   let domain = format!("gui/{uid}");
   let link_dir = home.join("Library").join("LaunchAgents");
-  let plist_link = link_dir.join(format!("{label}.plist"));
+  let plist_path = link_dir.join(format!("{label}.plist"));
   let log_dir = app_dir.join("logs");
 
   create_dir_all(&log_dir).map_err(|err| format!("create log dir failed: {err}"))?;
-  let preferred_dir = core_dir
-    .parent()
-    .map(|parent| parent.join(".launchagents"))
-    .unwrap_or_else(|| app_dir.join("LaunchAgents"));
-  let fallback_dir = app_dir.join("LaunchAgents");
-  let mut last_error = String::new();
-  let mut installed_paths: Option<(PathBuf, PathBuf)> = None;
-
-  for base_dir in [preferred_dir, fallback_dir] {
-    let launcher = base_dir.join("bin").join("devdiary-background-launcher.sh");
-    let plist_path = base_dir.join(format!("{label}.plist"));
-    let write_result = write_executable_file(&launcher, &background_launcher_script(core_dir, &app_dir))
-      .and_then(|_| write_private_file(&plist_path, &background_launch_agent_plist(label, &launcher, core_dir, &log_dir)));
-    match write_result {
-      Ok(()) => {
-        installed_paths = Some((launcher, plist_path));
-        break;
-      }
-      Err(err) => {
-        last_error = err;
-      }
-    }
-  }
-
-  let (_launcher, plist_path) = installed_paths.ok_or_else(|| {
-    if last_error.is_empty() {
-      "could not write LaunchAgent files".to_string()
-    } else {
-      last_error
-    }
-  })?;
-
+  let package_storage_dir = packaged_launch_agent_storage_dir(core_dir);
+  let base_dir = package_storage_dir.clone().unwrap_or_else(|| launch_agent_storage_dir(&app_dir));
+  let launcher = base_dir.join("bin").join("devdiary-background-launcher.sh");
+  let source_plist_path = base_dir.join(format!("{label}.plist"));
+  write_executable_file(&launcher, &background_launcher_script(core_dir, &app_dir))?;
   create_dir_all(&link_dir).map_err(|err| format!("create LaunchAgents dir failed: {err}"))?;
-  let _ = fs::remove_file(&plist_link);
-  symlink(&plist_path, &plist_link).map_err(|err| format!("symlink LaunchAgent failed: {err}"))?;
+  let _ = fs::remove_file(&plist_path);
+  write_private_file(&source_plist_path, &background_launch_agent_plist(label, &launcher, core_dir, &log_dir))?;
+  if package_storage_dir.is_some() {
+    symlink(&source_plist_path, &plist_path).map_err(|err| format!("symlink LaunchAgent failed: {err}"))?;
+  } else {
+    fs::rename(&source_plist_path, &plist_path).map_err(|err| format!("install LaunchAgent plist failed: {err}"))?;
+  }
 
   let lint = Command::new("/usr/bin/plutil")
     .arg("-lint")
@@ -295,12 +285,12 @@ fn install_background_launch_agent(core_dir: &Path) -> Result<(), String> {
   let _ = Command::new("/bin/launchctl")
     .arg("bootout")
     .arg(&domain)
-    .arg(&plist_link)
+    .arg(&plist_path)
     .status();
   let bootstrap = Command::new("/bin/launchctl")
     .arg("bootstrap")
     .arg(&domain)
-    .arg(&plist_link)
+    .arg(&plist_path)
     .status()
     .map_err(|err| format!("launchctl bootstrap failed to start: {err}"))?;
   if !bootstrap.success() {
@@ -318,8 +308,8 @@ fn install_background_launch_agent(core_dir: &Path) -> Result<(), String> {
 
   append_core_log(&format!(
     "Installed DevDiary background LaunchAgent at {} -> {}",
-    plist_link.display(),
-    plist_path.display()
+    plist_path.display(),
+    source_plist_path.display()
   ));
   Ok(())
 }
@@ -432,4 +422,28 @@ pub fn run() {
     })
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{launch_agent_storage_dir, packaged_launch_agent_storage_dir};
+  use std::path::Path;
+
+  #[test]
+  fn launch_agent_files_stay_in_application_support() {
+    let app_data_dir = Path::new("/Users/tester/Library/Application Support/DevDiary");
+    assert_eq!(
+      launch_agent_storage_dir(app_data_dir),
+      Path::new("/Users/tester/Library/Application Support/DevDiary/LaunchAgents")
+    );
+  }
+
+  #[test]
+  fn packaged_launch_agent_files_stay_beside_the_app_bundle() {
+    let core_dir = Path::new("/Applications/DevDiary.app/Contents/Resources/core");
+    assert_eq!(
+      packaged_launch_agent_storage_dir(core_dir),
+      Some(Path::new("/Applications/.DevDiaryLaunchAgents").to_path_buf())
+    );
+  }
 }

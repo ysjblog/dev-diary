@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-LABEL="com.devdiary.app.background"
+LABEL="com.ysjblog.devdiary.background"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LAUNCHER="$ROOT_DIR/scripts/devdiary-background-launcher.sh"
 LINK_DIR="$HOME/Library/LaunchAgents"

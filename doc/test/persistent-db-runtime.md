@@ -11,7 +11,7 @@
 
 - [x] Input normalization / aliases / format variants: `DEVDIARY_PROJECT_ROOTS` trims whitespace and ignores empty `:` segments.
 - [x] Boundary values / empty / null / malformed input: missing `DEVDIARY_DB` resolves to macOS app data SQLite path; missing project roots resolves to empty roots for persistent runtime.
-- [x] Rule priority conflicts: explicit `DEVDIARY_DB=:memory:` keeps the dev preset roots, while default persistent DB does not.
+- [x] Rule priority conflicts: `DEVDIARY_PROJECT_ROOTS` is the only source of project roots for both persistent and `:memory:` runtimes.
 - [x] Contract generated and execution applied: `resolveRuntimeConfig()` is consumed by `core/src/index.ts` startup.
 - [x] Operation order invariants: Core creates the DB parent directory before opening SQLite, and discovery runs before global scan persistence.
 - [x] Production-like dirty data: persistent runtime with no configured roots does not scan private local folders accidentally.
@@ -35,12 +35,12 @@ Irrelevant rows: auth/payment/file upload/webhook are not touched in this slice.
 
 ## [x] 【資料邊界】persistent runtime 不自動套用私人本機 project roots
 **範例輸入**：未設定 `DEVDIARY_PROJECT_ROOTS` 的 persistent runtime。
-**期待輸出**：`projectRoots` 是 `[]`；只有明確設定 env 或使用 local preset script 才會掃 `~/Projects` 與 `~/Workspace/side-projects`。
+**期待輸出**：`projectRoots` 是 `[]`；只有明確設定 `DEVDIARY_PROJECT_ROOTS` 才會掃使用者指定的目錄。
 
 ## [x] 【狀態回歸】persistent SQLite restart 後保留 discovered projects 與 sessions
 **範例輸入**：fixture project root + fixture Claude log，POST `/api/scan?range=all` 後關閉 server，重開同一 SQLite file。
 **期待輸出**：`GET /api/projects` 仍看得到 discovered project，DB 中仍有 `claude-code://discovered-session`，第二次 scan 新增 0 sessions。
 
-## [x] 【整合流程】local preset script 不需要手動記 DB path / project roots
-**範例輸入**：`npm run start:local` 或 `npm run dev:local`。
-**期待輸出**：Core 使用預設 persistent DB path，並由 script 明確帶入兩個本機 development scan roots。
+## [x] 【整合流程】project roots 由明確環境變數提供
+**範例輸入**：`DEVDIARY_PROJECT_ROOTS="/path/to/projects" npm start`。
+**期待輸出**：Core 使用預設 persistent DB path，且只掃使用者提供的 project roots。

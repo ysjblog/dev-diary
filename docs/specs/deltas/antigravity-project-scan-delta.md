@@ -7,7 +7,7 @@
 ## 新增（Added）
 
 - Project root discovery：Core 可從 configured root folders 掃描可追蹤 project folders，將真實 project roots upsert 到 SQLite `projects`。
-- Dev/test default roots：本機開發模式可使用 `~/Projects` 與 `~/Workspace/side-projects` 作為 default scan roots，正式 persistent runtime 可用 `DEVDIARY_PROJECT_ROOTS` 明確設定。
+- Dev/test default roots：本機開發模式可使用 `/Users/demo/Developer/projects` 與 `/Users/demo/Developer/projects` 作為 default scan roots，正式 persistent runtime 可用 `DEVDIARY_PROJECT_ROOTS` 明確設定。
 - Antigravity CLI parser：解析 `~/.gemini/antigravity-cli/log/*.log` 的 workspace / model / conversation metadata，產生 `antigravity-cli` sessions。
 - Antigravity transcript presence check：若 `brain/<conversationId>/.system_generated/logs/transcript*.jsonl` 存在，parser 用其 timestamps 強化 start/end time，但不持久化 raw transcript。
 - Runtime smoke：Core API 可在本機對 discovered projects 執行 `/api/scan`，並回傳 project list / dashboard snapshot。
@@ -30,7 +30,7 @@
 
 ## 驗收條件
 
-- [x] Global scan 可從 `~/Projects` 與 `~/Workspace/side-projects` 發現 git/project folders 並 upsert 到 `projects`。
+- [x] Global scan 可從 `/Users/demo/Developer/projects` 與 `/Users/demo/Developer/projects` 發現 git/project folders 並 upsert 到 `projects`。
 - [x] Repeated project discovery / scan 不重複建立 projects 或 sessions。
 - [x] Antigravity CLI log parser 可從 workspaceDirs / conversation metadata 建立 `antigravity-cli` session。
 - [x] Antigravity parser 不持久化 prompt、response、thinking、raw transcript 或 credentials。

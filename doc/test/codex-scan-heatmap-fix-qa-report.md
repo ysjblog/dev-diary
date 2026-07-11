@@ -25,8 +25,7 @@ Runtime: local Core `http://127.0.0.1:4317`, Vite UI `http://127.0.0.1:5173`
 ## Live Data Result
 
 - Persistent DB before Codex backfill had 244 Codex sessions with 0 Codex tokens.
-- Persistent DB was backed up before mutation at:
-  `~/Library/Application Support/DevDiary/DevDiary.2026-06-29T12-45-24-627Z.before-codex-backfill.sqlite`
+- Persistent DB was backed up before mutation at a local app-data backup path; the machine-specific path is intentionally not recorded in the public report.
 - After rescan/backfill, Codex shows 244 sessions and 2,624,534,199 tokens.
 - Remaining 22 Codex zero-token sessions appear to have no supported token usage metadata in the scanned source logs.
 - Antigravity sessions are visible, but token totals remain 0 because the parsed metadata does not expose stable token usage fields yet.

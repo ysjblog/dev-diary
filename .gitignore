@@ -2,6 +2,11 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.*
+*.p12
+*.p8
+certificate-base64.txt
 .DS_Store
 .vite
 *.db
