@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -343,6 +343,32 @@ describe('CLI log parser scan provider', () => {
           }),
         ]),
       );
+    });
+
+    it('custom product data roots parse while derived leaf roots and symlinks only produce safe warnings', () => {
+      const customCodex = join(root, 'custom-codex');
+      const customSession = join(customCodex, 'sessions', 'custom.jsonl');
+      writeJsonl(customSession, [
+        { timestamp: `${TODAY}T15:00:00.000Z`, type: 'session_meta', payload: { id: 'custom-codex', cwd: projectRoot } },
+        { timestamp: `${TODAY}T15:01:00.000Z`, type: 'turn_context', payload: { cwd: projectRoot, model: 'gpt-custom' } },
+      ]);
+      const claudeDir = join(homeDir, '.claude', 'projects', escapeClaudeProjectPath(projectRoot));
+      const outside = join(root, 'outside.jsonl');
+      writeJsonl(outside, [{ timestamp: `${TODAY}T16:00:00.000Z`, type: 'assistant', cwd: projectRoot, sessionId: 'outside' }]);
+      symlinkSync(outside, join(claudeDir, 'outside-link.jsonl'));
+
+      const parsed = parseProjectCliLogs(
+        { id: 1, name: 'Demo Project', root_path: projectRoot, ignored: false, scan_paused: false },
+        { homeDir, dataRoots: { 'codex-cli': [customCodex], 'claude-code': [join(homeDir, '.claude', 'projects')] } },
+      );
+      expect(parsed.sessions).toEqual(expect.arrayContaining([expect.objectContaining({ agent_name: 'codex-cli', model: 'gpt-custom', source_log_ref: 'codex-cli://custom-codex' })]));
+      expect(parsed.warnings).toEqual(expect.arrayContaining([
+        expect.objectContaining({ kind: 'invalid_data_root_layout', agent_name: 'claude-code' }),
+      ]));
+
+      const safe = parseProjectCliLogs({ id: 1, name: 'Demo Project', root_path: projectRoot, ignored: false, scan_paused: false }, { homeDir });
+      expect(safe.sessions.some((session) => session.source_log_ref.includes('outside'))).toBe(false);
+      expect(safe.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'symlink_escape', agent_name: 'claude-code' })]));
     });
 
     it('CLI provider 接入 runManualScan 後 repeated scan 不重複新增資料', () => {

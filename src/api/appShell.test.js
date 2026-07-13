@@ -29,6 +29,12 @@ test('macOS titlebar uses dark transparent native chrome', () => {
   assert.equal(mainWindow.hiddenTitle, true);
 });
 
+test('onboarding primary button hover keeps a defined contrasting foreground and background', () => {
+  assert.match(cssSource, /:root\s*\{[\s\S]*--accent-hover:\s*#[0-9a-fA-F]{6};/);
+  assert.match(cssSource, /:root\.light-mode\s*\{[\s\S]*--accent-hover:\s*#[0-9a-fA-F]{6};/);
+  assert.match(cssSource, /\.btn-primary:hover\s*\{[\s\S]*background:\s*var\(--accent-hover\);[\s\S]*color:\s*var\(--accent-on\);/);
+});
+
 test('settings path controls distinguish Project Docs filename and folder scan modes', () => {
   assert.match(appSource, /Project Docs Scan/);
   assert.match(appSource, /Project Docs Scan：特定檔名/);
@@ -108,4 +114,35 @@ test('workspace folder button invokes native Finder command instead of fake succ
   assert.match(appSource, /@tauri-apps\/api\/core/);
   assert.match(appSource, /invoke\('open_project_folder'/);
   assert.doesNotMatch(appSource, /onClick=\{\(\) => triggerToast\(`📂 已在 Finder 中開啟 \$\{selectedProject\.path\}`\)\}/);
+});
+
+test('agent activity roots use per-row controls and distinguish derived scan locations', () => {
+  assert.match(appSource, /自動＋自訂（建議）/);
+  assert.match(appSource, /只用自訂/);
+  assert.match(appSource, /恢復自動偵測/);
+  assert.match(appSource, /Product data roots（Core 讀取狀態）/);
+  assert.match(appSource, /Core 實際衍生掃描位置/);
+  assert.match(appSource, /＋ 新增路徑/);
+  assert.doesNotMatch(appSource, /新增一列/);
+  assert.match(cssSource, /\.agent-path-row\.agent-path-wrap span:last-child[\s\S]*white-space:\s*normal/);
+});
+
+test('background scan status and comment drafts do not overwrite editable input during polling', () => {
+  assert.match(appSource, /background_scan/);
+  assert.match(appSource, /backgroundScanRunning \? 5_000 : 60_000/);
+  assert.match(appSource, /refreshReadOnlySnapshots\(\)/);
+  assert.match(appSource, /未儲存的表單內容已保留/);
+  assert.match(appSource, /readCommentDraft/);
+  assert.match(appSource, /clearCommentDraft/);
+});
+
+test('CLI card keeps executable metadata in its dedicated section and docs support path groups/search', () => {
+  assert.doesNotMatch(appSource, /<span>Binary path<\/span>/);
+  assert.doesNotMatch(appSource, /<span>\{ag\.version\}<\/span>/);
+  assert.match(appSource, /<summary>CLI 執行檔<\/summary>/);
+  assert.match(appSource, /agent-path-row agent-path-wrap/);
+  assert.match(appSource, /aria-label="依檔名或內容搜尋專案文件"/);
+  assert.match(appSource, /docs-path-group/);
+  assert.match(cssSource, /\.docs-search-control\s*\{/);
+  assert.match(cssSource, /\.docs-path-group\s*\{/);
 });

@@ -31,6 +31,8 @@ describe('Daily scheduler', () => {
           agent_id: 'antigravity-cli',
           fallback_report: null,
         }),
+        globalSummaryAgent: null,
+        kanbanAiGenerator: null,
       });
 
       const result = await scheduler.runNow({ force: true, now: new Date('2026-06-30T12:00:00.000Z') });
@@ -61,6 +63,8 @@ describe('Daily scheduler', () => {
       const db = freshDb();
       const scheduler = new DailySchedulerRuntime(db, runtime, {
         projectSummaryAgent: async () => ({ markdown: '## scheduled', agent_id: 'fallback', fallback_report: null }),
+        globalSummaryAgent: null,
+        kanbanAiGenerator: null,
       });
 
       expect((await scheduler.tick(new Date('2026-06-30T12:00:00.000Z'))).status).toBe('skipped');
@@ -85,6 +89,7 @@ describe('Daily scheduler', () => {
           seenPrompt = prompt;
           return { markdown: '## 今日開發重點\n- 達成：測試\n- 阻礙：無\n- 下一步：交接', agent_id: 'fallback', fallback_report: null };
         },
+        kanbanAiGenerator: null,
       });
 
       const result = await scheduler.runNow({ force: true, now: new Date('2026-06-30T12:00:00.000Z') });
@@ -102,6 +107,7 @@ describe('Daily scheduler', () => {
       updateSettings(db, { kanban_ai_auto_add: { enabled: true } }, runtime());
       const scheduler = new DailySchedulerRuntime(db, runtime, {
         projectSummaryAgent: async () => ({ markdown: '## scheduled', agent_id: 'fallback', fallback_report: null }),
+        globalSummaryAgent: null,
         kanbanAiGenerator: async () => ({
           agent_id: 'test-ai',
           text: JSON.stringify({
@@ -134,6 +140,8 @@ describe('Daily scheduler', () => {
       saveProjectDiaryEntry(db, 1, TODAY, { markdown: manual }, TODAY);
       const scheduler = new DailySchedulerRuntime(db, runtime, {
         projectSummaryAgent: async () => ({ markdown: '## scheduled', agent_id: 'fallback', fallback_report: null }),
+        globalSummaryAgent: null,
+        kanbanAiGenerator: null,
       });
 
       const result = await scheduler.runNow({ force: true, now: new Date('2026-06-30T12:00:00.000Z') });
@@ -156,6 +164,8 @@ describe('Daily scheduler', () => {
       updateSettings(db, { daily_scheduler: { enabled: true, run_time_local: '18:00' } }, runtime());
       const scheduler = new DailySchedulerRuntime(db, runtime, {
         projectSummaryAgent: async () => ({ markdown: '## API scheduled', agent_id: 'fallback', fallback_report: null }),
+        globalSummaryAgent: null,
+        kanbanAiGenerator: null,
       });
       const app = createServer(db, {
         dailyScheduler: scheduler,

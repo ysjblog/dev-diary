@@ -26,6 +26,8 @@ import {
   selectedFolderToProjectDocFolder,
   settingsAgentsToCardsWithDetection,
   settingsToForm,
+  updateCanonicalActivityLogSource,
+  updateCanonicalExecutableSource,
 } from './api/settings.js';
 import {
   fetchProjectListWithRetry,
@@ -51,6 +53,7 @@ import {
   formatTs,
   formatDuration,
 } from './api/projects.js';
+import { clearCommentDraft, readCommentDraft, writeCommentDraft } from './api/commentDrafts.js';
 import TrendChart from './components/TrendChart.jsx';
 
 
@@ -360,6 +363,8 @@ import TrendChart from './components/TrendChart.jsx';
       const [schedulerRunning, setSchedulerRunning] = useState(false);
       const [dailyExporting, setDailyExporting] = useState(false);
       const [backupExporting, setBackupExporting] = useState(false);
+      const [settingsRefreshNotice, setSettingsRefreshNotice] = useState('');
+      const [agentLogRows, setAgentLogRows] = useState({});
       const [showOnboarding, setShowOnboarding] = useState(false);
       const [onboardingStep, setOnboardingStep] = useState(1);
       const [onboardingRootsText, setOnboardingRootsText] = useState("");
@@ -385,12 +390,14 @@ import TrendChart from './components/TrendChart.jsx';
       // Comment text & tag states
       const [newCommentText, setNewCommentText] = useState("");
       const [newCommentTag, setNewCommentTag] = useState("UI/UX");
+      const [commentDraftProjectId, setCommentDraftProjectId] = useState(null);
       const [commentFilter, setCommentFilter] = useState("all");
       const [diaryQuery, setDiaryQuery] = useState("");
       const [selectedDiaryDate, setSelectedDiaryDate] = useState("");
 
       // Doc preview states
       const [activeDocPreview, setActiveDocPreview] = useState(null);
+      const [docsQuery, setDocsQuery] = useState("");
 
       // Core scan states
       const [isScanRunning, setIsScanRunning] = useState(false);
@@ -399,6 +406,7 @@ import TrendChart from './components/TrendChart.jsx';
       const [kanbanAiSyncSummary, setKanbanAiSyncSummary] = useState(null);
       const autoScanStartedRef = useRef(false);
       const isAnyScanRunning = isScanRunning || scanningProjectId !== null || kanbanAiSyncing;
+      const backgroundScanRunning = (settingsSnapshot?.background_scan?.running_operations || []).length > 0;
 
       // Add Agent Wizard modal states
       const [isAddAgentOpen, setIsAddAgentOpen] = useState(false);
@@ -483,7 +491,11 @@ import TrendChart from './components/TrendChart.jsx';
         return () => { cancelled = true; };
       }, []);
       const sb24 = sidebar24h ? sidebar24h.metric : null;
-      const sbScanLabel = sidebar24h ? new Date(sidebar24h.captured_at).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" }) : "—";
+      const sbScanLabel = backgroundScanRunning
+        ? '掃描中'
+        : settingsSnapshot?.background_scan?.last_completed_at
+          ? new Date(settingsSnapshot.background_scan.last_completed_at).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })
+          : sidebar24h ? new Date(sidebar24h.captured_at).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" }) : "—";
 
       // --- Projects Workspace live data from Core API (spec §11) ---
       const [projectsLoading, setProjectsLoading] = useState(true);
@@ -576,10 +588,24 @@ import TrendChart from './components/TrendChart.jsx';
       }, [selectedProjId, workspaceRangeOptions]);
 
       const metricStrip = useMemo(() => toMetricStripView(projectDetail?.metric_strip), [projectDetail]);
+      const groupedDocs = useMemo(() => {
+        const query = docsQuery.trim().toLocaleLowerCase();
+        const docs = (projectDetail?.docs || []).filter((doc) => !query || `${doc.name}\n${doc.content}`.toLocaleLowerCase().includes(query));
+        const groupsByPath = new Map();
+        docs.forEach((doc) => {
+          const pieces = String(doc.name || '').replace(/\\/g, '/').split('/').filter(Boolean);
+          const name = pieces.length > 1 ? `${pieces.slice(0, -1).join('/')}/` : '專案根目錄';
+          const group = groupsByPath.get(name) || { name, docs: [] };
+          group.docs.push(doc);
+          groupsByPath.set(name, group);
+        });
+        return [...groupsByPath.values()];
+      }, [projectDetail, docsQuery]);
 
       const applySettingsSnapshot = (snapshot) => {
         setSettingsSnapshot(snapshot);
         setSettingsForm(settingsToForm(snapshot));
+        setSettingsRefreshNotice('');
         setThemeMode(snapshot.appearance || 'system');
         setAgents(settingsAgentsToCardsWithDetection(snapshot.agents, agentDetection?.agents, snapshot.custom_agents));
         setOnboardingRootsText(listToMultiline(snapshot.project_roots));
@@ -612,6 +638,50 @@ import TrendChart from './components/TrendChart.jsx';
           setSettingsLoading(false);
         }
       };
+
+      useEffect(() => {
+        let cancelled = false;
+        const refreshReadOnlySnapshots = async () => {
+          try {
+            const snapshot = await fetchSettingsWithRetry();
+            if (cancelled) return;
+            setSettingsSnapshot((current) => {
+              if (!current) return snapshot;
+              if (current.revision !== snapshot.revision) {
+                setSettingsRefreshNotice('偵測到背景服務更新設定；未儲存的表單內容已保留，需要時請重新載入。');
+              }
+              return {
+                ...current,
+                background_scan: snapshot.background_scan,
+                updated_at: snapshot.updated_at,
+              };
+            });
+          } catch {
+            // Polling is supplemental; interactive actions keep their existing errors.
+          }
+        };
+        refreshReadOnlySnapshots();
+        const timer = window.setInterval(refreshReadOnlySnapshots, backgroundScanRunning ? 5_000 : 60_000);
+        return () => { cancelled = true; window.clearInterval(timer); };
+      }, [backgroundScanRunning]);
+
+      useEffect(() => {
+        if (selectedProjId == null) {
+          setCommentDraftProjectId(null);
+          setNewCommentText('');
+          setNewCommentTag('UI/UX');
+          return;
+        }
+        const draft = readCommentDraft(window.localStorage, selectedProjId);
+        setNewCommentText(draft.text);
+        setNewCommentTag(draft.tag);
+        setCommentDraftProjectId(selectedProjId);
+      }, [selectedProjId]);
+
+      useEffect(() => {
+        if (selectedProjId == null || commentDraftProjectId !== selectedProjId) return;
+        writeCommentDraft(window.localStorage, selectedProjId, { text: newCommentText, tag: newCommentTag });
+      }, [selectedProjId, commentDraftProjectId, newCommentText, newCommentTag]);
 
       const reloadAgentDetection = async ({ quiet = false } = {}) => {
         setAgentDetectionLoading(true);
@@ -652,6 +722,65 @@ import TrendChart from './components/TrendChart.jsx';
           triggerToast(`Daily scheduler 失敗：${message}`);
         } finally {
           setSchedulerRunning(false);
+        }
+      };
+
+      const saveAgentExecutableSource = async (agent, mode) => {
+        const configured_path = mode === 'custom' ? document.getElementById(`agent-executable-${agent.id}`)?.value?.trim() : null;
+        try {
+          const result = await updateCanonicalExecutableSource(agent.id, { mode, configured_path, expected_revision: settingsSnapshot?.revision });
+          await reloadSettings();
+          await reloadAgentDetection({ quiet: true });
+          triggerToast(`${agent.name} 執行檔已測試並儲存。revision ${result.revision}`);
+        } catch (err) {
+          const message = err.message || String(err);
+          setSettingsError(message);
+          triggerToast(`執行檔未儲存：${message}`);
+        }
+      };
+
+      const rootsForAgent = (agent) => agentLogRows[agent.id] ?? (agent.sources?.activity_logs?.configured_data_roots || []);
+
+      const pickAgentSourcePath = async (agent, kind, rowIndex = null) => {
+        try {
+          if (!window.__TAURI_INTERNALS__) throw new Error('Web 開發模式無法開啟 macOS picker；請直接輸入絕對路徑。');
+          const { open } = await import('@tauri-apps/plugin-dialog');
+          const selected = await open({ directory: kind === 'directory', multiple: false });
+          if (!selected || Array.isArray(selected)) return;
+          if (kind === 'directory') {
+            const rows = [...rootsForAgent(agent)];
+            if (rowIndex === null) rows.push(selected);
+            else rows[rowIndex] = selected;
+            setAgentLogRows((prev) => ({ ...prev, [agent.id]: rows }));
+            return;
+          }
+          const input = document.getElementById(`agent-executable-${agent.id}`);
+          if (input) input.value = selected;
+        } catch (err) {
+          triggerToast(err.message || String(err));
+        }
+      };
+
+      const changeAgentLogRow = (agent, action, index, value = '') => {
+        const rows = [...rootsForAgent(agent)];
+        if (action === 'add') rows.push('');
+        if (action === 'remove') rows.splice(index, 1);
+        if (action === 'update') rows[index] = value;
+        setAgentLogRows((prev) => ({ ...prev, [agent.id]: rows.length ? rows : [''] }));
+      };
+
+      const saveAgentLogRoots = async (agent, mode) => {
+        const configured_data_roots = rootsForAgent(agent).map((item) => item.trim()).filter(Boolean);
+        try {
+          const result = await updateCanonicalActivityLogSource(agent.id, { mode, configured_data_roots, expected_revision: settingsSnapshot?.revision });
+          await reloadSettings();
+          await reloadAgentDetection({ quiet: true });
+          setAgentLogRows((prev) => { const next = { ...prev }; delete next[agent.id]; return next; });
+          triggerToast(`${agent.name} 活動記錄資料夾已儲存。revision ${result.revision}`);
+        } catch (err) {
+          const message = err.message || String(err);
+          setSettingsError(message);
+          triggerToast(`活動記錄資料夾未儲存：${message}`);
         }
       };
 
@@ -1003,6 +1132,7 @@ import TrendChart from './components/TrendChart.jsx';
             start: dashRange === "custom" ? dashboardCustomStartDate : "",
             end: dashRange === "custom" ? dashboardCustomEndDate : "",
           });
+          if (body.background_scan) setSettingsSnapshot((current) => current ? { ...current, background_scan: body.background_scan } : current);
           setDashSnapshot(body.dashboard);
           const sidebarSnapshot = dashRange === "24h" ? body.dashboard : await fetchDashboard("24h");
           setSidebar24h(sidebarSnapshot);
@@ -1050,6 +1180,7 @@ import TrendChart from './components/TrendChart.jsx';
         triggerToast(`開始重新掃描 ${selectedProject?.name ?? "selected project"}...`);
         try {
           const body = await runProjectScan(selectedProjId, workspaceRangeOptions);
+          if (body.background_scan) setSettingsSnapshot((current) => current ? { ...current, background_scan: body.background_scan } : current);
           setSidebar24h(body.dashboard);
           const projectView = toProjectListView(body.projects);
           setProjects(projectView);
@@ -1188,6 +1319,7 @@ import TrendChart from './components/TrendChart.jsx';
         try {
           const detail = await createProjectComment(selectedProjId, { content: newCommentText, tags: [newCommentTag] }, workspaceRangeOptions);
           applyProjectDetail(detail);
+          clearCommentDraft(window.localStorage, selectedProjId);
           setNewCommentText("");
           triggerToast("成功新增一筆備忘錄。");
         } catch (err) {
@@ -1553,11 +1685,11 @@ import TrendChart from './components/TrendChart.jsx';
                 <span>更新</span>
                 <span style={{ color: 'var(--muted)' }}>{sbScanLabel}</span>
               </div>
-              <button className={`btn-scan ${isScanRunning ? 'scanning' : ''}`} onClick={handleRunScan} disabled={isAnyScanRunning} title={isScanRunning ? "正在掃描..." : "Scan Now"}>
-                <svg className={`nav-icon ${isScanRunning ? 'scanning-spinner' : ''}`} viewBox="0 0 24 24">
+              <button className={`btn-scan ${isScanRunning || backgroundScanRunning ? 'scanning' : ''}`} onClick={handleRunScan} disabled={isAnyScanRunning} title={isScanRunning || backgroundScanRunning ? "正在掃描..." : "Scan Now"}>
+                <svg className={`nav-icon ${isScanRunning || backgroundScanRunning ? 'scanning-spinner' : ''}`} viewBox="0 0 24 24">
                   <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
                 </svg>
-                <span>{isScanRunning ? "正在掃描..." : "Scan Now"}</span>
+                <span>{isScanRunning || backgroundScanRunning ? "正在掃描..." : "Scan Now"}</span>
               </button>
             </div>
           </div>
@@ -2536,28 +2668,29 @@ import TrendChart from './components/TrendChart.jsx';
 
                         {/* TAB: DOCS */}
                         {projectTab === "docs" && (
-                          <div className="docs-tab-grid">
-                            {(projectDetail?.docs || []).length > 0 ? (projectDetail?.docs || []).map(doc => (
-                              <div key={doc.id} className="doc-summary-card" onClick={() => setActiveDocPreview(doc)}>
-                                <h3>
-                                  <svg className="nav-icon" style={{ width: '16px', height: '16px' }} viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
-                                  <span>{doc.name}</span>
-                                </h3>
-                                <div className={`doc-source-badge ${docScanSource(doc.name)}`}>
-                                  {docScanSource(doc.name) === 'folder' ? '資料夾全掃描' : '特定檔名掃描'}
+                          <div className="docs-tab-shell">
+                            <label className="docs-search-control">
+                              <span>搜尋文件</span>
+                              <input value={docsQuery} onChange={(event) => setDocsQuery(event.target.value)} placeholder="依檔名或內容搜尋" aria-label="依檔名或內容搜尋專案文件" />
+                            </label>
+                            {groupedDocs.length > 0 ? groupedDocs.map((group) => (
+                              <section className="docs-path-group" key={group.name}>
+                                <h3>{group.name}</h3>
+                                <div className="docs-tab-grid">
+                                  {group.docs.map(doc => (
+                                    <div key={doc.id} className="doc-summary-card" onClick={() => setActiveDocPreview(doc)}>
+                                      <h3>
+                                        <svg className="nav-icon" style={{ width: '16px', height: '16px' }} viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+                                        <span>{doc.name}</span>
+                                      </h3>
+                                      <div className={`doc-source-badge ${docScanSource(doc.name)}`}>{docScanSource(doc.name) === 'folder' ? '資料夾全掃描' : '特定檔名掃描'}</div>
+                                      <div className="doc-summary-content">{doc.content.split('\n')[1] || "無細節摘要"}</div>
+                                      <div style={{ fontSize: '11px', color: 'var(--accent-neon)', marginTop: '12px', textAlign: 'right', fontWeight: '500' }}>點擊預覽全文 ›</div>
+                                    </div>
+                                  ))}
                                 </div>
-                                <div className="doc-summary-content">
-                                  {doc.content.split('\n')[1] || "無細節摘要"}
-                                </div>
-                                <div style={{ fontSize: '11px', color: 'var(--accent-neon)', marginTop: '12px', textAlign: 'right', fontWeight: '500' }}>
-                                  點擊預覽全文 ›
-                                </div>
-                              </div>
-                            )) : (
-                              <div className="doc-empty-state">
-                                目前還沒有掃描到專案主文件；到 Settings 設定特定檔名或資料夾全掃描後重新掃描此專案。
-                              </div>
-                            )}
+                              </section>
+                            )) : <div className="doc-empty-state">{(projectDetail?.docs || []).length ? '沒有符合搜尋條件的文件。' : '目前還沒有掃描到專案主文件；到 Settings 設定特定檔名或資料夾全掃描後重新掃描此專案。'}</div>}
                           </div>
                         )}
 
@@ -2645,8 +2778,8 @@ import TrendChart from './components/TrendChart.jsx';
                     >
                       <option value="">不指定</option>
                       {agents.map((agent) => (
-                        <option key={agent.id} value={agent.id}>
-                          {agent.name}{agent.kind === 'custom' ? ' (Custom)' : ''}
+                        <option key={agent.id} value={agent.id} disabled={!agent.diaryCapability?.supported}>
+                          {agent.name}{agent.kind === 'custom' ? ' (Custom)' : ''}{agent.diaryCapability?.supported ? '' : '（尚未支援 Diary Agent）'}
                         </option>
                       ))}
                     </select>
@@ -2663,7 +2796,6 @@ import TrendChart from './components/TrendChart.jsx';
                           <div className="agent-card-header">
                             <div className="agent-card-title">
                               <h3><AgentGlyph />{ag.name}</h3>
-                              <span>{ag.version}</span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <span className={`status-badge ${ag.status === 'connected' ? 'active' : 'idle'}`}>
@@ -2691,14 +2823,61 @@ import TrendChart from './components/TrendChart.jsx';
                                 {ag.status === 'connected' ? '可用' : '未偵測'}
                               </span>
                             </div>
-                            <div className="agent-path-row">
-                              <span>Version</span>
-                              <span>{ag.version}</span>
-                            </div>
-                            <div className="agent-path-row">
-                              <span>Binary path</span>
-                              <span>{ag.path}</span>
-                            </div>
+                            {ag.kind === 'canonical' && (
+                              <div className="agent-source-controls">
+                                <details>
+                                  <summary>CLI 執行檔</summary>
+                                  <p className="agent-source-help">這是 DevDiary 用來確認 CLI 已安裝、並在需要時呼叫 CLI 的執行檔，不是 Terminal app。</p>
+                                  <div className="agent-path-row"><span>目前模式</span><span>{ag.sourceStatus?.executable?.mode === 'custom' ? '自訂' : '自動偵測'}</span></div>
+                                  <div className="agent-path-row agent-path-wrap"><span>Version</span><span>{ag.version || '—'}</span></div>
+                                  <div className="agent-path-row agent-path-wrap"><span>實際使用</span><span>{ag.sourceStatus?.executable?.resolved_path || '未找到執行檔'}</span></div>
+                                  <input id={`agent-executable-${ag.id}`} className="wizard-input" defaultValue={ag.sources?.executable?.configured_path || ''} placeholder="輸入絕對 executable path" />
+                                  <div className="settings-actions">
+                                    <button className="btn" onClick={() => pickAgentSourcePath(ag, 'file')}>選擇執行檔</button>
+                                    <button className="btn btn-primary" onClick={() => saveAgentExecutableSource(ag, 'custom')}>測試並儲存</button>
+                                    <button className="btn" onClick={() => saveAgentExecutableSource(ag, 'auto')}>恢復自動偵測</button>
+                                  </div>
+                                </details>
+                                <section className="agent-source-section" aria-label={`${ag.name} 活動記錄資料夾`}>
+                                  <div className="agent-source-title-row">
+                                    <div>
+                                      <strong>活動記錄資料夾</strong>
+                                      <span className="agent-mode-status">目前：{ag.sourceStatus?.activity_logs?.mode === 'custom' ? '只用自訂' : ag.sourceStatus?.activity_logs?.mode === 'auto_plus_custom' ? '自動＋自訂' : '自動偵測'}</span>
+                                    </div>
+                                    <div className="agent-mode-actions" role="group" aria-label="活動記錄資料夾模式">
+                                      <button className={`btn ${ag.sourceStatus?.activity_logs?.mode === 'auto_plus_custom' ? 'btn-primary' : ''}`} onClick={() => saveAgentLogRoots(ag, 'auto_plus_custom')}>自動＋自訂（建議）</button>
+                                      <button className={`btn ${ag.sourceStatus?.activity_logs?.mode === 'custom' ? 'btn-primary' : ''}`} onClick={() => saveAgentLogRoots(ag, 'custom')}>只用自訂</button>
+                                      <button className={`btn ${ag.sourceStatus?.activity_logs?.mode === 'auto' ? 'btn-primary' : ''}`} onClick={() => saveAgentLogRoots(ag, 'auto')}>恢復自動偵測</button>
+                                    </div>
+                                  </div>
+                                  <p className="agent-source-help">設定 product data root；Core 會依 Agent 規則衍生實際掃描位置。即使 CLI 執行檔未找到，只要資料夾可讀仍可掃描既有資料。</p>
+                                  <div className="agent-data-root-list">
+                                    {rootsForAgent(ag).map((root, index) => (
+                                      <div className="path-row" key={`${ag.id}-root-${index}`}>
+                                        <input className="wizard-input path-row-input" value={root} onChange={(e) => changeAgentLogRow(ag, 'update', index, e.target.value)} placeholder="product data root，例如 ~/.codex" aria-label={`${ag.name} data root ${index + 1}`} />
+                                        <button className="icon-btn path-row-btn" type="button" title="選擇資料夾" onClick={() => pickAgentSourcePath(ag, 'directory', index)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg></button>
+                                        <button className="icon-btn path-row-btn danger" type="button" title="刪除此列" onClick={() => changeAgentLogRow(ag, 'remove', index)}>×</button>
+                                      </div>
+                                    ))}
+                                    <button className="btn path-add-btn" type="button" onClick={() => changeAgentLogRow(ag, 'add')}>＋ 新增路徑</button>
+                                  </div>
+                                  <div className="agent-source-readonly-group">
+                                    <strong>Product data roots（Core 讀取狀態）</strong>
+                                    {(ag.sourceStatus?.activity_logs?.resolved_data_roots || []).map((root) => <div key={root.path} className="agent-path-row agent-path-wrap"><span>{root.source === 'default' ? '預設 root' : '自訂 root'}</span><span>{root.path} · {root.readable ? '可讀' : root.warning || '不可讀'}</span></div>)}
+                                  </div>
+                                  <details className="agent-derived-locations">
+                                    <summary>Core 實際衍生掃描位置（{(ag.sourceStatus?.activity_logs?.derived_scan_locations || []).length}）</summary>
+                                    <p className="agent-source-help">這些是由 product data root 與 Project Roots 算出的唯讀位置，不需要也不能在此直接編輯。</p>
+                                    {(ag.sourceStatus?.activity_logs?.derived_scan_locations || []).map((location) => (
+                                      <div key={`${location.role}-${location.project_id}-${location.encoding_variant}-${location.path}`} className="agent-path-row agent-path-wrap">
+                                        <span>{location.role}{location.project_root ? ` · ${location.encoding_variant}` : ''}</span>
+                                        <span>{location.path} · {location.readable ? '可讀' : location.warning || '不可讀'}</span>
+                                      </div>
+                                    ))}
+                                  </details>
+                                </section>
+                              </div>
+                            )}
                             <div className="agent-path-row">
                               <span>設定狀態</span>
                               <span style={{ color: ag.active ? 'var(--success)' : 'var(--muted)' }}>
@@ -2800,6 +2979,7 @@ import TrendChart from './components/TrendChart.jsx';
                     themeMode={themeMode}
                     setThemeMode={setThemeMode}
                     projectPaths={projects.map((project) => project.path)}
+                    settingsRefreshNotice={settingsRefreshNotice}
                     triggerToast={triggerToast}
                   />
                 </div>
@@ -2966,6 +3146,7 @@ import TrendChart from './components/TrendChart.jsx';
       themeMode,
       setThemeMode,
       projectPaths = [],
+      settingsRefreshNotice = '',
     }) {
       const [activeSettingsTab, setActiveSettingsTab] = useState('projects');
       const [pathPickerNotice, setPathPickerNotice] = useState('');
@@ -3114,6 +3295,7 @@ import TrendChart from './components/TrendChart.jsx';
               <span>{error}</span>
             </div>
           )}
+          {settingsRefreshNotice && <div className="settings-alert" role="status"><strong>Settings 有更新</strong><span>{settingsRefreshNotice}</span></div>}
 
           <div className="settings-runtime-summary">
             <section className={`settings-overview-card ${runtimeStatus?.status || 'unreachable'}`}>
@@ -3165,6 +3347,15 @@ import TrendChart from './components/TrendChart.jsx';
                   <option value="60">每一小時</option>
                   <option value="120">每兩小時</option>
                 </select>
+              </div>
+
+              <div className="settings-hint background-scan-status">
+                <strong>背景掃描狀態</strong>
+                <span>{settings?.background_scan?.last_status === 'success' ? '最近一次成功' : settings?.background_scan?.last_status === 'failed' ? '最近一次失敗' : settings?.background_scan?.last_status === 'skipped' ? '最近一次略過' : '尚未完成背景掃描'}</span>
+                <span>完成：{settings?.background_scan?.last_completed_at ? formatTs(settings.background_scan.last_completed_at) : '—'}</span>
+                <span>掃描 {settings?.background_scan?.last_scanned_projects ?? 0} 個專案／新增 {settings?.background_scan?.last_inserted_sessions ?? 0} 個 session</span>
+                <span>下次週期：{settings?.background_scan?.next_interval_ms ? `${Math.round(settings.background_scan.next_interval_ms / 60_000)} 分鐘` : '依目前設定啟動後顯示'}</span>
+                {settings?.background_scan?.last_error && <span>原因：{settings.background_scan.last_error}</span>}
               </div>
 
               {pathList('projectRoots', 'Project Roots', 'Core `/api/scan` 使用的專案根目錄白名單。', '/path/to/projects')}

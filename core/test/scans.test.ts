@@ -13,7 +13,7 @@ import {
   type ScanProvider,
 } from '../src/services/scans.js';
 import { getProjectDetail } from '../src/services/projects.js';
-import { updateSettings } from '../src/services/settings.js';
+import { getSettings, updateSettings } from '../src/services/settings.js';
 
 const TODAY = '2026-06-28';
 const roots: string[] = [];
@@ -464,6 +464,7 @@ describe('Scan Now / project rescan', () => {
         expect(missing.status).toBe(404);
         const body = (await missing.json()) as { error: string };
         expect(body.error).toBe('not_found');
+        expect(getSettings(db, runtime()).background_scan.running_operations).toEqual([]);
       } finally {
         await new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
       }

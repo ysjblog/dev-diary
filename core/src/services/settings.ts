@@ -1,4 +1,8 @@
 import type { DB } from '../db/index.js';
+import { homedir } from 'node:os';
+import { delimiter, isAbsolute, join, resolve } from 'node:path';
+import { existsSync, realpathSync, statSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { CANONICAL_AGENTS, normalizeAgentId } from '../domain/agents.js';
 import type { CanonicalAgentId, KanbanStatus } from '../domain/types.js';
 import type { ScanFallbackMode, ScanProviderMode, ScanProviderPolicy } from './scans.js';
@@ -30,6 +34,21 @@ export interface SettingsAgent {
   enabled: boolean;
   model: string;
   reasoning: AgentReasoningLevel;
+  sources: CanonicalAgentSourceSettings;
+  diary_capability: DiaryAgentCapability;
+}
+
+export interface DiaryAgentCapability {
+  supported: boolean;
+  unsupported_reason: string | null;
+}
+
+export type ExecutableSourceMode = 'auto' | 'custom';
+export type ActivityLogSourceMode = 'auto' | 'auto_plus_custom' | 'custom';
+
+export interface CanonicalAgentSourceSettings {
+  executable: { mode: ExecutableSourceMode; configured_path: string | null };
+  activity_logs: { mode: ActivityLogSourceMode; configured_data_roots: string[] };
 }
 
 export type CustomAgentProbeArg = '--version' | 'version' | '--help' | 'help';
@@ -60,6 +79,32 @@ export interface DailySchedulerSettings {
   last_project_count: number;
 }
 
+export interface BackgroundScanSettings {
+  last_started_at: string | null;
+  last_completed_at: string | null;
+  last_status: 'idle' | 'success' | 'failed' | 'skipped';
+  last_error: string | null;
+  last_scanned_projects: number;
+  last_inserted_sessions: number;
+  next_interval_ms: number | null;
+  next_due_at: string | null;
+  running_operations: BackgroundScanOperation[];
+  last_completed_operation: BackgroundCompletedOperation | null;
+}
+
+export type BackgroundScanScope = 'global' | 'project' | 'background';
+
+export interface BackgroundScanOperation {
+  operation_id: string;
+  scope: BackgroundScanScope;
+  project_id: number | null;
+  started_at: string;
+}
+
+export interface BackgroundCompletedOperation extends BackgroundScanOperation {
+  completed_at: string;
+}
+
 export interface AiPromptSettings {
   project_diary: string;
   daily_diary_entry: string;
@@ -76,6 +121,7 @@ export interface KanbanAiAutoAddSettings {
 }
 
 export interface AppSettings {
+  revision: number;
   project_roots: string[];
   excluded_paths: string[];
   project_doc_filenames: string[];
@@ -93,6 +139,7 @@ export interface AppSettings {
   custom_agents: CustomAgentSettings[];
   ai_prompts: AiPromptSettings;
   daily_scheduler: DailySchedulerSettings;
+  background_scan: BackgroundScanSettings;
   kanban_ai_auto_add: KanbanAiAutoAddSettings;
   updated_at: string | null;
 }
@@ -119,10 +166,13 @@ interface PersistedSettings {
     enabled: boolean;
     model?: string;
     reasoning?: AgentReasoningLevel;
+    sources?: CanonicalAgentSourceSettings;
   }>;
+  revision?: number;
   custom_agents: CustomAgentSettings[];
   ai_prompts: AiPromptSettings;
   daily_scheduler: DailySchedulerSettings;
+  background_scan?: BackgroundScanSettings;
   kanban_ai_auto_add?: KanbanAiAutoAddSettings;
 }
 
@@ -232,6 +282,10 @@ export class SettingsValidationError extends Error {
   code = 'validation_error';
 }
 
+export class SettingsConflictError extends Error {
+  code = 'settings_conflict';
+}
+
 function nowIso(): string {
   return new Date().toISOString();
 }
@@ -260,6 +314,59 @@ function normalizePathList(raw: unknown, field: string): string[] {
     }
   }
   return out;
+}
+
+function normalizeSourcePath(raw: unknown, field: string): string {
+  if (typeof raw !== 'string') fail(`${field} must be a string`);
+  const trimmed = raw.trim();
+  if (!trimmed) fail(`${field} must not be empty`);
+  if (trimmed.length > MAX_PATH_LENGTH) fail(`${field} must be at most ${MAX_PATH_LENGTH} characters`);
+  if (/[\0\n\r]/.test(trimmed)) fail(`${field} contains an invalid path`);
+  const expanded = trimmed === '~' ? homedir() : trimmed.startsWith('~/') ? resolve(homedir(), trimmed.slice(2)) : trimmed;
+  if (!isAbsolute(expanded)) fail(`${field} must be an absolute path`);
+  const normalized = resolve(expanded);
+  try {
+    return existsSync(normalized) ? realpathSync(normalized) : normalized;
+  } catch {
+    return normalized;
+  }
+}
+
+export function defaultCanonicalAgentSources(): CanonicalAgentSourceSettings {
+  return {
+    executable: { mode: 'auto', configured_path: null },
+    activity_logs: { mode: 'auto', configured_data_roots: [] },
+  };
+}
+
+export function normalizeCanonicalAgentSources(raw: unknown, field = 'agents.sources'): CanonicalAgentSourceSettings {
+  if (!isRecord(raw)) fail(`${field} must be an object`);
+  const keys = Object.keys(raw);
+  if (keys.some((key) => key !== 'executable' && key !== 'activity_logs')) fail(`${field} contains an unknown key`);
+  const executable = raw.executable;
+  const activityLogs = raw.activity_logs;
+  if (!isRecord(executable)) fail(`${field}.executable must be an object`);
+  if (!isRecord(activityLogs)) fail(`${field}.activity_logs must be an object`);
+  if (Object.keys(executable).some((key) => key !== 'mode' && key !== 'configured_path')) fail(`${field}.executable contains an unknown key`);
+  if (Object.keys(activityLogs).some((key) => key !== 'mode' && key !== 'configured_data_roots')) fail(`${field}.activity_logs contains an unknown key`);
+  const executableMode = executable.mode;
+  if (executableMode !== 'auto' && executableMode !== 'custom') fail(`${field}.executable.mode must be auto or custom`);
+  const configuredPath = executable.configured_path;
+  if (executableMode === 'auto' && configuredPath !== null) fail(`${field}.executable.configured_path must be null in auto mode`);
+  if (executableMode === 'custom' && (configuredPath === null || configuredPath === undefined)) fail(`${field}.executable.configured_path is required in custom mode`);
+  const activityMode = activityLogs.mode;
+  if (activityMode !== 'auto' && activityMode !== 'auto_plus_custom' && activityMode !== 'custom') {
+    fail(`${field}.activity_logs.mode is invalid`);
+  }
+  if (!Array.isArray(activityLogs.configured_data_roots)) fail(`${field}.activity_logs.configured_data_roots must be an array`);
+  const roots = activityLogs.configured_data_roots.map((item, index) => normalizeSourcePath(item, `${field}.activity_logs.configured_data_roots[${index}]`));
+  if (new Set(roots).size !== roots.length) fail(`${field}.activity_logs.configured_data_roots contains duplicate paths`);
+  if (activityMode === 'auto' && roots.length > 0) fail(`${field}.activity_logs.configured_data_roots must be empty in auto mode`);
+  if (activityMode === 'custom' && roots.length === 0) fail(`${field}.activity_logs.configured_data_roots is required in custom mode`);
+  return {
+    executable: { mode: executableMode, configured_path: executableMode === 'custom' ? normalizeSourcePath(configuredPath, `${field}.executable.configured_path`) : null },
+    activity_logs: { mode: activityMode, configured_data_roots: roots },
+  };
 }
 
 function normalizeProjectDocFilenames(raw: unknown): string[] {
@@ -483,26 +590,32 @@ function normalizeScanProvider(raw: unknown, current: AppSettings['scan_provider
   return out;
 }
 
-function normalizeAgents(raw: unknown, current: SettingsAgent[]): SettingsAgent[] {
+function normalizeAgents(raw: unknown, current: SettingsAgent[], opts: { allowSources: boolean } = { allowSources: false }): SettingsAgent[] {
   if (!Array.isArray(raw)) fail('agents must be an array');
-  const preferences = new Map<CanonicalAgentId, { enabled: boolean; model: string; reasoning: AgentReasoningLevel }>(
-    current.map((agent) => [agent.id, { enabled: agent.enabled, model: agent.model, reasoning: agent.reasoning }]),
+  const preferences = new Map<CanonicalAgentId, { enabled: boolean; model: string; reasoning: AgentReasoningLevel; sources: CanonicalAgentSourceSettings }>(
+    current.map((agent) => [agent.id, { enabled: agent.enabled, model: agent.model, reasoning: agent.reasoning, sources: agent.sources }]),
   );
   const seen = new Set<CanonicalAgentId>();
   for (const item of raw) {
     if (!isRecord(item)) fail('agents entries must be objects');
-    const extraKeys = Object.keys(item).filter((key) => key !== 'id' && key !== 'enabled' && key !== 'model' && key !== 'reasoning');
+    const extraKeys = Object.keys(item).filter((key) => key !== 'id' && key !== 'enabled' && key !== 'model' && key !== 'reasoning' && (key !== 'sources' || !opts.allowSources));
     if (extraKeys.length > 0) fail(`unknown agent setting: ${extraKeys[0]}`);
     const id = normalizeAgent(item.id, 'agents.id');
     if (!id) fail('agents.id must not be null');
     if (seen.has(id)) fail(`duplicate agent setting: ${id}`);
     if (typeof item.enabled !== 'boolean') fail('agents.enabled must be boolean');
     seen.add(id);
-    const currentPreference = preferences.get(id) ?? { enabled: true, model: DEFAULT_AGENT_MODELS[id], reasoning: 'default' as AgentReasoningLevel };
+    const currentPreference = preferences.get(id) ?? {
+      enabled: true,
+      model: DEFAULT_AGENT_MODELS[id],
+      reasoning: 'default' as AgentReasoningLevel,
+      sources: defaultCanonicalAgentSources(),
+    };
     preferences.set(id, {
       enabled: item.enabled,
       model: normalizeModel(item.model, 'agents.model', currentPreference.model || DEFAULT_AGENT_MODELS[id]),
       reasoning: normalizeReasoning(item.reasoning, 'agents.reasoning'),
+      sources: opts.allowSources && item.sources !== undefined ? normalizeCanonicalAgentSources(item.sources, `agents.${id}.sources`) : currentPreference.sources,
     });
   }
   return buildAgents(preferences);
@@ -657,18 +770,111 @@ function defaultScanFallback(activeDbPath: string): ScanFallbackMode {
   return 'none';
 }
 
-function buildAgents(preferences: Map<CanonicalAgentId, { enabled: boolean; model: string; reasoning: AgentReasoningLevel }>): SettingsAgent[] {
+function isRegularExecutable(path: string | null): boolean {
+  if (!path) return false;
+  try {
+    const stats = statSync(realpathSync(path));
+    return stats.isFile() && (stats.mode & 0o111) !== 0;
+  } catch {
+    return false;
+  }
+}
+
+function resolveCodexDiaryExecutable(sources: CanonicalAgentSourceSettings): string | null {
+  if (sources.executable.mode === 'custom') return sources.executable.configured_path;
+  const fromPath = (process.env.PATH ?? '').split(delimiter).map((entry) => join(entry, 'codex'));
+  const candidates = [
+    join(homedir(), '.local', 'bin', 'codex'),
+    '/Applications/ChatGPT.app/Contents/Resources/codex',
+    '/usr/local/bin/codex',
+    ...fromPath,
+  ];
+  return candidates.find((candidate) => isRegularExecutable(candidate)) ?? null;
+}
+
+function diaryCapabilityFor(id: CanonicalAgentId, sources: CanonicalAgentSourceSettings): DiaryAgentCapability {
+  if (id !== 'codex-cli' || isRegularExecutable(resolveCodexDiaryExecutable(sources))) return { supported: true, unsupported_reason: null };
+  return { supported: false, unsupported_reason: '找不到可安全執行的 Codex CLI' };
+}
+
+function buildAgents(preferences: Map<CanonicalAgentId, { enabled: boolean; model: string; reasoning: AgentReasoningLevel; sources: CanonicalAgentSourceSettings }>): SettingsAgent[] {
   return AGENT_ORDER.map((id) => ({
     id,
     display_name: CANONICAL_AGENTS[id].display_name,
     enabled: preferences.get(id)?.enabled ?? true,
     model: preferences.get(id)?.model ?? DEFAULT_AGENT_MODELS[id],
     reasoning: preferences.get(id)?.reasoning ?? 'default',
+    sources: preferences.get(id)?.sources ?? defaultCanonicalAgentSources(),
+    diary_capability: diaryCapabilityFor(id, preferences.get(id)?.sources ?? defaultCanonicalAgentSources()),
   }));
+}
+
+function isSupportedDiaryAgent(id: DiaryAgentId | null, customAgents: CustomAgentSettings[], agents: SettingsAgent[]): boolean {
+  if (id === null) return true;
+  if (id === 'claude-code' || id === 'codex-cli' || id === 'antigravity-cli') return agents.some((agent) => agent.id === id && agent.diary_capability.supported);
+  const custom = customAgents.find((agent) => agent.id === id);
+  if (!custom || custom.enabled === false) return false;
+  return [custom.id, custom.display_name, custom.model, custom.executable_path, custom.version ?? ''].join(' ').toLowerCase().includes('ollama');
+}
+
+function defaultBackgroundScan(): BackgroundScanSettings {
+  return {
+    last_started_at: null,
+    last_completed_at: null,
+    last_status: 'idle',
+    last_error: null,
+    last_scanned_projects: 0,
+    last_inserted_sessions: 0,
+    next_interval_ms: null,
+    next_due_at: null,
+    running_operations: [],
+    last_completed_operation: null,
+  };
+}
+
+function normalizeBackgroundOperation(raw: unknown, label: string, completed = false): BackgroundScanOperation | BackgroundCompletedOperation {
+  if (!isRecord(raw)) fail(`${label} must be an object`);
+  const operation_id = typeof raw.operation_id === 'string' && /^[0-9a-f-]{16,}$/i.test(raw.operation_id) ? raw.operation_id : fail(`${label}.operation_id is invalid`);
+  const scope = raw.scope === 'global' || raw.scope === 'project' || raw.scope === 'background' ? raw.scope : fail(`${label}.scope is invalid`);
+  const project_id = raw.project_id === null ? null : Number.isSafeInteger(raw.project_id) && Number(raw.project_id) > 0 ? Number(raw.project_id) : fail(`${label}.project_id is invalid`);
+  const started_at = normalizeOptionalIso(raw.started_at, `${label}.started_at`);
+  if (!started_at) fail(`${label}.started_at is required`);
+  if (!completed) return { operation_id, scope, project_id, started_at };
+  const completed_at = normalizeOptionalIso(raw.completed_at, `${label}.completed_at`);
+  if (!completed_at) fail(`${label}.completed_at is required`);
+  return { operation_id, scope, project_id, started_at, completed_at };
+}
+
+function normalizeBackgroundScan(raw: unknown, current: BackgroundScanSettings): BackgroundScanSettings {
+  if (!isRecord(raw)) fail('background_scan must be an object');
+  const out = { ...current };
+  for (const [key, value] of Object.entries(raw)) {
+    if (key === 'last_started_at' || key === 'last_completed_at' || key === 'next_due_at') out[key] = normalizeOptionalIso(value, `background_scan.${key}`);
+    else if (key === 'last_status') {
+      if (value !== 'idle' && value !== 'success' && value !== 'failed' && value !== 'skipped') fail('background_scan.last_status is invalid');
+      out.last_status = value;
+    } else if (key === 'last_error') {
+      if (value !== null && typeof value !== 'string') fail('background_scan.last_error must be string or null');
+      out.last_error = typeof value === 'string' ? value.slice(0, 400) : null;
+    } else if (key === 'last_scanned_projects' || key === 'last_inserted_sessions') {
+      if (!Number.isInteger(value) || Number(value) < 0) fail(`background_scan.${key} must be a non-negative integer`);
+      out[key] = Number(value);
+    } else if (key === 'next_interval_ms') {
+      if (value !== null && (!Number.isInteger(value) || Number(value) < 0)) fail('background_scan.next_interval_ms must be null or a non-negative integer');
+      out.next_interval_ms = value === null ? null : Number(value);
+    } else if (key === 'running_operations') {
+      if (!Array.isArray(value)) fail('background_scan.running_operations must be an array');
+      out.running_operations = value.map((item, index) => normalizeBackgroundOperation(item, `background_scan.running_operations[${index}]`) as BackgroundScanOperation);
+    } else if (key === 'last_completed_operation') {
+      out.last_completed_operation = value === null ? null : normalizeBackgroundOperation(value, 'background_scan.last_completed_operation', true) as BackgroundCompletedOperation;
+    } else fail(`unknown background_scan setting: ${key}`);
+  }
+  return out;
 }
 
 function defaultSettings(runtime: SettingsRuntimeDefaults): AppSettings {
   return {
+    revision: 0,
     project_roots: normalizePathList(runtime.projectRoots, 'project_roots'),
     excluded_paths: [],
     project_doc_filenames: ['README.md', 'docs/specs/MASTER.md', 'docs/specs/dev-diary-macos-app.md', 'MASTER.md', 'master.md', 'spec.md'],
@@ -699,6 +905,7 @@ function defaultSettings(runtime: SettingsRuntimeDefaults): AppSettings {
       last_error: null,
       last_project_count: 0,
     },
+    background_scan: defaultBackgroundScan(),
     kanban_ai_auto_add: {
       enabled: true,
       min_confidence: 0.65,
@@ -729,7 +936,7 @@ function readStored(db: DB): { value: Partial<PersistedSettings>; updated_at: st
 
 function persistedToSnapshot(stored: Partial<PersistedSettings>, updatedAt: string | null, runtime: SettingsRuntimeDefaults): AppSettings {
   const base = defaultSettings(runtime);
-  let settings: AppSettings = { ...base, updated_at: updatedAt };
+  let settings: AppSettings = { ...base, revision: Number.isInteger(stored.revision) && Number(stored.revision) >= 0 ? Number(stored.revision) : 0, updated_at: updatedAt };
 
   if (stored.project_roots) settings = { ...settings, project_roots: normalizePathList(stored.project_roots, 'project_roots') };
   if (stored.excluded_paths) settings = { ...settings, excluded_paths: normalizePathList(stored.excluded_paths, 'excluded_paths') };
@@ -743,20 +950,25 @@ function persistedToSnapshot(stored: Partial<PersistedSettings>, updatedAt: stri
   if (stored.privacy) settings = { ...settings, privacy: normalizePrivacy(stored.privacy, settings.privacy) };
   if (stored.appearance) settings = { ...settings, appearance: normalizeAppearance(stored.appearance) };
   if (stored.scan_provider) settings = { ...settings, scan_provider: normalizeScanProvider(stored.scan_provider, settings.scan_provider, { strict: false }) };
-  if (stored.agents) settings = { ...settings, agents: normalizeAgents(stored.agents, settings.agents) };
+  if (stored.agents) settings = { ...settings, agents: normalizeAgents(stored.agents, settings.agents, { allowSources: true }) };
   if (stored.ai_prompts && (stored.ai_prompts_version === AI_PROMPTS_VERSION || stored.ai_prompts_version === 2)) {
     settings = { ...settings, ai_prompts: normalizeAiPrompts(stored.ai_prompts, settings.ai_prompts) };
   }
   if (stored.daily_scheduler) {
     settings = { ...settings, daily_scheduler: normalizeDailyScheduler(stored.daily_scheduler, settings.daily_scheduler, { allowRuntimeState: true }) };
   }
+  if (stored.background_scan) settings = { ...settings, background_scan: normalizeBackgroundScan(stored.background_scan, settings.background_scan) };
   if (stored.data_storage) settings = { ...settings, data_storage: normalizeDataStorage(stored.data_storage, settings.data_storage) };
+  if (!isSupportedDiaryAgent(settings.default_diary_agent, settings.custom_agents, settings.agents)) {
+    settings = { ...settings, default_diary_agent: null };
+  }
 
   return settings;
 }
 
 function toPersisted(settings: AppSettings): PersistedSettings {
   return {
+    revision: settings.revision,
     ai_prompts_version: AI_PROMPTS_VERSION,
     project_roots: settings.project_roots,
     excluded_paths: settings.excluded_paths,
@@ -775,15 +987,17 @@ function toPersisted(settings: AppSettings): PersistedSettings {
       enabled: agent.enabled,
       model: agent.model,
       reasoning: agent.reasoning,
+      sources: agent.sources,
     })),
     custom_agents: settings.custom_agents,
     ai_prompts: settings.ai_prompts,
     daily_scheduler: settings.daily_scheduler,
+    background_scan: settings.background_scan,
     kanban_ai_auto_add: settings.kanban_ai_auto_add,
   };
 }
 
-function persistSettings(db: DB, settings: AppSettings): AppSettings {
+function writeSettings(db: DB, settings: AppSettings): AppSettings {
   const updatedAt = nowIso();
   const persisted = JSON.stringify(toPersisted({ ...settings, updated_at: updatedAt }));
   db.prepare(
@@ -791,11 +1005,27 @@ function persistSettings(db: DB, settings: AppSettings): AppSettings {
      VALUES (?, ?, ?)
      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
   ).run(SETTINGS_KEY, persisted, updatedAt);
-  return getSettings(db, {
+  return persistedToSnapshot(toPersisted({ ...settings, updated_at: updatedAt }), updatedAt, {
     activeDbPath: settings.data_storage.active_db_path,
     projectRoots: settings.project_roots,
     scanProviderPolicy: settings.scan_provider,
   });
+}
+
+export function mutateSettings(
+  db: DB,
+  runtime: SettingsRuntimeDefaults,
+  mutator: (current: AppSettings) => AppSettings,
+  expectedRevision?: number,
+): AppSettings {
+  const run = db.transaction(() => {
+    const current = getSettings(db, runtime);
+    if (expectedRevision !== undefined && current.revision !== expectedRevision) {
+      throw new SettingsConflictError('Settings changed in another operation. Reload and try again.');
+    }
+    return writeSettings(db, { ...mutator(current), revision: current.revision + 1 });
+  });
+  return run.immediate();
 }
 
 function assertKnownKeys(patch: SettingsPatch): void {
@@ -815,12 +1045,16 @@ function applyPatch(current: AppSettings, patch: SettingsPatch): AppSettings {
   if ('project_doc_folders' in patch) next = { ...next, project_doc_folders: normalizeProjectDocFolders(patch.project_doc_folders) };
   if ('scan_interval_minutes' in patch) next = { ...next, scan_interval_minutes: normalizeScanInterval(patch.scan_interval_minutes) };
   if ('custom_agents' in patch) next = { ...next, custom_agents: normalizeCustomAgents(patch.custom_agents) };
-  if ('default_diary_agent' in patch) next = { ...next, default_diary_agent: normalizeDiaryAgent(patch.default_diary_agent, 'default_diary_agent', next.custom_agents) };
+  if ('default_diary_agent' in patch) {
+    const selected = normalizeDiaryAgent(patch.default_diary_agent, 'default_diary_agent', next.custom_agents);
+    next = { ...next, default_diary_agent: isSupportedDiaryAgent(selected, next.custom_agents, next.agents) ? selected : null };
+  }
   if ('privacy' in patch) next = { ...next, privacy: normalizePrivacy(patch.privacy, next.privacy) };
   if ('appearance' in patch) next = { ...next, appearance: normalizeAppearance(patch.appearance) };
   if ('data_storage' in patch) next = { ...next, data_storage: normalizeDataStorage(patch.data_storage, next.data_storage) };
   if ('scan_provider' in patch) next = { ...next, scan_provider: normalizeScanProvider(patch.scan_provider, next.scan_provider, { strict: true }) };
   if ('agents' in patch) next = { ...next, agents: normalizeAgents(patch.agents, next.agents) };
+  if (!isSupportedDiaryAgent(next.default_diary_agent, next.custom_agents, next.agents)) next = { ...next, default_diary_agent: null };
   if ('ai_prompts' in patch) next = { ...next, ai_prompts: normalizeAiPrompts(patch.ai_prompts, next.ai_prompts) };
   if ('daily_scheduler' in patch) {
     next = { ...next, daily_scheduler: normalizeDailyScheduler(patch.daily_scheduler, next.daily_scheduler, { allowRuntimeState: false }) };
@@ -834,36 +1068,37 @@ export function getSettings(db: DB, runtime: SettingsRuntimeDefaults): AppSettin
 }
 
 export function updateSettings(db: DB, patch: SettingsPatch, runtime: SettingsRuntimeDefaults): AppSettings {
-  const current = getSettings(db, runtime);
-  const next = applyPatch(current, patch);
-  return persistSettings(db, next);
+  return mutateSettings(db, runtime, (current) => applyPatch(current, patch));
 }
 
 export function addCustomAgent(db: DB, agent: CustomAgentSettings, runtime: SettingsRuntimeDefaults): AppSettings {
-  const current = getSettings(db, runtime);
-  const custom_agents = normalizeCustomAgents([...current.custom_agents.filter((item) => item.id !== agent.id), agent]);
-  return persistSettings(db, { ...current, custom_agents });
+  return mutateSettings(db, runtime, (current) => {
+    const custom_agents = normalizeCustomAgents([...current.custom_agents.filter((item) => item.id !== agent.id), agent]);
+    return { ...current, custom_agents };
+  });
 }
 
 export function updateCustomAgentEnabled(db: DB, id: string, enabled: boolean, runtime: SettingsRuntimeDefaults): AppSettings {
-  const current = getSettings(db, runtime);
-  const agentId = normalizeCustomAgentId(id);
-  const target = current.custom_agents.find((agent) => agent.id === agentId);
-  if (!target) fail('custom agent not found');
-  return persistSettings(db, {
-    ...current,
-    custom_agents: current.custom_agents.map((agent) => (agent.id === agentId ? { ...agent, enabled } : agent)),
+  return mutateSettings(db, runtime, (current) => {
+    const agentId = normalizeCustomAgentId(id);
+    const target = current.custom_agents.find((agent) => agent.id === agentId);
+    if (!target) fail('custom agent not found');
+    return {
+      ...current,
+      custom_agents: current.custom_agents.map((agent) => (agent.id === agentId ? { ...agent, enabled } : agent)),
+    };
   });
 }
 
 export function removeCustomAgent(db: DB, id: string, runtime: SettingsRuntimeDefaults): AppSettings {
-  const current = getSettings(db, runtime);
-  const agentId = normalizeCustomAgentId(id);
-  if (!current.custom_agents.some((agent) => agent.id === agentId)) fail('custom agent not found');
-  return persistSettings(db, {
-    ...current,
-    default_diary_agent: current.default_diary_agent === agentId ? null : current.default_diary_agent,
-    custom_agents: current.custom_agents.filter((agent) => agent.id !== agentId),
+  return mutateSettings(db, runtime, (current) => {
+    const agentId = normalizeCustomAgentId(id);
+    if (!current.custom_agents.some((agent) => agent.id === agentId)) fail('custom agent not found');
+    return {
+      ...current,
+      default_diary_agent: current.default_diary_agent === agentId ? null : current.default_diary_agent,
+      custom_agents: current.custom_agents.filter((agent) => agent.id !== agentId),
+    };
   });
 }
 
@@ -872,10 +1107,133 @@ export function updateDailySchedulerState(
   patch: Partial<DailySchedulerSettings>,
   runtime: SettingsRuntimeDefaults,
 ): AppSettings {
-  const current = getSettings(db, runtime);
-  const next = {
+  return mutateSettings(db, runtime, (current) => ({
     ...current,
     daily_scheduler: normalizeDailyScheduler(patch, current.daily_scheduler, { allowRuntimeState: true }),
+  }));
+}
+
+export function updateBackgroundScanState(
+  db: DB,
+  patch: Partial<BackgroundScanSettings>,
+  runtime: SettingsRuntimeDefaults,
+): AppSettings {
+  return mutateSettings(db, runtime, (current) => ({
+    ...current,
+    background_scan: normalizeBackgroundScan(patch, current.background_scan),
+  }));
+}
+
+export class BackgroundScanStateBusyError extends Error {
+  readonly code = 'database_busy';
+  constructor() {
+    super('Background scan state is busy; please retry.');
+  }
+}
+
+function isSqliteBusy(error: unknown): boolean {
+  const code = error && typeof error === 'object' && 'code' in error ? String((error as { code?: unknown }).code) : '';
+  return code === 'SQLITE_BUSY' || code === 'SQLITE_LOCKED';
+}
+
+function waitForRecorderRetry(milliseconds: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+}
+
+export function recordScanOperation(
+  db: DB,
+  runtime: SettingsRuntimeDefaults,
+  event: {
+    phase: 'start' | 'finish';
+    operation?: BackgroundScanOperation;
+    scope?: BackgroundScanScope;
+    project_id?: number | null;
+    started_at?: string;
+    completed_at?: string;
+    status?: 'success' | 'failed' | 'skipped';
+    scanned_projects?: number;
+    inserted_sessions?: number;
+    error?: string | null;
+  },
+): { settings: AppSettings; operation: BackgroundScanOperation } {
+  const operation = event.operation ?? {
+    operation_id: randomUUID(),
+    scope: event.scope ?? 'global',
+    project_id: event.project_id ?? null,
+    started_at: event.started_at ?? new Date().toISOString(),
   };
-  return persistSettings(db, next);
+  let returned: AppSettings | null = null;
+  const apply = () => mutateSettings(db, runtime, (current) => {
+    const scan = current.background_scan;
+    const running = scan.running_operations.filter((item) => item.operation_id !== operation.operation_id);
+    if (event.phase === 'start') {
+      returned = {
+        ...current,
+        background_scan: { ...scan, last_started_at: operation.started_at, running_operations: [...running, operation] },
+      };
+      return returned;
+    }
+    const completed_at = event.completed_at ?? new Date().toISOString();
+    const candidate: BackgroundCompletedOperation = { ...operation, completed_at };
+    const previous = scan.last_completed_operation;
+    const wins = !previous || candidate.completed_at > previous.completed_at || (candidate.completed_at === previous.completed_at && candidate.operation_id > previous.operation_id);
+    if (!wins) {
+      returned = { ...current, background_scan: { ...scan, running_operations: running } };
+      return returned;
+    }
+    const intervalMs = Math.max(current.scan_interval_minutes * 60_000, 60_000);
+    const due = new Date(Date.parse(candidate.completed_at) + intervalMs).toISOString();
+    returned = {
+      ...current,
+      background_scan: {
+        ...scan,
+        last_started_at: operation.started_at,
+        last_completed_at: candidate.completed_at,
+        last_completed_operation: candidate,
+        last_status: event.status ?? 'success',
+        last_error: event.error?.slice(0, 400) ?? null,
+        last_scanned_projects: Math.max(0, Math.floor(event.scanned_projects ?? 0)),
+        last_inserted_sessions: Math.max(0, Math.floor(event.inserted_sessions ?? 0)),
+        next_due_at: due,
+        next_interval_ms: intervalMs,
+        running_operations: running,
+      },
+    };
+    return returned;
+  });
+  let settings: AppSettings | null = null;
+  // The mutation is idempotent by operation id, so a bounded retry is safe
+  // for both start and finish without blocking the Core event loop forever.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      settings = apply();
+      break;
+    } catch (error) {
+      if (!isSqliteBusy(error)) throw error;
+      if (attempt === 2) throw new BackgroundScanStateBusyError();
+      waitForRecorderRetry(Math.min(250, 25 * (attempt + 1)));
+    }
+  }
+  if (!settings) throw new BackgroundScanStateBusyError();
+  return { settings: returned ?? settings, operation };
+}
+
+export function updateCanonicalAgentSources(
+  db: DB,
+  agentId: CanonicalAgentId,
+  sources: CanonicalAgentSourceSettings,
+  runtime: SettingsRuntimeDefaults,
+  expectedRevision: number,
+): AppSettings {
+  if (!Number.isInteger(expectedRevision) || expectedRevision < 0) fail('expected_revision must be a non-negative integer');
+  const normalized = normalizeCanonicalAgentSources(sources, `agents.${agentId}.sources`);
+  return mutateSettings(
+    db,
+    runtime,
+    (current) => ({
+      ...current,
+      agents: current.agents.map((agent) => (agent.id === agentId ? { ...agent, sources: normalized } : agent)),
+    }),
+    expectedRevision,
+  );
 }

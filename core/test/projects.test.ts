@@ -219,6 +219,14 @@ describe('Projects Workspace', () => {
       expect(d.comments[0]!.pinned).toBe(true);
     });
 
+    it('docs 依 source mtime 新到舊排序，同時間再依 logical path 排序', () => {
+      db.prepare(`INSERT INTO project_docs (project_id, name, content, updated_at) VALUES (1, ?, ?, ?)`).run('docs/specs/MASTER.md', 'body', '2026-07-13T02:00:00.000Z');
+      db.prepare(`INSERT INTO project_docs (project_id, name, content, updated_at) VALUES (1, ?, ?, ?)`).run('README.md', 'body', '2026-07-13T02:00:00.000Z');
+      db.prepare(`INSERT INTO project_docs (project_id, name, content, updated_at) VALUES (1, ?, ?, ?)`).run('docs/specs/deltas/a.md', 'body', '2026-07-13T03:00:00.000Z');
+      const names = getProjectDetail(db, 1, TODAY)!.docs.slice(0, 3).map((doc) => doc.name);
+      expect(names).toEqual(['docs/specs/deltas/a.md', 'README.md', 'docs/specs/MASTER.md']);
+    });
+
     it('不存在或 ignored 的專案 id 回傳 null', () => {
       expect(getProjectDetail(db, 9999, TODAY)).toBeNull();
       db.prepare(`UPDATE projects SET ignored = 1 WHERE id = 3`).run();

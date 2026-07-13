@@ -11,12 +11,15 @@ import {
   DEFAULT_KANBAN_CARDS_PROMPT,
   DEFAULT_PROJECT_DIARY_PROMPT,
   getSettings,
+  recordScanOperation,
+  updateCanonicalAgentSources,
   updateSettings,
   SettingsValidationError,
 } from '../src/services/settings.js';
 import { createConfiguredScanProvider } from '../src/services/scans.js';
 
 const roots: string[] = [];
+const sourceRuntime = { activeDbPath: '/tmp/settings-sources.sqlite', projectRoots: [] };
 
 function tempRoot(): string {
   const root = mkdtempSync(join(tmpdir(), 'devdiary-settings-'));
@@ -51,6 +54,45 @@ afterEach(() => {
 
 describe('Settings backend', () => {
   describe('function 邏輯', () => {
+    it('legacy settings migrate canonical sources and revision without changing existing agent preferences', () => {
+      const db = openDb(':memory:');
+      db.prepare(`INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)`).run(
+        'core',
+        JSON.stringify({ agents: [{ id: 'codex-cli', enabled: false, model: 'GPT-5.4', reasoning: 'high' }] }),
+        '2026-07-12T00:00:00.000Z',
+      );
+
+      const settings = getSettings(db, sourceRuntime);
+      const codex = settings.agents.find((agent) => agent.id === 'codex-cli')!;
+      expect(settings.revision).toBe(0);
+      expect(codex.enabled).toBe(false);
+      expect(codex.sources).toEqual({
+        executable: { mode: 'auto', configured_path: null },
+        activity_logs: { mode: 'auto', configured_data_roots: [] },
+      });
+    });
+
+    it('targeted canonical source update is revision guarded and does not overwrite scheduler settings', () => {
+      const db = openDb(':memory:');
+      const first = updateSettings(db, { daily_scheduler: { enabled: true, run_time_local: '21:30' } }, sourceRuntime);
+      const updated = updateCanonicalAgentSources(
+        db,
+        'codex-cli',
+        {
+          executable: { mode: 'custom', configured_path: '/tmp/codex' },
+          activity_logs: { mode: 'custom', configured_data_roots: ['/tmp/codex-data'] },
+        },
+        sourceRuntime,
+        first.revision,
+      );
+      expect(updated.revision).toBe(first.revision + 1);
+      expect(updated.daily_scheduler).toMatchObject({ enabled: true, run_time_local: '21:30' });
+      expect(updated.agents.find((agent) => agent.id === 'codex-cli')?.sources.activity_logs).toEqual({
+        mode: 'custom',
+        configured_data_roots: ['/tmp/codex-data'],
+      });
+      expect(() => updateCanonicalAgentSources(db, 'codex-cli', updated.agents[1]!.sources, sourceRuntime, first.revision)).toThrow('Settings changed');
+    });
     it('GET settings defaults include runtime metadata and canonical agents', () => {
       const db = openDb(':memory:');
       const settings = getSettings(db, {
@@ -190,6 +232,10 @@ describe('Settings backend', () => {
       expect(updated.project_doc_filenames).toEqual(['README.md', 'docs/specs/MASTER.md']);
       expect(updated.project_doc_folders).toEqual(['docs', 'notes/research']);
       expect(updated.default_diary_agent).toBe('codex-cli');
+      expect(updated.agents.find((agent) => agent.id === 'codex-cli')?.diary_capability).toEqual({
+        supported: true,
+        unsupported_reason: null,
+      });
       expect(updated.data_storage.restart_required).toBe(true);
       expect(updated.scan_provider).toEqual({ provider: 'cli-logs', fallback: 'none' });
       expect(updated.daily_scheduler.enabled).toBe(true);
@@ -289,6 +335,23 @@ describe('Settings backend', () => {
       );
 
       expect(getSettings(db, runtime).scan_provider).toEqual({ provider: 'cli-logs', fallback: 'none' });
+    });
+
+    it('scan operation recorder keeps the newest completion as the next background due base', () => {
+      const db = openDb(':memory:');
+      const runtime = { activeDbPath: ':memory:', projectRoots: [] };
+      updateSettings(db, { scan_interval_minutes: 5 }, runtime);
+      const background = recordScanOperation(db, runtime, { phase: 'start', scope: 'background', started_at: '2026-07-13T00:00:00.000Z' }).operation;
+      const manual = recordScanOperation(db, runtime, { phase: 'start', scope: 'global', started_at: '2026-07-13T00:01:00.000Z' }).operation;
+      recordScanOperation(db, runtime, { phase: 'finish', operation: manual, completed_at: '2026-07-13T00:02:00.000Z', status: 'success', scanned_projects: 2, inserted_sessions: 3 });
+      recordScanOperation(db, runtime, { phase: 'finish', operation: background, completed_at: '2026-07-13T00:01:30.000Z', status: 'success' });
+
+      const state = getSettings(db, runtime).background_scan;
+      expect(state.running_operations).toEqual([]);
+      expect(state.last_completed_operation?.operation_id).toBe(manual.operation_id);
+      expect(state.last_completed_at).toBe('2026-07-13T00:02:00.000Z');
+      expect(state.next_due_at).toBe('2026-07-13T00:07:00.000Z');
+      expect(state.last_scanned_projects).toBe(2);
     });
 
     it('GET settings replaces legacy custom prompt overrides with upgraded defaults', () => {

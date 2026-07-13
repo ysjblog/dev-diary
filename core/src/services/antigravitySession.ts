@@ -49,6 +49,7 @@ export function createAntigravityProbe(
   const antigravity = settings.agents.find((agent) => agent.id === 'antigravity-cli');
   const runPrompt = createAntigravityPromptRunner({
     model: antigravity?.model,
+    cliPath: antigravity?.sources.executable.mode === 'custom' ? antigravity.sources.executable.configured_path ?? undefined : undefined,
     printTimeout: DEFAULT_PROBE_PRINT_TIMEOUT,
     execTimeoutMs: DEFAULT_PROBE_EXEC_TIMEOUT_MS,
     ...overrides,

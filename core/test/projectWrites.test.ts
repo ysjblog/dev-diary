@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openDb, type DB } from '../src/db/index.js';
 import { seedDatabase } from '../src/db/seed.js';
 import { createServer } from '../src/server.js';
+import { isSqliteBusyError } from '../src/server.js';
 import {
   ProjectWriteNotFoundError,
   ProjectWriteValidationError,
@@ -76,6 +77,12 @@ describe('Projects Workspace write paths', () => {
   });
 
   describe('function 邏輯', () => {
+    it('SQLite busy/locked 只辨識明確 SQLite error code，避免把其他 500 誤當可重試', () => {
+      expect(isSqliteBusyError({ code: 'SQLITE_BUSY' })).toBe(true);
+      expect(isSqliteBusyError({ code: 'SQLITE_LOCKED' })).toBe(true);
+      expect(isSqliteBusyError({ code: 'ECONNRESET' })).toBe(false);
+      expect(isSqliteBusyError(new Error('database is locked'))).toBe(false);
+    });
     it('新增 comment 會 trim content、正規化 tags，並持久化到 selected project', () => {
       const detail = addProjectComment(db, 1, { content: '  ship it  ', tags: [' Bug ', '', 'Feature'] }, TODAY);
       const created = detail.comments.find((c) => c.content === 'ship it')!;

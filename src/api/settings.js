@@ -162,6 +162,20 @@ export async function fetchAgentDetection() {
   return jsonOrThrow(res);
 }
 
+export async function updateCanonicalExecutableSource(id, payload) {
+  const res = await coreFetch(`/api/agents/${encodeURIComponent(id)}/executable-source`, {
+    method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
+  });
+  return jsonOrThrow(res);
+}
+
+export async function updateCanonicalActivityLogSource(id, payload) {
+  const res = await coreFetch(`/api/agents/${encodeURIComponent(id)}/activity-log-source`, {
+    method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
+  });
+  return jsonOrThrow(res);
+}
+
 export async function fetchAgentDetectionWithRetry(options = {}) {
   const fetcher = options.fetcher || fetchAgentDetection;
   return withCoreStartupRetry(fetcher, options);
@@ -450,6 +464,12 @@ export function settingsAgentsToCardsWithDetection(agents, detectionAgents, cust
       removable: false,
       model: agent.model || 'Default (CLI config)',
       reasoning: agent.reasoning || 'default',
+      sources: agent.sources || {
+        executable: { mode: 'auto', configured_path: null },
+        activity_logs: { mode: 'auto', configured_data_roots: [] },
+      },
+      sourceStatus: detection?.source_status || null,
+      diaryCapability: agent.diary_capability || { supported: agent.id !== 'codex-cli', unsupported_reason: agent.id === 'codex-cli' ? '尚未支援 Diary Agent' : null },
     };
   });
   const customCards = (Array.isArray(customAgents) ? customAgents : []).map((agent) => ({
@@ -465,6 +485,7 @@ export function settingsAgentsToCardsWithDetection(agents, detectionAgents, cust
     removable: true,
     model: agent.model || 'custom',
     reasoning: agent.reasoning || 'default',
+    diaryCapability: { supported: /ollama/i.test(`${agent.id} ${agent.display_name} ${agent.model} ${agent.executable_path}`), unsupported_reason: '只有 enabled Ollama custom agent 可作為 Diary Agent。' },
   }));
   return [...canonicalCards, ...customCards];
 }

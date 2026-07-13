@@ -282,9 +282,15 @@ export class DailySchedulerRuntime {
         const health = await this.options.antigravityGate.ensureHealthy(now.getTime(), createAntigravityProbe(settings));
         disableAntigravity = !health.healthy;
       }
-      const generator = this.options.projectSummaryAgent ?? (disableAntigravity ? null : createConfiguredProjectDiaryAgent(settings));
-      const globalGenerator = this.options.globalSummaryAgent ?? (disableAntigravity ? null : createConfiguredDailySummaryAgent(settings));
-      const kanbanAiGenerator = this.options.kanbanAiGenerator ?? (disableAntigravity ? null : createConfiguredKanbanAiGenerator(settings));
+      const generator = this.options.projectSummaryAgent !== undefined
+        ? this.options.projectSummaryAgent
+        : (disableAntigravity ? null : createConfiguredProjectDiaryAgent(settings));
+      const globalGenerator = this.options.globalSummaryAgent !== undefined
+        ? this.options.globalSummaryAgent
+        : (disableAntigravity ? null : createConfiguredDailySummaryAgent(settings));
+      const kanbanAiGenerator = this.options.kanbanAiGenerator !== undefined
+        ? this.options.kanbanAiGenerator
+        : (disableAntigravity ? null : createConfiguredKanbanAiGenerator(settings));
       const query: ProjectDetailQuery = { range: '24h' };
       let draftCount = 0;
       let kanbanCount = 0;

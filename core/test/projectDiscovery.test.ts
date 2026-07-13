@@ -120,6 +120,23 @@ describe('Project root discovery', () => {
     expect(git(repo, ['status', '--porcelain=v1'])).toBe(beforeStatus);
   });
 
+  it('configured root 本身是 project 時仍探索 nested projects', () => {
+    const db = freshDb();
+    const root = tempRoot();
+    mkdirSync(join(root, '.git'));
+    writeFileSync(join(root, 'package.json'), '{"name":"container"}\n');
+    const nested = join(root, 'nested-app');
+    mkdirSync(join(nested, 'app', 'public'), { recursive: true });
+    writeFileSync(join(nested, 'app', 'public', 'wp-config.php'), '<?php // Local WordPress fixture\n');
+    const vendor = join(root, 'node_modules', 'vendor');
+    mkdirSync(vendor, { recursive: true });
+    writeFileSync(join(vendor, 'package.json'), '{"name":"vendor"}\n');
+
+    const result = discoverProjectsFromRoots(db, [root], { now: `${TODAY}T00:00:00.000Z` });
+
+    expect(result.discovered.map((project) => project.root_path)).toEqual([root, nested]);
+  });
+
   it('global scan 先 discovery 再掃描 eligible discovered projects', () => {
     const db = freshDb();
     const root = tempRoot();

@@ -4,6 +4,7 @@ import Database from 'better-sqlite3';
 import { SCHEMA_SQL, SCHEMA_VERSION } from './schema.js';
 
 export type DB = Database.Database;
+export const SQLITE_BUSY_TIMEOUT_MS = 5_000;
 
 function ensureSchemaPatches(db: DB): void {
   const kanbanColumns = db.prepare(`PRAGMA table_info(kanban_cards)`).all() as Array<{ name: string }>;
@@ -22,6 +23,8 @@ export function openDb(path: string): DB {
   }
   const db = new Database(path);
   db.pragma('foreign_keys = ON');
+  if (path !== ':memory:') db.pragma('journal_mode = WAL');
+  db.pragma(`busy_timeout = ${SQLITE_BUSY_TIMEOUT_MS}`);
   db.exec(SCHEMA_SQL);
   ensureSchemaPatches(db);
   db.prepare(

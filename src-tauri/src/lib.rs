@@ -219,6 +219,7 @@ mkdir -p "$LOG_DIR"
 
 export PATH="${{HOME}}/.local/bin:/opt/homebrew/opt/node@22/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:${{PATH:-}}"
 export DEVDIARY_APP_RUNTIME="${{DEVDIARY_APP_RUNTIME:-launchagent}}"
+export DEVDIARY_BACKGROUND_START_DELAY_MS="${{DEVDIARY_BACKGROUND_START_DELAY_MS:-45000}}"
 
 NODE_BIN="${{DEVDIARY_NODE_BIN:-}}"
 if [[ -z "$NODE_BIN" ]]; then
@@ -279,6 +280,54 @@ fn background_launch_agent_plist(label: &str, launcher: &Path, root_dir: &Path, 
   )
 }
 
+fn plist_string_value(contents: &str, key: &str) -> Option<String> {
+  let marker = format!("<key>{key}</key>");
+  let after_key = contents.split_once(&marker)?.1;
+  let after_open = after_key.split_once("<string>")?.1;
+  Some(after_open.split_once("</string>")?.0.trim().to_string())
+}
+
+fn legacy_devdiary_background_label(contents: &str, current_label: &str, app_dir: &Path) -> Option<String> {
+  let label = plist_string_value(contents, "Label")?;
+  if label == current_label || !label.ends_with(".devdiary.background") {
+    return None;
+  }
+  let has_launcher = contents.contains("devdiary-background-launcher.sh");
+  let has_run_arg = contents.contains("<string>run</string>");
+  let logs_marker = app_dir.join("logs").to_string_lossy().to_string();
+  let writes_devdiary_logs = contents.contains(&logs_marker);
+  (has_launcher && has_run_arg && writes_devdiary_logs).then_some(label)
+}
+
+fn cleanup_legacy_background_launch_agents(link_dir: &Path, domain: &str, current_label: &str, app_dir: &Path) -> Result<(), String> {
+  let entries = match fs::read_dir(link_dir) {
+    Ok(entries) => entries,
+    Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+    Err(err) => return Err(format!("read LaunchAgents dir failed: {err}")),
+  };
+  for entry in entries.flatten() {
+    let path = entry.path();
+    if path.extension().and_then(|value| value.to_str()) != Some("plist") {
+      continue;
+    }
+    let contents = match fs::read_to_string(&path) {
+      Ok(contents) => contents,
+      Err(_) => continue,
+    };
+    let Some(label) = legacy_devdiary_background_label(&contents, current_label, app_dir) else { continue };
+    let target = format!("{domain}/{label}");
+    let _ = Command::new("/bin/launchctl").arg("bootout").arg(domain).arg(&path).status();
+    let _ = Command::new("/bin/launchctl").arg("bootout").arg(&target).status();
+    fs::remove_file(&path).map_err(|err| format!("remove legacy LaunchAgent plist failed: {err}"))?;
+    let printed = Command::new("/bin/launchctl").arg("print").arg(&target).status();
+    if matches!(printed, Ok(status) if status.success()) {
+      return Err(format!("legacy LaunchAgent {label} remains loaded after removal"));
+    }
+    append_core_log(&format!("Removed legacy DevDiary background LaunchAgent {label}"));
+  }
+  Ok(())
+}
+
 fn install_background_launch_agent(core_dir: &Path) -> Result<(), String> {
   let label = "com.ysjblog.devdiary.background";
   let app_dir = app_data_dir().ok_or_else(|| "HOME is unavailable for LaunchAgent install".to_string())?;
@@ -290,6 +339,7 @@ fn install_background_launch_agent(core_dir: &Path) -> Result<(), String> {
   let log_dir = app_dir.join("logs");
 
   create_dir_all(&log_dir).map_err(|err| format!("create log dir failed: {err}"))?;
+  cleanup_legacy_background_launch_agents(&link_dir, &domain, label, &app_dir)?;
   let package_storage_dir = packaged_launch_agent_storage_dir(core_dir);
   let base_dir = package_storage_dir.clone().unwrap_or_else(|| launch_agent_storage_dir(&app_dir));
   let launcher = base_dir.join("bin").join("devdiary-background-launcher.sh");
@@ -464,7 +514,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-  use super::{first_executable_node, launch_agent_storage_dir, packaged_launch_agent_storage_dir};
+  use super::{first_executable_node, launch_agent_storage_dir, legacy_devdiary_background_label, packaged_launch_agent_storage_dir};
   use std::{fs, os::unix::fs::PermissionsExt, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
 
   fn temporary_executable(name: &str) -> (PathBuf, PathBuf) {
@@ -524,5 +574,19 @@ mod tests {
     assert_eq!(resolved, Some(bundled_node));
     fs::remove_dir_all(bundle_dir).unwrap();
     fs::remove_dir_all(fallback_dir).unwrap();
+  }
+
+  #[test]
+  fn legacy_background_cleanup_requires_all_devdiary_ownership_markers() {
+    let app_dir = Path::new("/tmp/DevDiary");
+    let accepted = r#"<key>Label</key><string>legacy.devdiary.background</string><key>ProgramArguments</key><array><string>/tmp/devdiary-background-launcher.sh</string><string>run</string></array><key>StandardOutPath</key><string>/tmp/DevDiary/logs/background.out</string>"#;
+    assert_eq!(
+      legacy_devdiary_background_label(accepted, "current.devdiary.background", app_dir),
+      Some("legacy.devdiary.background".to_string())
+    );
+    let missing_run = accepted.replace("<string>run</string>", "<string>once</string>");
+    assert_eq!(legacy_devdiary_background_label(&missing_run, "current.devdiary.background", app_dir), None);
+    let unrelated_logs = accepted.replace("/tmp/DevDiary/logs", "/tmp/other/logs");
+    assert_eq!(legacy_devdiary_background_label(&unrelated_logs, "current.devdiary.background", app_dir), None);
   }
 }

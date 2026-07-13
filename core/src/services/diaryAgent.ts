@@ -1,7 +1,8 @@
 import { execFile as nodeExecFile } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { buildSafeChildEnv, resolveCanonicalAgentExecutable } from './agentDetection.js';
 import type { CanonicalAgentId, ProjectDetailSnapshot } from '../domain/types.js';
 import {
   DEFAULT_DAILY_DIARY_ENTRY_PROMPT,
@@ -60,6 +61,21 @@ export interface AntigravityDiaryAgentOptions {
   execFileImpl?: ExecFileImpl;
 }
 
+export interface ClaudeDiaryAgentOptions {
+  cliPath?: string;
+  model?: string;
+  systemPrompt?: string;
+  execTimeoutMs?: number;
+  homeDir?: string;
+  runDir?: string;
+  execFileImpl?: ExecFileImpl;
+  sources?: AppSettings['agents'][number]['sources'];
+}
+
+export interface CodexDiaryAgentOptions extends Omit<ClaudeDiaryAgentOptions, 'sources'> {
+  sources?: AppSettings['agents'][number]['sources'];
+}
+
 export interface OllamaDiaryAgentOptions {
   agentId?: `custom-${string}`;
   endpoint?: string;
@@ -106,13 +122,7 @@ function truncate(value: string, max: number): string {
 }
 
 function safeEnv(homeDir: string): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = {
-    ...process.env,
-    HOME: homeDir,
-    PATH: `${join(homeDir, '.local', 'bin')}:${process.env.PATH ?? ''}`,
-  };
-  delete env.CLAUDE_CODE_OAUTH_TOKEN;
-  return env;
+  return buildSafeChildEnv({ ...process.env, PATH: `${join(homeDir, '.local', 'bin')}:${process.env.PATH ?? ''}` }, homeDir);
 }
 
 function defaultAgyPath(homeDir: string): string {
@@ -137,6 +147,75 @@ function summarizeFailure(err: unknown): string {
 
 function isDefaultCliModel(model: string | null | undefined): boolean {
   return !model || model.trim() === '' || model.trim() === 'Default (CLI config)';
+}
+
+function claudeModel(model: string | null | undefined): string | null {
+  if (isDefaultCliModel(model)) return null;
+  const value = model!.trim().toLowerCase();
+  if (value.includes('opus')) return 'opus';
+  if (value.includes('sonnet')) return 'sonnet';
+  if (value.includes('haiku')) return 'haiku';
+  return null;
+}
+
+export function createClaudePromptRunner(options: ClaudeDiaryAgentOptions = {}): (prompt: string) => Promise<string> {
+  const homeDir = options.homeDir ?? homedir();
+  const resolution = options.sources
+    ? resolveCanonicalAgentExecutable('claude-code', options.sources, { homeDir })
+    : { path: null };
+  const cliPath = options.cliPath ?? resolution.path ?? 'claude';
+  const model = claudeModel(options.model);
+  const execTimeoutMs = options.execTimeoutMs ?? DEFAULT_EXEC_TIMEOUT_MS;
+  const runDir = options.runDir ?? join(tmpdir(), 'devdiary-claude-runner');
+  const execFileImpl = options.execFileImpl ?? defaultExecFile;
+  mkdirSync(runDir, { recursive: true });
+  return async (prompt: string) => {
+    const args = ['-p', truncate(prompt, MAX_PROMPT_CHARS), '--output-format', 'text', '--max-turns', '1'];
+    if (model) args.push('--model', model);
+    try {
+      const result = await execFileImpl(cliPath, args, {
+        cwd: runDir,
+        env: safeEnv(homeDir),
+        timeout: execTimeoutMs,
+        maxBuffer: 2 * 1024 * 1024,
+        shell: false,
+      });
+      return normalizeMarkdown(result.stdout);
+    } catch {
+      throw new DiaryAgentError('Claude Code CLI exited unsuccessfully');
+    }
+  };
+}
+
+export function createCodexPromptRunner(options: CodexDiaryAgentOptions = {}): (prompt: string) => Promise<string> {
+  const homeDir = options.homeDir ?? homedir();
+  const resolution = options.sources
+    ? resolveCanonicalAgentExecutable('codex-cli', options.sources, { homeDir })
+    : { path: null };
+  const cliPath = options.cliPath ?? resolution.path;
+  const execTimeoutMs = options.execTimeoutMs ?? DEFAULT_EXEC_TIMEOUT_MS;
+  const parent = options.runDir ?? join(tmpdir(), 'devdiary-codex-runner');
+  const execFileImpl = options.execFileImpl ?? defaultExecFile;
+  mkdirSync(parent, { recursive: true, mode: 0o700 });
+  return async (prompt: string) => {
+    if (!cliPath) throw new DiaryAgentError('Codex CLI executable is unavailable');
+    const temporaryCwd = mkdtempSync(join(parent, 'run-'));
+    try {
+      const args = ['exec', '--sandbox', 'read-only', '--ephemeral', '--cd', temporaryCwd, '--color', 'never', truncate(prompt, MAX_PROMPT_CHARS)];
+      const result = await execFileImpl(cliPath, args, {
+        cwd: temporaryCwd,
+        env: safeEnv(homeDir),
+        timeout: execTimeoutMs,
+        maxBuffer: 2 * 1024 * 1024,
+        shell: false,
+      });
+      return normalizeMarkdown(result.stdout);
+    } catch {
+      throw new DiaryAgentError('Codex CLI exited unsuccessfully');
+    } finally {
+      rmSync(temporaryCwd, { recursive: true, force: true });
+    }
+  };
 }
 
 export function createAntigravityPromptRunner(options: AntigravityDiaryAgentOptions = {}): (prompt: string) => Promise<string> {
@@ -333,6 +412,24 @@ export function createAntigravityProjectDiaryAgent(options: AntigravityDiaryAgen
   };
 }
 
+export function createClaudeProjectDiaryAgent(options: ClaudeDiaryAgentOptions = {}): ProjectSummaryDraftGenerator {
+  const runPrompt = createClaudePromptRunner(options);
+  return async (snapshot, today) => ({
+    markdown: await runPrompt(buildProjectDiaryPrompt(snapshot, today, options.systemPrompt ?? DEFAULT_PROJECT_DIARY_PROMPT)),
+    agent_id: 'claude-code',
+    fallback_report: null,
+  });
+}
+
+export function createCodexProjectDiaryAgent(options: CodexDiaryAgentOptions = {}): ProjectSummaryDraftGenerator {
+  const runPrompt = createCodexPromptRunner(options);
+  return async (snapshot, today) => ({
+    markdown: await runPrompt(buildProjectDiaryPrompt(snapshot, today, options.systemPrompt ?? DEFAULT_PROJECT_DIARY_PROMPT)),
+    agent_id: 'codex-cli',
+    fallback_report: null,
+  });
+}
+
 export function createAntigravityDailySummaryAgent(options: AntigravityDiaryAgentOptions = {}): DailySummaryDraftGenerator {
   const runPrompt = createAntigravityPromptRunner(options);
   return async (prompt) => ({
@@ -340,6 +437,16 @@ export function createAntigravityDailySummaryAgent(options: AntigravityDiaryAgen
     agent_id: 'antigravity-cli',
     fallback_report: null,
   });
+}
+
+export function createClaudeDailySummaryAgent(options: ClaudeDiaryAgentOptions = {}): DailySummaryDraftGenerator {
+  const runPrompt = createClaudePromptRunner(options);
+  return async (prompt) => ({ markdown: await runPrompt(prompt), agent_id: 'claude-code', fallback_report: null });
+}
+
+export function createCodexDailySummaryAgent(options: CodexDiaryAgentOptions = {}): DailySummaryDraftGenerator {
+  const runPrompt = createCodexPromptRunner(options);
+  return async (prompt) => ({ markdown: await runPrompt(prompt), agent_id: 'codex-cli', fallback_report: null });
 }
 
 export function createOllamaProjectDiaryAgent(options: OllamaDiaryAgentOptions = {}): ProjectSummaryDraftGenerator {
@@ -398,10 +505,21 @@ export function createConfiguredProjectDiaryAgent(
     if (isOllamaCustomAgent(custom)) return createOllamaProjectDiaryAgent(customOllamaOptions(custom, systemPrompt));
     return null;
   }
+  const claude = settings.agents.find((agent) => agent.id === 'claude-code');
+  if (settings.default_diary_agent === 'claude-code' && claude?.enabled !== false) {
+    if (!claude || !resolveCanonicalAgentExecutable('claude-code', claude.sources, { homeDir: homedir() }).path) return null;
+    return createClaudeProjectDiaryAgent({ model: claude?.model, sources: claude?.sources, systemPrompt });
+  }
+  const codex = settings.agents.find((agent) => agent.id === 'codex-cli');
+  if (settings.default_diary_agent === 'codex-cli' && codex?.enabled !== false) {
+    if (!codex || !resolveCanonicalAgentExecutable('codex-cli', codex.sources, { homeDir: homedir() }).path) return null;
+    return createCodexProjectDiaryAgent({ model: codex.model, sources: codex.sources, systemPrompt });
+  }
   const antigravity = settings.agents.find((agent) => agent.id === 'antigravity-cli');
   if (settings.default_diary_agent !== 'antigravity-cli' || antigravity?.enabled === false) return null;
   return createAntigravityProjectDiaryAgent({
     model: antigravity?.model,
+    cliPath: antigravity?.sources.executable.mode === 'custom' ? antigravity.sources.executable.configured_path ?? undefined : undefined,
     systemPrompt,
   });
 }
@@ -412,9 +530,22 @@ export function createConfiguredDailySummaryAgent(settings: AppSettings): DailyS
     if (isOllamaCustomAgent(custom)) return createOllamaDailySummaryAgent(customOllamaOptions(custom));
     return null;
   }
+  const claude = settings.agents.find((agent) => agent.id === 'claude-code');
+  if (settings.default_diary_agent === 'claude-code' && claude?.enabled !== false) {
+    if (!claude || !resolveCanonicalAgentExecutable('claude-code', claude.sources, { homeDir: homedir() }).path) return null;
+    return createClaudeDailySummaryAgent({ model: claude?.model, sources: claude?.sources });
+  }
+  const codex = settings.agents.find((agent) => agent.id === 'codex-cli');
+  if (settings.default_diary_agent === 'codex-cli' && codex?.enabled !== false) {
+    if (!codex || !resolveCanonicalAgentExecutable('codex-cli', codex.sources, { homeDir: homedir() }).path) return null;
+    return createCodexDailySummaryAgent({ model: codex.model, sources: codex.sources });
+  }
   const antigravity = settings.agents.find((agent) => agent.id === 'antigravity-cli');
   if (settings.default_diary_agent !== 'antigravity-cli' || antigravity?.enabled === false) return null;
-  return createAntigravityDailySummaryAgent({ model: antigravity?.model });
+  return createAntigravityDailySummaryAgent({
+    model: antigravity?.model,
+    cliPath: antigravity?.sources.executable.mode === 'custom' ? antigravity.sources.executable.configured_path ?? undefined : undefined,
+  });
 }
 
 export async function generateProjectDiaryDraft(

@@ -9,12 +9,14 @@ import {
   buildProjectDiaryFallback,
   buildProjectDiaryPrompt,
   createAntigravityProjectDiaryAgent,
+  createClaudeProjectDiaryAgent,
+  createCodexProjectDiaryAgent,
   createConfiguredProjectDiaryAgent,
   createOllamaProjectDiaryAgent,
   generateProjectDiaryDraft,
   type ExecFileImpl,
 } from '../src/services/diaryAgent.js';
-import { updateSettings } from '../src/services/settings.js';
+import { updateCanonicalAgentSources, updateSettings } from '../src/services/settings.js';
 import { regenerateProjectSummaryWithAgent, saveProjectSummary } from '../src/services/projectWrites.js';
 
 const TODAY = '2026-06-28';
@@ -244,6 +246,74 @@ describe('AI Diary Agent', () => {
       expect(calls[0]!.body.model).toBe('qwen3.6:27b');
       expect(calls[0]!.body.stream).toBe(false);
       expect(calls[0]!.body.prompt).not.toContain(snapshot.project.root_path);
+    });
+
+    it('Claude diary agent uses print mode, a safe env, and never uses a project cwd', async () => {
+      const { snapshot } = freshSnapshot();
+      const calls: Array<{ file: string; args: string[]; options: Parameters<ExecFileImpl>[2] }> = [];
+      const home = tempRoot();
+      const runDir = tempRoot();
+      const agent = createClaudeProjectDiaryAgent({
+        cliPath: '/tmp/claude-fixture',
+        model: 'Sonnet 5',
+        homeDir: home,
+        runDir,
+        execFileImpl: async (file, args, options) => {
+          calls.push({ file, args, options });
+          return { stdout: '## Claude 日記\n- 安全 print mode。', stderr: '' };
+        },
+      });
+
+      const result = await agent(snapshot, TODAY);
+
+      expect(result.agent_id).toBe('claude-code');
+      expect(calls).toHaveLength(1);
+      expect(calls[0]!.file).toBe('/tmp/claude-fixture');
+      expect(calls[0]!.args).toContain('-p');
+      expect(calls[0]!.args).toContain('--output-format');
+      expect(calls[0]!.args).toContain('text');
+      expect(calls[0]!.args).toContain('--model');
+      expect(calls[0]!.args).toContain('sonnet');
+      expect(calls[0]!.options.shell).toBe(false);
+      expect(calls[0]!.options.cwd).toBe(runDir);
+      expect(calls[0]!.options.cwd).not.toBe(snapshot.project.root_path);
+      expect(calls[0]!.options.env.HOME).toBe(home);
+      expect(calls[0]!.options.env.CLAUDE_CODE_OAUTH_TOKEN).toBeUndefined();
+    });
+
+    it('Codex diary agent uses a read-only ephemeral exec contract and cleans its temporary cwd', async () => {
+      const { snapshot } = freshSnapshot();
+      const calls: Array<{ file: string; args: string[]; options: Parameters<ExecFileImpl>[2] }> = [];
+      const parent = tempRoot();
+      const agent = createCodexProjectDiaryAgent({
+        cliPath: '/tmp/codex-fixture', homeDir: tempRoot(), runDir: parent,
+        execFileImpl: async (file, args, options) => {
+          calls.push({ file, args, options });
+          return { stdout: '## Codex 日記\n- 安全 exec。', stderr: '' };
+        },
+      });
+      const result = await agent(snapshot, TODAY);
+
+      expect(result.agent_id).toBe('codex-cli');
+      expect(calls[0]!.file).toBe('/tmp/codex-fixture');
+      expect(calls[0]!.args.slice(0, 7)).toEqual(['exec', '--sandbox', 'read-only', '--ephemeral', '--cd', calls[0]!.options.cwd, '--color']);
+      expect(calls[0]!.args).toContain('never');
+      expect(calls[0]!.options.shell).toBe(false);
+      expect(calls[0]!.options.cwd).not.toBe(snapshot.project.root_path);
+      expect(calls[0]!.options.env.CLAUDE_CODE_OAUTH_TOKEN).toBeUndefined();
+      expect(() => rmSync(calls[0]!.options.cwd, { recursive: true })).toThrow();
+    });
+
+    it('configured Codex diary agent falls back without executing an unresolved binary', () => {
+      const { db } = freshSnapshot();
+      const runtime = { activeDbPath: ':memory:', projectRoots: [] };
+      const selected = updateSettings(db, { default_diary_agent: 'codex-cli' }, runtime);
+      const settings = updateCanonicalAgentSources(db, 'codex-cli', {
+        executable: { mode: 'custom', configured_path: '/tmp/missing-codex' },
+        activity_logs: { mode: 'auto', configured_data_roots: [] },
+      }, runtime, selected.revision);
+
+      expect(createConfiguredProjectDiaryAgent(settings)).toBeNull();
     });
 
     it('configured custom Ollama agent can generate diary drafts', async () => {

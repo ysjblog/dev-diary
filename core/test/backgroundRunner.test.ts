@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { openDb } from '../src/db/index.js';
 import { seedDatabase } from '../src/db/seed.js';
-import { backgroundIntervalMs, runBackgroundCycle } from '../src/services/backgroundRunner.js';
+import { backgroundIntervalMs, backgroundStartupDelayMs, runBackgroundCycle } from '../src/services/backgroundRunner.js';
+import { sleepUntilNextBackgroundCycle } from '../src/backgroundRunner.js';
 import { AntigravitySessionGate } from '../src/services/antigravitySession.js';
 import { createConfiguredScanProvider } from '../src/services/scans.js';
 import { getSettings, updateSettings } from '../src/services/settings.js';
@@ -30,7 +31,7 @@ describe('Background LaunchAgent runner', () => {
   describe('function 邏輯', () => {
     it('enabled cycle 先 scan 再寫 AI diary', async () => {
       const db = freshDb();
-      updateSettings(db, { daily_scheduler: { enabled: true, run_time_local: '18:00' }, scan_interval_minutes: 5 }, runtime());
+      updateSettings(db, { default_diary_agent: null, daily_scheduler: { enabled: true, run_time_local: '18:00' }, scan_interval_minutes: 5 }, runtime());
 
       const result = await runBackgroundCycle(db, runtime, {
         now: new Date('2026-06-30T12:00:00.000Z'),
@@ -57,6 +58,12 @@ describe('Background LaunchAgent runner', () => {
       const log = db.prepare(`SELECT global_summary_ai FROM daily_logs WHERE date = ?`).get(TODAY) as { global_summary_ai: string };
       expect(log.global_summary_ai).toContain('背景掃描已完成');
       expect(getSettings(db, runtime()).daily_scheduler.last_status).toBe('success');
+      expect(getSettings(db, runtime()).background_scan).toMatchObject({
+        last_status: 'success',
+        last_scanned_projects: result.scan?.scanned_projects.length,
+        last_inserted_sessions: result.scan?.inserted_sessions,
+        next_interval_ms: 5 * 60_000,
+      });
     });
 
     it('enabled cycle 未到 daily run time 時只 scan 不寫 AI diary', async () => {
@@ -84,7 +91,7 @@ describe('Background LaunchAgent runner', () => {
 
     it('同一天已成功寫 diary 後，後續 interval 只 scan 不重跑 AI diary', async () => {
       const db = freshDb();
-      updateSettings(db, { daily_scheduler: { enabled: true, run_time_local: '18:00' }, scan_interval_minutes: 5 }, runtime());
+      updateSettings(db, { default_diary_agent: null, daily_scheduler: { enabled: true, run_time_local: '18:00' }, scan_interval_minutes: 5 }, runtime());
       let draftCalls = 0;
 
       const first = await runBackgroundCycle(db, runtime, {
@@ -165,7 +172,7 @@ describe('Background LaunchAgent runner', () => {
       const db = freshDb();
       updateSettings(
         db,
-        { daily_scheduler: { enabled: true, run_time_local: '00:00' }, kanban_ai_auto_add: { enabled: true }, scan_interval_minutes: 5 },
+        { default_diary_agent: null, daily_scheduler: { enabled: true, run_time_local: '00:00' }, kanban_ai_auto_add: { enabled: true }, scan_interval_minutes: 5 },
         runtime(),
       );
       let calls = 0;
@@ -259,6 +266,32 @@ describe('Background LaunchAgent runner', () => {
 
       const updated = updateSettings(db, { scan_interval_minutes: 5 }, runtime());
       expect(backgroundIntervalMs(updated)).toBe(5 * 60_000);
+    });
+
+    it('LaunchAgent startup delay is bounded so app Core can become responsive first', () => {
+      expect(backgroundStartupDelayMs('45000')).toBe(45_000);
+      expect(backgroundStartupDelayMs('-1')).toBe(0);
+      expect(backgroundStartupDelayMs('999999')).toBe(120_000);
+      expect(backgroundStartupDelayMs('invalid')).toBe(0);
+    });
+
+    it('background wait always clears its polling interval after timeout or early stop', async () => {
+      vi.useFakeTimers();
+      try {
+        const normal = sleepUntilNextBackgroundCycle(1_000, () => false);
+        await vi.advanceTimersByTimeAsync(1_000);
+        await normal;
+        expect(vi.getTimerCount()).toBe(0);
+
+        let stopping = false;
+        const stopped = sleepUntilNextBackgroundCycle(5_000, () => stopping);
+        stopping = true;
+        await vi.advanceTimersByTimeAsync(250);
+        await stopped;
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });

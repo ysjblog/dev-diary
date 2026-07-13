@@ -4,9 +4,10 @@ import { pathToFileURL } from 'node:url';
 import { openDb } from './db/index.js';
 import { seedDatabase } from './db/seed.js';
 import { defaultAppDataDir, resolveRuntimeConfig } from './runtimeConfig.js';
-import { formatBackgroundCycleLog, runBackgroundCycle } from './services/backgroundRunner.js';
+import { backgroundStartupDelayMs, formatBackgroundCycleLog, runBackgroundCycle } from './services/backgroundRunner.js';
 import { AntigravitySessionGate } from './services/antigravitySession.js';
-import { updateSettings } from './services/settings.js';
+import { getSettings, updateSettings, type SettingsRuntimeDefaults } from './services/settings.js';
+import type { DB } from './db/index.js';
 
 type Mode = 'run' | 'once';
 
@@ -53,16 +54,37 @@ function acquireLock(appDir: string): () => void {
   return () => rmSync(lockDir, { recursive: true, force: true });
 }
 
-function sleep(ms: number, isStopping: () => boolean): Promise<void> {
+export function sleepUntilNextBackgroundCycle(ms: number, isStopping: () => boolean): Promise<void> {
   return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ms);
-    const poll = setInterval(() => {
-      if (!isStopping()) return;
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
       clearTimeout(timer);
       clearInterval(poll);
       resolve();
+    };
+    const timer = setTimeout(finish, ms);
+    const poll = setInterval(() => {
+      if (!isStopping()) return;
+      finish();
     }, 250);
   });
+}
+
+export async function waitForNextBackgroundDue(
+  db: DB,
+  runtime: () => SettingsRuntimeDefaults,
+  isStopping: () => boolean,
+  now: () => number = Date.now,
+): Promise<void> {
+  while (!isStopping()) {
+    const state = getSettings(db, runtime()).background_scan;
+    const due = state.next_due_at ? Date.parse(state.next_due_at) : now();
+    const waitMs = Number.isFinite(due) ? Math.max(0, due - now()) : 0;
+    if (waitMs <= 0) return;
+    await sleepUntilNextBackgroundCycle(Math.min(30_000, waitMs), isStopping);
+  }
 }
 
 async function main(): Promise<void> {
@@ -95,6 +117,12 @@ async function main(): Promise<void> {
     // 單一長生命週期的斷路器,在多輪 cycle 之間共用 cooldown:agy session 失效後
     // 不會每輪重複 probe / 彈登入視窗。
     const antigravityGate = new AntigravitySessionGate();
+    if (options.mode === 'run') {
+      await sleepUntilNextBackgroundCycle(backgroundStartupDelayMs(), () => stopping);
+      // A manual scan may have completed while the runner was waiting to
+      // start. Re-read the persisted due time before the first cycle too.
+      await waitForNextBackgroundDue(db, runtime, () => stopping);
+    }
     do {
       const result = await runBackgroundCycle(db, runtime, { antigravityGate });
       process.stdout.write(`${formatBackgroundCycleLog(result)}\n`);
@@ -102,7 +130,7 @@ async function main(): Promise<void> {
         process.exitCode = result.status === 'failed' ? 1 : 0;
         break;
       }
-      await sleep(result.next_interval_ms, () => stopping);
+      await waitForNextBackgroundDue(db, runtime, () => stopping);
     } while (!stopping);
   } finally {
     db.close();

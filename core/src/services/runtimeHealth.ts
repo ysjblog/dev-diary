@@ -9,6 +9,8 @@ export const CORE_API_CAPABILITIES = [
   'settings.read',
   'settings.write',
   'agents.detect',
+  'agents.executable-source.write',
+  'agents.activity-log-source.write',
   'agents.custom.probe',
   'agents.custom.write',
   'scheduler.daily.status',

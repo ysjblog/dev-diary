@@ -378,7 +378,7 @@ function buildComments(db: DB, projectId: number): ProjectComment[] {
 
 function buildDocs(db: DB, projectId: number): ProjectDoc[] {
   const rows = db
-    .prepare(`SELECT id, project_id, name, content, updated_at FROM project_docs WHERE project_id = ? ORDER BY name ASC`)
+    .prepare(`SELECT id, project_id, name, content, updated_at FROM project_docs WHERE project_id = ? ORDER BY updated_at DESC, name ASC`)
     .all(projectId) as Record<string, unknown>[];
   return rows.map((r) => ({
     id: Number(r.id),

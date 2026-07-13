@@ -1,8 +1,9 @@
 import express, { type Express, type Request, type Response } from 'express';
+import { basename, dirname } from 'node:path';
 import type { DB } from './db/index.js';
 import { getDashboardSnapshot } from './services/dashboard.js';
 import { getProjectList, getProjectDetail, type ProjectDetailQuery } from './services/projects.js';
-import { detectCliAgents, type AgentDetectionSnapshot } from './services/agentDetection.js';
+import { detectCliAgents, resolveCanonicalActivityDataRoots, type AgentDetectionSnapshot } from './services/agentDetection.js';
 import { DailySchedulerRuntime } from './services/dailyScheduler.js';
 import { AntigravitySessionGate } from './services/antigravitySession.js';
 import { createConfiguredProjectDiaryAgent, type ProjectSummaryDraftGenerator } from './services/diaryAgent.js';
@@ -19,11 +20,16 @@ import { ScanNotFoundError, createConfiguredScanProvider, resolveScanProviderPol
 import type { ScanProvider, ScanProviderPolicy } from './services/scans.js';
 import {
   SettingsValidationError,
+  SettingsConflictError,
   addCustomAgent,
   getSettings,
+  normalizeCanonicalAgentSources,
   removeCustomAgent,
+  updateCanonicalAgentSources,
   updateCustomAgentEnabled,
   updateSettings,
+  recordScanOperation,
+  BackgroundScanStateBusyError,
   type AppSettings,
 } from './services/settings.js';
 import { CustomAgentValidationError, customAgentFromProbe, probeCustomAgent } from './services/customAgents.js';
@@ -42,6 +48,7 @@ import {
 } from './services/projectWrites.js';
 import { RangeValidationError } from './domain/dateRange.js';
 import type { RangeKey } from './domain/types.js';
+import { normalizeAgentId } from './domain/agents.js';
 
 const VALID_RANGES: RangeKey[] = ['all', '24h', '7d', '1m', 'custom'];
 const ALLOWED_BROWSER_ORIGINS = new Set([
@@ -93,7 +100,15 @@ function sendRangeError(res: Response, err: unknown): Response | void {
   if (err instanceof RangeValidationError) {
     return res.status(400).json({ error: 'invalid_range', message: err.message });
   }
+  if (err instanceof BackgroundScanStateBusyError || isSqliteBusyError(err)) {
+    return res.status(503).json({ error: 'database_busy', message: '資料庫正在更新，掃描狀態尚未保存；請稍後再試。' });
+  }
   throw err;
+}
+
+export function isSqliteBusyError(err: unknown): boolean {
+  const sqliteCode = err && typeof err === 'object' && 'code' in err ? String((err as { code?: unknown }).code) : '';
+  return sqliteCode === 'SQLITE_BUSY' || sqliteCode === 'SQLITE_LOCKED' || sqliteCode === 'database_busy';
 }
 
 function sendWriteError(res: Response, err: unknown): Response | void {
@@ -105,6 +120,12 @@ function sendWriteError(res: Response, err: unknown): Response | void {
   }
   if (err instanceof RangeValidationError) {
     return res.status(400).json({ error: 'invalid_range', message: err.message });
+  }
+  if (isSqliteBusyError(err)) {
+    return res.status(503).json({
+      error: 'database_busy',
+      message: '資料庫正在更新，備忘錄尚未變更；請稍後再試。',
+    });
   }
   throw err;
 }
@@ -158,7 +179,31 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
       DEVDIARY_DB: settings.data_storage.active_db_path,
       DEVDIARY_SCAN_PROVIDER: settings.scan_provider.provider,
       DEVDIARY_SCAN_FALLBACK: settings.scan_provider.fallback,
+    }, {
+      dataRoots: Object.fromEntries(settings.agents.map((agent) => [agent.id, resolveCanonicalActivityDataRoots(agent.id, agent.sources)])),
     });
+  };
+  const detectConfiguredAgents = async (): Promise<AgentDetectionSnapshot> => {
+    if (opts.agentDetector) return opts.agentDetector();
+    const settings = getSettings(db, settingsRuntime());
+    return detectCliAgents({
+      sourceSettings: Object.fromEntries(settings.agents.map((agent) => [agent.id, agent.sources])),
+      projects: getProjectList(db).map((project) => ({ id: project.id, root_path: project.root_path })),
+    });
+  };
+  const assertProductDataRoots = (id: 'claude-code' | 'codex-cli' | 'antigravity-cli', roots: string[]) => {
+    const forbidden = id === 'claude-code' ? new Set(['projects']) : id === 'codex-cli' ? new Set(['sessions', 'archived_sessions']) : new Set(['log', 'brain']);
+    const knownClaudeEncoded = id === 'claude-code'
+      ? new Set(getProjectList(db).flatMap((project) => [
+        project.root_path.replace(/[\/\s]+/g, '-').replace(/[^A-Za-z0-9.-]/g, '-'),
+        project.root_path.replace(/[\/\s]+/g, '-').replace(/[^A-Za-z0-9._-]/g, '-'),
+      ]))
+      : new Set<string>();
+    for (const root of roots) {
+      if (forbidden.has(basename(root)) || (id === 'claude-code' && basename(dirname(root)) === 'projects' && knownClaudeEncoded.has(basename(root)))) {
+        throw new SettingsValidationError(`agents.${id}.sources.activity_logs.configured_data_roots must be a product data root, not a derived scan folder`);
+      }
+    }
   };
   const kanbanAiGeneratorFor = (settings: AppSettings): KanbanAiTextGenerator | null => opts.kanbanAiGenerator ?? createConfiguredKanbanAiGenerator(settings);
   const runScanKanbanAiSync = async (
@@ -240,20 +285,64 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
   });
 
   app.get('/api/agents/detect', async (_req: Request, res: Response) => {
-    const detector = opts.agentDetector ?? (() => detectCliAgents());
     try {
-      return res.json(await detector());
+      return res.json(await detectConfiguredAgents());
     } catch {
       return res.status(500).json({ error: 'agent_detection_failed', message: 'Agent detection failed.' });
     }
   });
 
   app.post('/api/agents/detect', async (_req: Request, res: Response) => {
-    const detector = opts.agentDetector ?? (() => detectCliAgents());
     try {
-      return res.json(await detector());
+      return res.json(await detectConfiguredAgents());
     } catch {
       return res.status(500).json({ error: 'agent_detection_failed', message: 'Agent detection failed.' });
+    }
+  });
+
+  app.put('/api/agents/:id/executable-source', async (req: Request, res: Response) => {
+    const id = normalizeAgentId(String(req.params.id));
+    if (!id) return res.status(404).json({ error: 'agent_not_found', message: 'Unknown canonical agent.' });
+    try {
+      const current = getSettings(db, settingsRuntime());
+      const agent = current.agents.find((item) => item.id === id)!;
+      const executable = req.body?.mode === 'auto'
+        ? { mode: 'auto' as const, configured_path: null }
+        : { mode: req.body?.mode, configured_path: req.body?.configured_path };
+      const sources = normalizeCanonicalAgentSources({ executable, activity_logs: agent.sources.activity_logs }, `agents.${id}.sources`);
+      if (sources.executable.mode === 'custom') {
+        const probe = await detectCliAgents({ sourceSettings: { [id]: sources } });
+        const result = probe.agents.find((item) => item.id === id)!;
+        if (result.source_status?.executable.probe_status !== 'connected') {
+          return res.status(400).json({ error: 'executable_probe_failed', message: result.error_message ?? 'CLI executable probe failed.' });
+        }
+      }
+      const settings = updateCanonicalAgentSources(db, id, sources, settingsRuntime(), req.body?.expected_revision);
+      const source_status = (await detectConfiguredAgents()).agents.find((item) => item.id === id)?.source_status;
+      return res.json({ agent: settings.agents.find((item) => item.id === id), source_status, revision: settings.revision, updated_at: settings.updated_at });
+    } catch (err) {
+      if (err instanceof SettingsConflictError) return res.status(409).json({ error: err.code, message: err.message });
+      if (err instanceof SettingsValidationError) return res.status(400).json({ error: err.code, message: err.message });
+      throw err;
+    }
+  });
+
+  app.put('/api/agents/:id/activity-log-source', async (req: Request, res: Response) => {
+    const id = normalizeAgentId(String(req.params.id));
+    if (!id) return res.status(404).json({ error: 'agent_not_found', message: 'Unknown canonical agent.' });
+    try {
+      const current = getSettings(db, settingsRuntime());
+      const agent = current.agents.find((item) => item.id === id)!;
+      const { mode, configured_data_roots } = req.body ?? {};
+      const sources = normalizeCanonicalAgentSources({ executable: agent.sources.executable, activity_logs: { mode, configured_data_roots } }, `agents.${id}.sources`);
+      assertProductDataRoots(id, sources.activity_logs.configured_data_roots);
+      const settings = updateCanonicalAgentSources(db, id, sources, settingsRuntime(), req.body?.expected_revision);
+      const source_status = (await detectConfiguredAgents()).agents.find((item) => item.id === id)?.source_status;
+      return res.json({ agent: settings.agents.find((item) => item.id === id), source_status, revision: settings.revision, updated_at: settings.updated_at });
+    } catch (err) {
+      if (err instanceof SettingsConflictError) return res.status(409).json({ error: err.code, message: err.message });
+      if (err instanceof SettingsValidationError) return res.status(400).json({ error: err.code, message: err.message });
+      throw err;
     }
   });
 
@@ -322,7 +411,7 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
         db_path: settings.data_storage.active_db_path,
         project_roots: settings.project_roots,
       },
-      agentDetector: opts.agentDetector,
+      agentDetector: detectConfiguredAgents,
     });
   };
 
@@ -375,6 +464,13 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
     if (!rangeQuery) return res.status(400).json({ error: 'invalid_range', message: `range must be one of ${VALID_RANGES.join(', ')}` });
     const today = todayUTC();
     const settings = getSettings(db, settingsRuntime());
+    let operation;
+    try {
+      operation = recordScanOperation(db, settingsRuntime(), { phase: 'start', scope: 'global' }).operation;
+    } catch (err) {
+      if (err instanceof BackgroundScanStateBusyError) return res.status(503).json({ error: err.code, message: '資料庫正在更新，掃描尚未開始；請稍後再試。' });
+      throw err;
+    }
     const scan = runManualScan(db, {
       scope: 'global',
       today,
@@ -383,9 +479,18 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
       projectDocFilenames: settings.project_doc_filenames,
       projectDocFolders: settings.project_doc_folders,
     });
-    if (scan.status === 'failed') {
-      return res.status(500).json({ error: 'scan_failed', message: scan.error_message, scan });
+    let scanState;
+    try {
+      scanState = recordScanOperation(db, settingsRuntime(), {
+        phase: 'finish', operation, completed_at: scan.completed_at,
+        status: scan.status === 'success' ? 'success' : 'failed', error: scan.error_message,
+        scanned_projects: scan.scanned_projects.length, inserted_sessions: scan.inserted_sessions,
+      }).settings.background_scan;
+    } catch (err) {
+      if (err instanceof BackgroundScanStateBusyError) return res.status(503).json({ error: err.code, message: '資料庫正在更新，掃描已完成但狀態尚未保存；請稍後再試。' });
+      throw err;
     }
+    if (scan.status === 'failed') return res.status(500).json({ error: 'scan_failed', message: scan.error_message, scan, background_scan: scanState });
     try {
       scan.ai_sync = await runScanKanbanAiSync(scan.scanned_projects, today, rangeQuery, settings);
       return res.json({
@@ -397,6 +502,7 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
           customEnd: rangeQuery.customEnd,
         }),
         projects: getProjectList(db, today),
+        background_scan: scanState,
       });
     } catch (err) {
       return sendRangeError(res, err);
@@ -408,9 +514,12 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
     if (projectId === null) return res.status(400).json({ error: 'invalid_id', message: 'project id must be a positive integer' });
     const rangeQuery = parseRangeQuery(req);
     if (!rangeQuery) return res.status(400).json({ error: 'invalid_range', message: `range must be one of ${VALID_RANGES.join(', ')}` });
+    const projectExists = db.prepare(`SELECT 1 FROM projects WHERE id = ?`).get(projectId);
+    if (!projectExists) return res.status(404).json({ error: 'not_found', message: `Project ${projectId} not found` });
     const today = todayUTC();
     try {
       const settings = getSettings(db, settingsRuntime());
+      const operation = recordScanOperation(db, settingsRuntime(), { phase: 'start', scope: 'project', project_id: projectId }).operation;
       const scan = runManualScan(db, {
         scope: 'project',
         projectId,
@@ -419,15 +528,19 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
         projectDocFilenames: settings.project_doc_filenames,
         projectDocFolders: settings.project_doc_folders,
       });
-      if (scan.status === 'failed') {
-        return res.status(500).json({ error: 'scan_failed', message: scan.error_message, scan });
-      }
+      const scanState = recordScanOperation(db, settingsRuntime(), {
+        phase: 'finish', operation, completed_at: scan.completed_at,
+        status: scan.status === 'success' ? 'success' : 'failed', error: scan.error_message,
+        scanned_projects: scan.scanned_projects.length, inserted_sessions: scan.inserted_sessions,
+      }).settings.background_scan;
+      if (scan.status === 'failed') return res.status(500).json({ error: 'scan_failed', message: scan.error_message, scan, background_scan: scanState });
       scan.ai_sync = await runScanKanbanAiSync(scan.scanned_projects, today, rangeQuery, settings);
       return res.json({
         scan,
         dashboard: getDashboardSnapshot(db, { range: '24h', today }),
         projects: getProjectList(db, today),
         project_detail: getProjectDetail(db, projectId, today, rangeQuery),
+        background_scan: scanState,
       });
     } catch (err) {
       if (err instanceof ScanNotFoundError) {

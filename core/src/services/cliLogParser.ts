@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { accessSync, constants, existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
+import type { CanonicalAgentId } from '../domain/types.js';
 import type { ProjectScanCandidate, ScanProvider, ScanSessionCandidate, ScannableProject } from './scans.js';
 
-export type ParserWarningKind = 'malformed_jsonl' | 'unreadable_file';
+export type ParserWarningKind = 'malformed_jsonl' | 'unreadable_file' | 'missing_root' | 'unreadable_root' | 'invalid_data_root_layout' | 'symlink_escape' | 'symlink_cycle';
 
 export interface ParserWarning {
   agent_name: 'claude-code' | 'codex-cli' | 'antigravity-cli';
@@ -17,6 +18,7 @@ export interface ParserWarning {
 export interface CliLogParserOptions {
   homeDir?: string;
   maxFilesPerProject?: number;
+  dataRoots?: Partial<Record<CanonicalAgentId, string[]>>;
 }
 
 export interface CliLogScanProviderOptions extends CliLogParserOptions {
@@ -59,13 +61,57 @@ export function escapeClaudeProjectPath(projectPath: string): string {
   return projectPath.replace(/[\/\s]+/g, '-').replace(/[^A-Za-z0-9.-]/g, '-');
 }
 
-function legacyEscapeClaudeProjectPath(projectPath: string): string {
+export function legacyEscapeClaudeProjectPath(projectPath: string): string {
   return projectPath.replace(/[\/\s]+/g, '-').replace(/[^A-Za-z0-9._-]/g, '-');
 }
 
-function claudeProjectDirs(homeDir: string, projectPath: string): string[] {
-  const names = [escapeClaudeProjectPath(projectPath), legacyEscapeClaudeProjectPath(projectPath)];
-  return [...new Set(names)].map((name) => join(homeDir, '.claude', 'projects', name));
+export function claudeProjectEncodingVariants(projectPath: string): Array<{ name: string; variant: 'current' | 'legacy' }> {
+  const values = [
+    { name: escapeClaudeProjectPath(projectPath), variant: 'current' as const },
+    { name: legacyEscapeClaudeProjectPath(projectPath), variant: 'legacy' as const },
+  ];
+  return values.filter((value, index) => values.findIndex((other) => other.name === value.name) === index);
+}
+
+function dataRoots(opts: Required<CliLogParserOptions>, id: CanonicalAgentId): string[] {
+  const configured = opts.dataRoots?.[id];
+  if (configured?.length) return configured;
+  if (id === 'claude-code') return [join(opts.homeDir, '.claude')];
+  if (id === 'codex-cli') return [join(opts.homeDir, '.codex')];
+  return [join(opts.homeDir, '.gemini', 'antigravity-cli')];
+}
+
+function usableDataRoots(opts: Required<CliLogParserOptions>, id: CanonicalAgentId, warnings: ParserWarning[]): string[] {
+  const seen = new Set<string>();
+  const valid: string[] = [];
+  for (const configured of dataRoots(opts, id)) {
+    const leaf = basename(configured);
+    const invalidLeaf = id === 'claude-code' ? leaf === 'projects' : id === 'codex-cli' ? leaf === 'sessions' || leaf === 'archived_sessions' : leaf === 'log' || leaf === 'brain';
+    if (invalidLeaf) {
+      warnings.push({ agent_name: id, kind: 'invalid_data_root_layout', source: `${id}:${leaf}`, message: 'Expected a product data root, not a derived scan folder.' });
+      continue;
+    }
+    if (!existsSync(configured)) {
+      warnings.push({ agent_name: id, kind: 'missing_root', source: `${id}:${leaf}`, message: 'Configured activity data root does not exist.' });
+      continue;
+    }
+    try {
+      const realPath = realpathSync(configured);
+      accessSync(realPath, constants.R_OK);
+      if (!statSync(realPath).isDirectory()) throw new Error('not directory');
+      if (!seen.has(realPath)) {
+        seen.add(realPath);
+        valid.push(realPath);
+      }
+    } catch {
+      warnings.push({ agent_name: id, kind: 'unreadable_root', source: `${id}:${leaf}`, message: 'Configured activity data root is not readable.' });
+    }
+  }
+  return valid;
+}
+
+function claudeProjectDirs(opts: Required<CliLogParserOptions>, projectPath: string, warnings: ParserWarning[]): string[] {
+  return usableDataRoots(opts, 'claude-code', warnings).flatMap((root) => claudeProjectEncodingVariants(projectPath).map(({ name }) => join(root, 'projects', name)));
 }
 
 function isObject(value: unknown): value is JsonObject {
@@ -103,7 +149,7 @@ function durationSeconds(start: string, end: string | null): number | null {
   return Math.round((endMs - startMs) / 1000);
 }
 
-function sortedJsonlFiles(dir: string, maxFiles: number): string[] {
+function sortedJsonlFiles(dir: string, maxFiles: number, warnings?: ParserWarning[], agentName?: ParserWarning['agent_name']): string[] {
   if (!existsSync(dir)) return [];
   const out: Array<{ path: string; mtimeMs: number }> = [];
   const visit = (current: string) => {
@@ -117,8 +163,12 @@ function sortedJsonlFiles(dir: string, maxFiles: number): string[] {
       const path = join(current, entry);
       let stat;
       try {
-        stat = statSync(path);
+        stat = lstatSync(path);
       } catch {
+        continue;
+      }
+      if (stat.isSymbolicLink()) {
+        warnings?.push({ agent_name: agentName ?? 'codex-cli', kind: 'symlink_escape', source: `${agentName ?? 'agent'}:${basename(path)}`, message: 'Skipped symbolic link while scanning activity logs.' });
         continue;
       }
       if (stat.isDirectory()) {
@@ -135,7 +185,7 @@ function sortedJsonlFiles(dir: string, maxFiles: number): string[] {
     .map((entry) => entry.path);
 }
 
-function sortedLogFiles(dir: string, maxFiles: number): string[] {
+function sortedLogFiles(dir: string, maxFiles: number, warnings?: ParserWarning[], agentName?: ParserWarning['agent_name']): string[] {
   if (!existsSync(dir)) return [];
   const out: string[] = [];
   let entries: string[] = [];
@@ -149,11 +199,13 @@ function sortedLogFiles(dir: string, maxFiles: number): string[] {
     const path = join(dir, entry);
     let stat;
     try {
-      stat = statSync(path);
+      stat = lstatSync(path);
     } catch {
       continue;
     }
-    if (stat.isFile() && path.endsWith('.log')) out.push(path);
+    if (stat.isSymbolicLink()) {
+      warnings?.push({ agent_name: agentName ?? 'antigravity-cli', kind: 'symlink_escape', source: `${agentName ?? 'agent'}:${basename(path)}`, message: 'Skipped symbolic link while scanning activity logs.' });
+    } else if (stat.isFile() && path.endsWith('.log')) out.push(path);
   }
   return out;
 }
@@ -215,7 +267,7 @@ function toCandidate(acc: SessionAccumulator): ScanSessionCandidate | null {
 }
 
 function parseClaude(project: ScannableProject, opts: Required<CliLogParserOptions>, warnings: ParserWarning[]): ScanSessionCandidate[] {
-  const files = claudeProjectDirs(opts.homeDir, project.root_path).flatMap((projectDir) => sortedJsonlFiles(projectDir, opts.maxFilesPerProject));
+  const files = claudeProjectDirs(opts, project.root_path, warnings).flatMap((projectDir) => sortedJsonlFiles(projectDir, opts.maxFilesPerProject, warnings, 'claude-code'));
   const sessions = new Map<string, SessionAccumulator>();
 
   for (const file of files) {
@@ -291,8 +343,8 @@ function setUsageTotals(acc: SessionAccumulator, usage: JsonObject): void {
 }
 
 function parseCodexIndex(opts: Required<CliLogParserOptions>, warnings: ParserWarning[]): Map<string, ScanSessionCandidate[]> {
-  const roots = [join(opts.homeDir, '.codex', 'sessions'), join(opts.homeDir, '.codex', 'archived_sessions')];
-  const files = roots.flatMap((root) => sortedJsonlFiles(root, opts.maxFilesPerProject));
+  const roots = usableDataRoots(opts, 'codex-cli', warnings).flatMap((root) => [join(root, 'sessions'), join(root, 'archived_sessions')]);
+  const files = roots.flatMap((root) => sortedJsonlFiles(root, opts.maxFilesPerProject, warnings, 'codex-cli'));
   const sessionsByProject = new Map<string, ScanSessionCandidate[]>();
 
   for (const file of files) {
@@ -393,9 +445,9 @@ function parseAntigravityTimestamp(file: string, line: string): string | null {
   return parsed.toISOString();
 }
 
-function transcriptTimes(homeDir: string, conversationId: string, warnings: ParserWarning[]): { start: string | null; end: string | null; exists: boolean } {
-  const transcript = join(homeDir, '.gemini', 'antigravity-cli', 'brain', conversationId, '.system_generated', 'logs', 'transcript.jsonl');
-  if (!existsSync(transcript)) return { start: null, end: null, exists: false };
+function transcriptTimes(opts: Required<CliLogParserOptions>, roots: string[], conversationId: string, warnings: ParserWarning[]): { start: string | null; end: string | null; exists: boolean } {
+  const transcript = roots.map((root) => join(root, 'brain', conversationId, '.system_generated', 'logs', 'transcript.jsonl')).find(existsSync);
+  if (!transcript) return { start: null, end: null, exists: false };
   let start: string | null = null;
   let end: string | null = null;
   for (const row of readJsonl(transcript, 'antigravity-cli', warnings)) {
@@ -408,8 +460,8 @@ function transcriptTimes(homeDir: string, conversationId: string, warnings: Pars
 }
 
 function parseAntigravity(project: ScannableProject, opts: Required<CliLogParserOptions>, warnings: ParserWarning[]): ScanSessionCandidate[] {
-  const logDir = join(opts.homeDir, '.gemini', 'antigravity-cli', 'log');
-  const files = sortedLogFiles(logDir, opts.maxFilesPerProject);
+  const roots = usableDataRoots(opts, 'antigravity-cli', warnings);
+  const files = roots.flatMap((root) => sortedLogFiles(join(root, 'log'), opts.maxFilesPerProject, warnings, 'antigravity-cli'));
   const sessions: ScanSessionCandidate[] = [];
 
   for (const file of files) {
@@ -455,7 +507,7 @@ function parseAntigravity(project: ScannableProject, opts: Required<CliLogParser
 
     if (!workspaceMatches || !conversationId || !firstTime) continue;
 
-    const transcript = transcriptTimes(opts.homeDir, conversationId, warnings);
+    const transcript = transcriptTimes(opts, roots, conversationId, warnings);
     const startTime = transcript.start ?? firstTime;
     const endTime = transcript.end ?? completedTime ?? lastTime ?? startTime;
     const candidate: ScanSessionCandidate = {
@@ -485,6 +537,7 @@ function normalizedOptions(options: CliLogParserOptions = {}): Required<CliLogPa
   return {
     homeDir: options.homeDir ?? homedir(),
     maxFilesPerProject: options.maxFilesPerProject ?? DEFAULT_MAX_FILES,
+    dataRoots: options.dataRoots ?? {},
   };
 }
 

@@ -28,6 +28,8 @@ import {
   settingsAgentsToCardsWithDetection,
   settingsToForm,
   rowsToList,
+  updateCanonicalActivityLogSource,
+  updateCanonicalExecutableSource,
   withCoreStartupRetry,
 } from './settings.js';
 
@@ -207,6 +209,12 @@ test('settingsAgentsToCards maps enabled flags and detection into visible agent 
         removable: false,
         model: 'Default (CLI config)',
         reasoning: 'default',
+        sources: {
+          executable: { mode: 'auto', configured_path: null },
+          activity_logs: { mode: 'auto', configured_data_roots: [] },
+        },
+        sourceStatus: null,
+        diaryCapability: { supported: true, unsupported_reason: null },
       },
     ],
   );
@@ -264,6 +272,8 @@ test('agent detection and daily scheduler API helpers call Core endpoints', asyn
   await createCustomAgent({ display_name: 'Local Test Agent', executable_path: '/tmp/local-agent' });
   await patchCustomAgent('custom-local-test', { enabled: false });
   await deleteCustomAgent('custom-local-test');
+  await updateCanonicalExecutableSource('codex-cli', { mode: 'auto', configured_path: null, expected_revision: 3 });
+  await updateCanonicalActivityLogSource('codex-cli', { mode: 'auto', configured_data_roots: [], expected_revision: 4 });
 
   assert.deepEqual(calls.map((call) => [call.url, call.options.method || 'GET']), [
     ['/api/health', 'GET'],
@@ -277,6 +287,8 @@ test('agent detection and daily scheduler API helpers call Core endpoints', asyn
     ['/api/agents/custom', 'POST'],
     ['/api/agents/custom/custom-local-test', 'PATCH'],
     ['/api/agents/custom/custom-local-test', 'DELETE'],
+    ['/api/agents/codex-cli/executable-source', 'PUT'],
+    ['/api/agents/codex-cli/activity-log-source', 'PUT'],
   ]);
 
   globalThis.fetch = originalFetch;

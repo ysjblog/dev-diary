@@ -263,7 +263,13 @@ const DOC_SCAN_CONTENT_BYTES = 80_000;
 const DOC_SCAN_MAX_FOLDER_FILES = 120;
 const SKIPPED_DOC_DIRS = new Set(['.git', 'node_modules', 'dist', 'build', '.next', '.cache', 'coverage']);
 
-function readProjectDoc(name: string, path: string): { name: string; content: string } | null {
+function logicalProjectDocPath(name: string): string | null {
+  const parts = name.replace(/\\/g, '/').split('/');
+  if (!name || name.startsWith('/') || parts.some((part) => !part || part === '.' || part === '..' || part.includes('\0'))) return null;
+  return parts.join('/');
+}
+
+function readProjectDoc(name: string, path: string): { name: string; content: string; updated_at: string } | null {
   let stat;
   try {
     stat = statSync(path);
@@ -274,7 +280,9 @@ function readProjectDoc(name: string, path: string): { name: string; content: st
   try {
     const content = readFileSync(path, 'utf8').slice(0, DOC_SCAN_CONTENT_BYTES);
     if (content.includes('\0')) return null;
-    return { name, content };
+    const logicalName = logicalProjectDocPath(name);
+    if (!logicalName) return null;
+    return { name: logicalName, content, updated_at: stat.mtime.toISOString() };
   } catch {
     return null;
   }
@@ -316,8 +324,8 @@ function collectFolderDocs(projectRoot: string, folder: string): Array<{ name: s
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function scanProjectDocs(project: ScannableProject, filenames: string[] = [], folders: string[] = []): Array<{ name: string; content: string }> {
-  const docs: Array<{ name: string; content: string }> = [];
+function scanProjectDocs(project: ScannableProject, filenames: string[] = [], folders: string[] = []): Array<{ name: string; content: string; updated_at: string }> {
+  const docs: Array<{ name: string; content: string; updated_at: string }> = [];
   const seen = new Set<string>();
   for (const filename of filenames) {
     const path = safeProjectDocPath(project.root_path, filename);
@@ -341,7 +349,7 @@ function scanProjectDocs(project: ScannableProject, filenames: string[] = [], fo
   return docs;
 }
 
-function replaceProjectDocs(db: DB, projectId: number, docs: Array<{ name: string; content: string }>, timestamp: string): void {
+function replaceProjectDocs(db: DB, projectId: number, docs: Array<{ name: string; content: string; updated_at: string }>, timestamp: string): void {
   if (docs.length === 0) return;
   db.prepare(`DELETE FROM project_docs WHERE project_id = ?`).run(projectId);
   const insert = db.prepare(
@@ -349,7 +357,7 @@ function replaceProjectDocs(db: DB, projectId: number, docs: Array<{ name: strin
      VALUES (?, ?, ?, ?)`,
   );
   for (const doc of docs) {
-    insert.run(projectId, doc.name, doc.content, timestamp);
+    insert.run(projectId, doc.name, doc.content, doc.updated_at || timestamp);
   }
 }
 

@@ -2,9 +2,11 @@ import type { DB } from '../db/index.js';
 import type { DailySchedulerRunResult } from './dailyScheduler.js';
 import { DailySchedulerRuntime, type DailySchedulerRuntimeOptions } from './dailyScheduler.js';
 import { createAntigravityProbe, usesAntigravityProvider } from './antigravitySession.js';
+import { resolveCanonicalActivityDataRoots } from './agentDetection.js';
 import { createConfiguredScanProvider, runManualScan, type ManualScanResult, type ScanProvider } from './scans.js';
 import {
   getSettings,
+  recordScanOperation,
   updateDailySchedulerState,
   type AppSettings,
   type SettingsRuntimeDefaults,
@@ -30,6 +32,11 @@ export interface BackgroundCycleResult {
 }
 
 const MIN_BACKGROUND_INTERVAL_MS = 60_000;
+
+export function backgroundStartupDelayMs(raw = process.env.DEVDIARY_BACKGROUND_START_DELAY_MS): number {
+  const value = Number(raw ?? 0);
+  return Number.isFinite(value) ? Math.min(Math.max(Math.floor(value), 0), 120_000) : 0;
+}
 
 function nowIso(now: Date): string {
   return now.toISOString();
@@ -64,6 +71,8 @@ function scanProviderFor(settings: AppSettings, injected?: ScanProvider): ScanPr
     DEVDIARY_DB: settings.data_storage.active_db_path,
     DEVDIARY_SCAN_PROVIDER: settings.scan_provider.provider,
     DEVDIARY_SCAN_FALLBACK: settings.scan_provider.fallback,
+  }, {
+    dataRoots: Object.fromEntries(settings.agents.map((agent) => [agent.id, resolveCanonicalActivityDataRoots(agent.id, agent.sources)])),
   });
 }
 
@@ -77,6 +86,23 @@ export async function runBackgroundCycle(
   const settings = getSettings(db, runtimeDefaults);
   const base = cycleResultBase(settings, started);
   const completed = () => nowIso(new Date());
+  const operation = recordScanOperation(db, runtimeDefaults, {
+    phase: 'start',
+    scope: 'background',
+    started_at: base.started_at,
+  }).operation;
+  const persistResult = (result: BackgroundCycleResult): BackgroundCycleResult => {
+    const state = recordScanOperation(db, runtimeDefaults, {
+      phase: 'finish',
+      operation,
+      completed_at: result.completed_at,
+      status: result.status,
+      error: result.error_message,
+      scanned_projects: result.scan?.scanned_projects.length ?? 0,
+      inserted_sessions: result.scan?.inserted_sessions ?? 0,
+    }).settings.background_scan;
+    return { ...result, next_interval_ms: state.next_interval_ms ?? result.next_interval_ms };
+  };
 
   const today = dateInTaipei(started);
   const projectRoots = settings.project_roots.length > 0 ? settings.project_roots : runtimeDefaults.projectRoots;
@@ -101,7 +127,7 @@ export async function runBackgroundCycle(
       },
       runtimeDefaults,
     );
-    return {
+    return persistResult({
       ...base,
       status: 'failed',
       completed_at: completed(),
@@ -110,7 +136,7 @@ export async function runBackgroundCycle(
       message: 'Background scan failed before diary generation.',
       antigravity_skipped: false,
       error_message: scan.error_message,
-    };
+    });
   }
 
   // agy session 健康檢查:失效就整輪跳過 agy 呼叫改用 deterministic fallback,
@@ -137,7 +163,7 @@ export async function runBackgroundCycle(
   const diary = await scheduler.tick(started);
   const failed = diary.status === 'failed';
   const skipNote = antigravitySkipped ? ' (Antigravity 未登入,本輪已跳過 AI 改用 fallback)' : '';
-  return {
+  return persistResult({
     ...base,
     status: failed ? 'failed' : 'success',
     completed_at: completed(),
@@ -150,7 +176,7 @@ export async function runBackgroundCycle(
         : 'Background scan completed; daily diary did not run on this interval.') + skipNote,
     antigravity_skipped: antigravitySkipped,
     error_message: diary.error_message,
-  };
+  });
 }
 
 export function formatBackgroundCycleLog(result: BackgroundCycleResult): string {

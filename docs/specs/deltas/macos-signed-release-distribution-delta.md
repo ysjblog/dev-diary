@@ -21,8 +21,8 @@
 - GitHub workflow 不需要 Apple certificate 或 notarization secret；build → mounted verifier → checksum → upload 的順序 fail closed。
 - README 明確說明這是未經 Developer ID 驗證的手動允許流程，並禁止建議移除 quarantine。
 - Packaged Core 不再把 Node 固定為單一 Homebrew Node 22 路徑；正式包優先使用 bundled Node 22.23.1，明確 `DEVDIARY_NODE_BIN` 與 GUI process PATH 僅作 fallback，並將實際選用 runtime 寫入 Core log。
-- Release verifier 除確認背景圖檔存在外，還必須確認 Finder `.DS_Store` 實際引用該背景，避免白底 DMG 誤通過。
-- 因為 CI 與 macOS 26 無法可靠以 Finder AppleScript 建立 metadata，改由固定版本的 `ds-store`／`mac-alias` build-time helper 直接產生 `.DS_Store`。
+- Release verifier 除確認背景圖檔存在外，還必須確認 Finder `.DS_Store` 實際引用該背景，並拒絕依賴 build-time 暫存 mount path 的 alias，避免白底 DMG 誤通過。
+- 保留 Tauri/create-dmg 產生的可攜式 Finder metadata；不得用 writable staging DMG 的絕對暫存路徑重建 background alias，因為重新掛載後該路徑不存在。
 - 在乾淨 CI dependency tree 中，outer `codesign --deep` 不保證會簽署 optional native modules；改為先逐一簽署所有 Mach-O，再完成 outer app seal。
 - 公開 Apple Silicon DMG 帶入經 SHA-256 驗證的官方 Node 22.23.1 runtime；Tauri 優先使用 bundle runtime，避免使用者現有 Node 與 `better-sqlite3` ABI 不一致。
 
@@ -46,6 +46,7 @@
 - [x] GitHub workflow 只在 staging sign、mounted-DMG verifier 與 checksum 成功後上傳 DMG，並附上手動允許說明。
 - [x] 新裝置缺少 `/opt/homebrew/opt/node@22/bin/node` 時，正式包會優先使用 bundled Node，不依賴使用者 PATH。
 - [x] 新 DMG 的 `.DS_Store` 實際引用 `dmg-background.png`；macOS 26 package、mounted verifier 與 Finder 黑箱檢查均已通過。
+- [x] Regression QA：重新掛載本輪 fresh DMG 後，Finder 顯示背景且 `.DS_Store` 不含 `devdiary-macos-release.*/mount` 暫存依賴。
 - [x] Release artifact 的 `CFBundleIdentifier` 為 `com.ysjblog.devdiary`，而非舊 private identifier。
 - [x] 乾淨 CI dependency tree 的每個 Mach-O（包括 optional native module）都通過 mounted signature verification。
 - [x] 在 MacBook Air 使用 bundled Node 22.23.1 產生可連線 `/api/health` 的 Core runtime。

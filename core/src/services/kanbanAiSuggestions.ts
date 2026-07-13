@@ -314,6 +314,7 @@ export function emptyKanbanAiSync(enabled: boolean, warnings: string[] = []): Ka
 }
 
 export function createConfiguredKanbanAiGenerator(settings: AppSettings): KanbanAiTextGenerator | null {
+  if (settings.default_diary_agent === 'claude-code') return null;
   const generator = createConfiguredDailySummaryAgent(settings);
   if (!generator) return null;
   return async (prompt) => {

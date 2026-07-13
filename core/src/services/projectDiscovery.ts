@@ -40,7 +40,9 @@ function projectMarker(path: string): { isProject: boolean; git: boolean } {
   const git = isDirectory(join(path, '.git'));
   if (git) return { isProject: true, git };
   return {
-    isProject: PROJECT_MARKERS.some((marker) => existsSync(join(path, marker))),
+    isProject:
+      PROJECT_MARKERS.some((marker) => existsSync(join(path, marker))) ||
+      existsSync(join(path, 'app', 'public', 'wp-config.php')),
     git,
   };
 }
@@ -56,7 +58,10 @@ function collectProjects(root: string, maxDepth: number): DiscoveredProject[] {
         seen.add(dir);
         discovered.push({ name: basename(dir), root_path: dir, git_repo_detected: marker.git });
       }
-      return;
+      // A configured root may also be a container repository (for example a
+      // Local Sites folder). Keep exploring its direct descendants, while a
+      // nested project remains a traversal boundary.
+      if (depth > 0) return;
     }
     if (depth >= maxDepth) return;
 
