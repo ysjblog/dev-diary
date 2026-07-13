@@ -42,7 +42,7 @@
 - Custom date range 用 proportional mock 常數 → 須聚合 persisted 資料。
 - Dashboard 與 Workspace range state 已拆分；Workspace selected-project range 已接 Core ranged snapshot。
 - Manual Scan / Project Rescan 已改走 Core API，且 repeated scan 以 stable source identity 去重；CLI provider 可解析 Claude Code / Codex CLI JSONL 與 Antigravity CLI glog / transcript metadata；app-facing runtime 無 matching logs 時不寫 mock records。
-- Project root discovery 已可從 configured roots upsert app-owned `projects` records；`npm start` 預設使用 persistent SQLite path；persistent 與 in-memory runtime 都只會掃明確設定的 `DEVDIARY_PROJECT_ROOTS`，不提供 repository 內的私人路徑 preset。
+- Project root discovery 已可從 configured roots upsert app-owned `projects` records；`npm start` 預設使用 persistent SQLite path；persistent 與 in-memory runtime 都只會掃明確設定的 `DEVDIARY_PROJECT_ROOTS`，不提供 repository 內的私人路徑 preset。每次 `scope: 'global'` scan（含每 5 分鐘一次的 background scan）都會重新對 configured roots 做一次 discovery，不是只在該 root 第一次出現時做一次性探索——`discoverProjectsFromRoots()` 是 idempotent 的（依 `root_path` insert-or-update），所以 root 底下事後新增的資料夾也會在下一次 global scan 被發現加入（見 `deltas/project-discovery-rescan-fix-delta.md`）。
 - Settings backend 已可用 `GET/PATCH /api/settings` 持久化 project roots、excluded paths、project docs filename allowlist、project docs folder full-scan rules、scan interval、default diary agent、agent model/reasoning preferences、AI prompt overrides、privacy、appearance、data storage desired path、scan provider policy 與 agent enabled state；`/api/scan` 會使用 persisted project roots 與 docs allowlist/folder rules。
 - Settings UI 已使用 Core settings snapshot 作為來源；React 只送 structured settings patch，不直接讀 SQLite、掃 project folders 或執行 configured path；agent enable/disable、model/reasoning 與 default diary agent 選擇集中在 CLI Agents 頁，避免 Settings 重複顯示同一組 agent controls。
 - Settings page 已重排為 Core runtime status-first 分組：頁首只保留不可編輯的 Runtime 狀態；Daily Scheduler、Storage 與其他可編輯設定集中在下方分組，不顯示不可互動的 capability chips。
@@ -61,6 +61,7 @@
 ## 變更歷史（delta 索引）
 
 - `deltas/background-kanban-ai-quota-fix-delta.md` — 移除 background cycle 每輪重複的 kanban AI，改由 daily scheduler 一天一次（implemented, branch fix/devdiary-background-agy-quota）
+- `deltas/project-discovery-rescan-fix-delta.md` — 修正 project root discovery 一次性節流 bug，讓 scan root 底下事後新增的資料夾能在下一次 global scan 被發現（implemented, branch fix/project-discovery-throttle）
 
 - `deltas/ui-scaffold-delta.md` — UI 移植骨架（implemented）
 - `deltas/core-engine-dashboard-delta.md` — Core Engine + Dashboard 聚合 API（implemented, branch feature/core-engine）
