@@ -35,6 +35,22 @@ interface SharedCodexIndex {
   warningsReported: boolean;
 }
 
+interface AntigravityLogEntry {
+  workspaceDirsAll: string[];
+  model: string;
+  conversationId: string;
+  firstTime: string;
+  lastTime: string | null;
+  completedTime: string | null;
+}
+
+interface SharedAntigravityIndex {
+  entries: AntigravityLogEntry[];
+  roots: string[];
+  warnings: ParserWarning[];
+  warningsReported: boolean;
+}
+
 interface JsonObject {
   [key: string]: unknown;
 }
@@ -459,10 +475,10 @@ function transcriptTimes(opts: Required<CliLogParserOptions>, roots: string[], c
   return { start, end, exists: true };
 }
 
-function parseAntigravity(project: ScannableProject, opts: Required<CliLogParserOptions>, warnings: ParserWarning[]): ScanSessionCandidate[] {
+function parseAntigravityIndex(opts: Required<CliLogParserOptions>, warnings: ParserWarning[]): { entries: AntigravityLogEntry[]; roots: string[] } {
   const roots = usableDataRoots(opts, 'antigravity-cli', warnings);
   const files = roots.flatMap((root) => sortedLogFiles(join(root, 'log'), opts.maxFilesPerProject, warnings, 'antigravity-cli'));
-  const sessions: ScanSessionCandidate[] = [];
+  const entries: AntigravityLogEntry[] = [];
 
   for (const file of files) {
     let content = '';
@@ -478,7 +494,7 @@ function parseAntigravity(project: ScannableProject, opts: Required<CliLogParser
       continue;
     }
 
-    let workspaceMatches = false;
+    const workspaceDirsAll: string[] = [];
     let model = 'unknown';
     let conversationId: string | null = null;
     let firstTime: string | null = null;
@@ -493,7 +509,7 @@ function parseAntigravity(project: ScannableProject, opts: Required<CliLogParser
       }
 
       const workspace = line.match(/workspaceDirs=\[([^\]]*)\]/)?.[1];
-      if (workspace && workspace.includes(project.root_path)) workspaceMatches = true;
+      if (workspace) workspaceDirsAll.push(workspace);
 
       const printModel = line.match(/Print mode: starting .*model="([^"]+)"/)?.[1];
       if (printModel) model = printModel;
@@ -505,14 +521,36 @@ function parseAntigravity(project: ScannableProject, opts: Required<CliLogParser
       if (conversationId && line.includes(`Stream completed for ${conversationId}`) && ts) completedTime = ts;
     }
 
-    if (!workspaceMatches || !conversationId || !firstTime) continue;
+    if (!conversationId || !firstTime) continue;
+    entries.push({ workspaceDirsAll, model, conversationId, firstTime, lastTime, completedTime });
+  }
 
+  return { entries, roots };
+}
+
+function parseAntigravity(
+  project: ScannableProject,
+  opts: Required<CliLogParserOptions>,
+  warnings: ParserWarning[],
+  sharedIndex?: SharedAntigravityIndex,
+): ScanSessionCandidate[] {
+  const { entries, roots } = sharedIndex ?? parseAntigravityIndex(opts, warnings);
+  if (sharedIndex && !sharedIndex.warningsReported) {
+    warnings.push(...sharedIndex.warnings);
+    sharedIndex.warningsReported = true;
+  }
+
+  const sessions: ScanSessionCandidate[] = [];
+  for (const entry of entries) {
+    if (!entry.workspaceDirsAll.some((workspace) => workspace.includes(project.root_path))) continue;
+
+    const conversationId = entry.conversationId;
     const transcript = transcriptTimes(opts, roots, conversationId, warnings);
-    const startTime = transcript.start ?? firstTime;
-    const endTime = transcript.end ?? completedTime ?? lastTime ?? startTime;
+    const startTime = transcript.start ?? entry.firstTime;
+    const endTime = transcript.end ?? entry.completedTime ?? entry.lastTime ?? startTime;
     const candidate: ScanSessionCandidate = {
       agent_name: 'antigravity-cli',
-      model,
+      model: entry.model,
       start_time: startTime,
       end_time: endTime,
       token_total: 0,
@@ -545,14 +583,17 @@ function parseProjectCliLogsWithIndex(
   project: ScannableProject,
   options: CliLogParserOptions = {},
   sharedCodexIndex?: SharedCodexIndex,
+  sharedAntigravityIndex?: SharedAntigravityIndex,
 ): ParsedProjectScanCandidate {
   const opts: Required<CliLogParserOptions> = {
     ...normalizedOptions(options),
   };
   const warnings: ParserWarning[] = [];
-  const sessions = [...parseClaude(project, opts, warnings), ...parseCodex(project, opts, warnings, sharedCodexIndex), ...parseAntigravity(project, opts, warnings)].sort((a, b) =>
-    a.start_time.localeCompare(b.start_time),
-  );
+  const sessions = [
+    ...parseClaude(project, opts, warnings),
+    ...parseCodex(project, opts, warnings, sharedCodexIndex),
+    ...parseAntigravity(project, opts, warnings, sharedAntigravityIndex),
+  ].sort((a, b) => a.start_time.localeCompare(b.start_time));
 
   return {
     sessions,
@@ -568,6 +609,7 @@ export function parseProjectCliLogs(project: ScannableProject, options: CliLogPa
 
 export function createCliLogScanProvider(options: CliLogScanProviderOptions = {}): ScanProvider {
   let sharedCodexIndex: SharedCodexIndex | null = null;
+  let sharedAntigravityIndex: SharedAntigravityIndex | null = null;
   const getSharedCodexIndex = (): SharedCodexIndex => {
     if (!sharedCodexIndex) {
       const warnings: ParserWarning[] = [];
@@ -579,9 +621,17 @@ export function createCliLogScanProvider(options: CliLogScanProviderOptions = {}
     }
     return sharedCodexIndex;
   };
+  const getSharedAntigravityIndex = (): SharedAntigravityIndex => {
+    if (!sharedAntigravityIndex) {
+      const warnings: ParserWarning[] = [];
+      const { entries, roots } = parseAntigravityIndex(normalizedOptions(options), warnings);
+      sharedAntigravityIndex = { entries, roots, warnings, warningsReported: false };
+    }
+    return sharedAntigravityIndex;
+  };
   return {
     scanProject(project, today) {
-      const parsed = parseProjectCliLogsWithIndex(project, options, getSharedCodexIndex());
+      const parsed = parseProjectCliLogsWithIndex(project, options, getSharedCodexIndex(), getSharedAntigravityIndex());
       if (parsed.sessions.length > 0 || options.fallbackProvider === null || !options.fallbackProvider) return parsed;
       const fallback = options.fallbackProvider.scanProject(project, today);
       return {

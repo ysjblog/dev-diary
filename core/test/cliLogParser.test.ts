@@ -435,6 +435,45 @@ describe('CLI log parser scan provider', () => {
       expect(malformedCodexWarnings).toHaveLength(1);
     });
 
+    it('global scan 對多個 projects 共用同一份 Antigravity index，避免重複讀取與重複 warning', () => {
+      const secondProjectRoot = join(root, 'Second Project');
+      mkdirSync(secondProjectRoot, { recursive: true });
+      writeFileSync(join(secondProjectRoot, 'README.md'), '# Second\n');
+      db.prepare(`UPDATE projects SET root_path = ? WHERE id = 2`).run(secondProjectRoot);
+
+      const firstConversationId = writeAntigravityFixtures(homeDir, projectRoot);
+
+      const secondConversationId = 'agy-conversation-2';
+      const logDir = join(homeDir, '.gemini', 'antigravity-cli', 'log');
+      writeFileSync(
+        join(logDir, 'cli-20260628_130000.log'),
+        [
+          'I0628 13:00:00.100000 12345 resolver.go:111] Model resolved via default',
+          `I0628 13:00:01.200000 12345 server.go:216] Creating CLI server backend: product=antigravity workspaceDirs=[${secondProjectRoot}] appDataDir=${homeDir}/.gemini/antigravity-cli cascadeManager=true codeAssist=true`,
+          'I0628 13:00:01.300000 12345 printmode.go:82] Print mode: starting (promptLength=99, model="Gemini 3.5 Flash (High)", conversationID="")',
+          `I0628 13:00:03.500000 12345 server.go:800] Created conversation ${secondConversationId}`,
+          `I0628 13:01:10.600000 12345 conversation_manager.go:589] Stream completed for ${secondConversationId}, clearing ResponsePending`,
+        ].join('\n'),
+      );
+
+      const outsideLog = join(root, 'outside-antigravity.log');
+      writeFileSync(outsideLog, 'not a real antigravity log');
+      symlinkSync(outsideLog, join(logDir, 'cli-99999999_000000-link.log'));
+
+      const result = runManualScan(db, { scope: 'global', today: TODAY, provider: createCliLogScanProvider({ homeDir }) });
+      const symlinkWarnings = result.warnings.filter((warning) => warning.agent_name === 'antigravity-cli' && warning.kind === 'symlink_escape');
+
+      expect(result.status).toBe('success');
+      expect(result.scanned_projects).toEqual(expect.arrayContaining([1, 2]));
+      expect(symlinkWarnings).toHaveLength(1);
+
+      const project1 = getProjectDetail(db, 1, TODAY)!;
+      const project2 = getProjectDetail(db, 2, TODAY)!;
+      expect(project1.sessions.map((session) => session.source_log_ref)).toContain(`antigravity-cli://${firstConversationId}`);
+      expect(project2.sessions.map((session) => session.source_log_ref)).toContain(`antigravity-cli://${secondConversationId}`);
+      expect(project2.sessions.map((session) => session.source_log_ref)).not.toContain(`antigravity-cli://${firstConversationId}`);
+    });
+
     it('re-scan 會回填舊版 zero-token Codex session，但不重複新增 session', () => {
       const provider = createCliLogScanProvider({ homeDir });
       db.prepare(
