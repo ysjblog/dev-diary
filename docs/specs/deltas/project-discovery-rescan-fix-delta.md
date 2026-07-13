@@ -2,7 +2,7 @@
 
 > PR: fix/project-discovery-throttle
 > Date: 2026-07-13
-> Status: implemented
+> Status: merged
 
 ## 新增（Added）
 

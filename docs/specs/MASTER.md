@@ -61,7 +61,7 @@
 ## 變更歷史（delta 索引）
 
 - `deltas/background-kanban-ai-quota-fix-delta.md` — 移除 background cycle 每輪重複的 kanban AI，改由 daily scheduler 一天一次（implemented, branch fix/devdiary-background-agy-quota）
-- `deltas/project-discovery-rescan-fix-delta.md` — 修正 project root discovery 一次性節流 bug，讓 scan root 底下事後新增的資料夾能在下一次 global scan 被發現（implemented, branch fix/project-discovery-throttle）
+- `deltas/project-discovery-rescan-fix-delta.md` — 修正 project root discovery 一次性節流 bug，讓 scan root 底下事後新增的資料夾能在下一次 global scan 被發現（merged, branch fix/project-discovery-throttle）
 
 - `deltas/ui-scaffold-delta.md` — UI 移植骨架（implemented）
 - `deltas/core-engine-dashboard-delta.md` — Core Engine + Dashboard 聚合 API（implemented, branch feature/core-engine）
