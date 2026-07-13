@@ -210,21 +210,6 @@ function projectRows(db: DB, scope: ScanScope, projectId?: number): ScannablePro
   );
 }
 
-function rootContainsProject(root: string, projectPath: string): boolean {
-  const normalizedRoot = root.trim().replace(/\/+$/, '');
-  const normalizedProject = projectPath.trim();
-  if (!normalizedRoot || !normalizedProject) return false;
-  return normalizedProject === normalizedRoot || normalizedProject.startsWith(`${normalizedRoot}/`);
-}
-
-function shouldDiscoverProjectRoots(db: DB, roots: string[]): boolean {
-  const uniqueRoots = Array.from(new Set(roots.map((root) => root.trim()).filter(Boolean)));
-  if (uniqueRoots.length === 0) return false;
-  const existing = (db.prepare(`SELECT root_path FROM projects`).all() as Array<{ root_path: string }>).map((row) => row.root_path);
-  if (existing.length === 0) return true;
-  return uniqueRoots.some((root) => !existing.some((projectPath) => rootContainsProject(root, projectPath)));
-}
-
 function toProject(row: Record<string, unknown>): ScannableProject {
   return {
     id: Number(row.id),
@@ -505,7 +490,7 @@ export function upsertKanbanCandidate(
 export function runManualScan(db: DB, opts: ManualScanOptions): ManualScanResult {
   const startedAt = nowIso();
   const provider = opts.provider ?? defaultProvider();
-  if (opts.scope === 'global' && opts.projectRoots?.length && shouldDiscoverProjectRoots(db, opts.projectRoots)) {
+  if (opts.scope === 'global' && opts.projectRoots?.length) {
     discoverProjectsFromRoots(db, opts.projectRoots, { now: startedAt });
   }
   const projects = projectRows(db, opts.scope, opts.projectId);

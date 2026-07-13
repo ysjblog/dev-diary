@@ -8,10 +8,14 @@ import { seedDatabase } from '../src/db/seed.js';
 import { createServer } from '../src/server.js';
 import { discoverProjectsFromRoots } from '../src/services/projectDiscovery.js';
 import { createCliLogScanProvider, escapeClaudeProjectPath } from '../src/services/cliLogParser.js';
-import { runManualScan } from '../src/services/scans.js';
+import { createConfiguredScanProvider, runManualScan, type ScanProvider } from '../src/services/scans.js';
 
 const TODAY = '2026-06-28';
 const roots: string[] = [];
+
+function mockScanProvider(): ScanProvider {
+  return createConfiguredScanProvider({ DEVDIARY_SCAN_PROVIDER: 'mock' });
+}
 
 function tempRoot(): string {
   const root = mkdtempSync(join(tmpdir(), 'devdiary-project-discovery-'));
@@ -141,7 +145,7 @@ describe('Project root discovery', () => {
     expect(sessionCount).toBe(1);
   });
 
-  it('global scan 對已追蹤 root 直接掃 known projects，避免每次更新都重新 discovery', () => {
+  it('global scan 在已追蹤 root 底下新增的 sibling 資料夾，仍會在下一次掃描被發現加入', () => {
     const db = freshDb();
     const root = tempRoot();
     const homeDir = join(root, 'home');
@@ -163,7 +167,29 @@ describe('Project root discovery', () => {
     expect(result.status).toBe('success');
     expect(result.scanned_projects).toContain(1);
     expect(result.inserted_sessions).toBe(1);
-    expect(discoveredSibling).toBeUndefined();
+    expect(discoveredSibling).toBeTruthy();
+  });
+
+  it('root 底下已有多個追蹤中的專案時，新增的資料夾仍會在下一次 global scan 被發現，且不會重複 insert 既有專案', () => {
+    const db = freshDb();
+    const root = tempRoot();
+    const projectX = initRepo(root, 'ProjectX');
+
+    const first = runManualScan(db, { scope: 'global', today: TODAY, provider: mockScanProvider(), projectRoots: [root] });
+    expect(projectCount(db, projectX)).toBe(1);
+    expect(first.status).toBe('success');
+
+    const projectY = initRepo(root, 'ProjectY');
+    const second = runManualScan(db, { scope: 'global', today: TODAY, provider: mockScanProvider(), projectRoots: [root] });
+
+    expect(second.status).toBe('success');
+    expect(projectCount(db, projectY)).toBe(1);
+    expect(projectCount(db, projectX)).toBe(1);
+
+    const third = runManualScan(db, { scope: 'global', today: TODAY, provider: mockScanProvider(), projectRoots: [root] });
+    expect(third.status).toBe('success');
+    expect(projectCount(db, projectX)).toBe(1);
+    expect(projectCount(db, projectY)).toBe(1);
   });
 
   it('POST /api/scan 回傳 discovered projects 與 refreshed snapshots', async () => {
