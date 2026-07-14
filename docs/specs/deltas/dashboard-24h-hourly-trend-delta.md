@@ -1,7 +1,7 @@
 # Delta Spec: Dashboard 近24小時趨勢圖改用小時分桶
 > PR: fix/dashboard-24h-hourly-trend
 > Date: 2026-07-14
-> Status: open
+> Status: merged
 
 ## 背景 / 問題
 
@@ -35,9 +35,9 @@ Dashboard 首頁「Token 消耗量趨勢」圖表在 `近24小時` 篩選下，�
 
 ## 驗收條件
 
-- [ ] 近24小時篩選下，趨勢圖顯示多個時間點（最多 24 個小時 bucket），不再是單一水平線（除非當天完全無資料）。
-- [ ] 近24小時 bucket 的 token 總和等於目前（改動前）該日單一 bucket 的 token 總和（不會因為換資料來源而算錯總量）。
-- [ ] 7d / 1m / custom / all range 的趨勢圖行為與改動前完全一致（無 regression）。
-- [ ] `core/test/dashboard.test.ts` 新增 24h 小時分桶測試案例並通過。
-- [ ] `src/api/dashboard.test.js` 新增小時級 `bucket_start` 的 X 軸 label 格式化測試並通過。
-- [ ] 手動於 Dashboard 頁面切換「近24小時」/「近7天」/「近1個月」，截圖確認趨勢線與各時間篩選皆正常。
+- [x] 近24小時篩選下，趨勢圖顯示多個時間點（最多 24 個小時 bucket），不再是單一水平線（除非當天完全無資料）。
+- [x] 近24小時 bucket 的 token 總和等於目前（改動前）該日單一 bucket 的 token 總和（不會因為換資料來源而算錯總量）。
+- [x] 7d / 1m / custom / all range 的趨勢圖行為與改動前完全一致（無 regression）。
+- [x] `core/test/dashboard.test.ts` 新增 24h 小時分桶測試案例並通過。
+- [x] `src/api/dashboard.test.js` 新增小時級 `bucket_start` 的 X 軸 label 格式化測試並通過。
+- [x] 手動於 Dashboard 頁面切換「近24小時」/「近7天」/「近1個月」，截圖確認趨勢線與各時間篩選皆正常（見 `doc/test/dashboard-24h-hourly-trend-qa-report.md`，Black-box QA PASS）。
