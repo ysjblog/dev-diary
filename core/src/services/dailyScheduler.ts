@@ -56,21 +56,26 @@ export interface DailySchedulerRuntimeOptions {
   now?: () => Date;
 }
 
-function partsInTaipei(now: Date): { date: string; minutes: number } {
+// Wall-clock minutes-of-day in Asia/Taipei, used only to gate run_time_local (spec:
+// the scheduler's trigger time is a Taipei wall clock, independent of the record date below).
+function minutesInTaipei(now: Date): number {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Taipei',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
   }).formatToParts(now);
   const value = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
-  return {
-    date: `${value('year')}-${value('month')}-${value('day')}`,
-    minutes: Number(value('hour')) * 60 + Number(value('minute')),
-  };
+  return Number(value('hour')) * 60 + Number(value('minute'));
+}
+
+// Record date must match the UTC anchor every other endpoint queries by (server.ts
+// todayUTC()); using a Taipei-anchored date here caused Run Now, during the
+// Taipei-midnight-to-8am window, to stamp daily_logs/project drafts with tomorrow's
+// date relative to the dashboard's UTC "today" — the AI Global Summary looked like it
+// never ran even though it had (it was just filed a day ahead of where the UI looked).
+function todayUTC(now: Date): string {
+  return now.toISOString().slice(0, 10);
 }
 
 function runTimeMinutes(value: string): number {
@@ -247,7 +252,7 @@ export class DailySchedulerRuntime {
 
   async runNow(input: { force?: boolean; now?: Date; preflight?: SchedulerPreflightResult } = {}): Promise<DailySchedulerRunResult> {
     const now = input.now ?? this.options.now?.() ?? new Date();
-    const { date } = partsInTaipei(now);
+    const date = todayUTC(now);
     if (this.running) {
       return {
         status: 'running',
@@ -375,10 +380,10 @@ export class DailySchedulerRuntime {
   async tick(now: Date = this.options.now?.() ?? new Date()): Promise<DailySchedulerRunResult> {
     const runtime = this.runtime();
     const settings = getSettings(this.db, runtime);
-    const taipei = partsInTaipei(now);
-    if (!settings.daily_scheduler.enabled) return this.skipResult(taipei.date, 'Daily scheduler is disabled.');
-    if (taipei.minutes < runTimeMinutes(settings.daily_scheduler.run_time_local)) {
-      return this.skipResult(taipei.date, 'Daily scheduler run time has not arrived.');
+    const date = todayUTC(now);
+    if (!settings.daily_scheduler.enabled) return this.skipResult(date, 'Daily scheduler is disabled.');
+    if (minutesInTaipei(now) < runTimeMinutes(settings.daily_scheduler.run_time_local)) {
+      return this.skipResult(date, 'Daily scheduler run time has not arrived.');
     }
     return this.runNow({ force: false, now });
   }
