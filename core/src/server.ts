@@ -181,7 +181,7 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
       DEVDIARY_SCAN_FALLBACK: settings.scan_provider.fallback,
     }, {
       dataRoots: Object.fromEntries(settings.agents.map((agent) => [agent.id, resolveCanonicalActivityDataRoots(agent.id, agent.sources)])),
-    });
+    }, db);
   };
   const detectConfiguredAgents = async (): Promise<AgentDetectionSnapshot> => {
     if (opts.agentDetector) return opts.agentDetector();

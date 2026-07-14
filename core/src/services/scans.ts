@@ -3,6 +3,7 @@ import { basename, join, normalize, relative, sep } from 'node:path';
 import type { DB } from '../db/index.js';
 import type { KanbanAiSyncResult } from '../domain/types.js';
 import { createCliLogScanProvider, type CliLogParserOptions } from './cliLogParser.js';
+import { createSqliteFileScanCache } from './logFileScanCache.js';
 import { synthesizeProjectKanban } from './kanbanSynthesis.js';
 import { discoverProjectsFromRoots } from './projectDiscovery.js';
 
@@ -184,11 +185,13 @@ export function resolveScanProviderPolicy(env: ScanProviderEnv = process.env): S
 export function createConfiguredScanProvider(
   env: ScanProviderEnv = process.env,
   parserOptions: CliLogParserOptions = {},
+  db?: DB,
 ): ScanProvider {
   const policy = resolveScanProviderPolicy(env);
   if (policy.provider === 'mock') return mockProvider();
   return createCliLogScanProvider({
     ...parserOptions,
+    fileScanCache: parserOptions.fileScanCache ?? (db ? createSqliteFileScanCache(db) : undefined),
     fallbackProvider: policy.fallback === 'mock' ? mockProvider() : null,
   });
 }

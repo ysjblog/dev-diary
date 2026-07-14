@@ -121,6 +121,19 @@ CREATE TABLE IF NOT EXISTS project_summaries (
   ai_updated_at    TEXT,
   user_updated_at  TEXT
 );
+
+-- Per-file parse cache for CLI activity logs (spec: unlimited-retention scan).
+-- Keyed by (agent_name, file_path); a row is reused as long as mtime_ms still
+-- matches the file on disk, so full history can be scanned without re-reading
+-- every log file on every cycle.
+CREATE TABLE IF NOT EXISTS log_file_scan_cache (
+  agent_name   TEXT NOT NULL,
+  file_path    TEXT NOT NULL,
+  mtime_ms     REAL NOT NULL,
+  payload_json TEXT NOT NULL,
+  updated_at   TEXT NOT NULL,
+  PRIMARY KEY (agent_name, file_path)
+);
 `;
 
-export const SCHEMA_VERSION = '4';
+export const SCHEMA_VERSION = '5';

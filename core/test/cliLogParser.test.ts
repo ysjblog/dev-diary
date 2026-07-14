@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -7,6 +7,7 @@ import { openDb, type DB } from '../src/db/index.js';
 import { seedDatabase } from '../src/db/seed.js';
 import { createServer } from '../src/server.js';
 import { createCliLogScanProvider, escapeClaudeProjectPath, parseProjectCliLogs } from '../src/services/cliLogParser.js';
+import { createSqliteFileScanCache } from '../src/services/logFileScanCache.js';
 import { createConfiguredScanProvider, runManualScan } from '../src/services/scans.js';
 import { getProjectDetail } from '../src/services/projects.js';
 
@@ -563,6 +564,88 @@ describe('CLI log parser scan provider', () => {
       )?.redacted_log_excerpt;
       expect(agyExcerpt).not.toContain('raw prompt');
       expect(agyExcerpt).not.toContain('private chain of thought');
+    });
+
+    it('預設不限制檔案數，很久以前(mtime 很舊)的 Codex session 檔案仍會被掃描，不會被悄悄捨棄', () => {
+      const oldCodexDir = join(homeDir, '.codex', 'sessions', '2020', '01', '01');
+      mkdirSync(oldCodexDir, { recursive: true });
+      const oldTimestamps = ['2020-01-01T00-00-00', '2020-01-02T00-00-00', '2020-01-03T00-00-00'];
+      oldTimestamps.forEach((stamp, index) => {
+        const file = join(oldCodexDir, `rollout-${stamp}-codex-old-${index}.jsonl`);
+        writeJsonl(file, [
+          {
+            timestamp: `2020-01-0${index + 1}T00:00:00.000Z`,
+            type: 'session_meta',
+            payload: { id: `codex-old-${index}`, timestamp: `2020-01-0${index + 1}T00:00:00.000Z`, cwd: projectRoot },
+          },
+          {
+            timestamp: `2020-01-0${index + 1}T00:01:00.000Z`,
+            type: 'turn_context',
+            payload: { cwd: projectRoot, model: 'gpt-5-codex' },
+          },
+          {
+            timestamp: `2020-01-0${index + 1}T00:02:00.000Z`,
+            type: 'event_msg',
+            payload: { info: { total_token_usage: { input_tokens: 5, output_tokens: 1 } } },
+          },
+        ]);
+        const ancientMtime = new Date(`2020-01-0${index + 1}T00:00:00.000Z`);
+        utimesSync(file, ancientMtime, ancientMtime);
+      });
+
+      const parsed = parseProjectCliLogs({ id: 1, name: 'Demo Project', root_path: projectRoot, ignored: false, scan_paused: false }, { homeDir });
+      const codexRefs = parsed.sessions.filter((session) => session.agent_name === 'codex-cli').map((session) => session.source_log_ref);
+
+      expect(codexRefs).toEqual(
+        expect.arrayContaining(['codex-cli://codex-session-1', 'codex-cli://codex-old-0', 'codex-cli://codex-old-1', 'codex-cli://codex-old-2']),
+      );
+    });
+
+    it('提供 SQLite-backed fileScanCache 時，重複 scan（各自建立新 provider，模擬不同 scan cycle）會把結果快取進 log_file_scan_cache，且結果與未快取時一致', () => {
+      writeAntigravityFixtures(homeDir, projectRoot);
+      const fileScanCache = createSqliteFileScanCache(db);
+
+      const first = runManualScan(db, { scope: 'project', projectId: 1, today: TODAY, provider: createCliLogScanProvider({ homeDir, fileScanCache }) });
+      expect(first.status).toBe('success');
+      expect(first.inserted_sessions).toBe(3);
+
+      const cacheRowCount = (db.prepare(`SELECT COUNT(*) AS c FROM log_file_scan_cache`).get() as { c: number }).c;
+      expect(cacheRowCount).toBeGreaterThan(0);
+
+      const before = counts(db, 1);
+      const second = runManualScan(db, { scope: 'project', projectId: 1, today: TODAY, provider: createCliLogScanProvider({ homeDir, fileScanCache }) });
+      const after = counts(db, 1);
+
+      expect(second.status).toBe('success');
+      expect(second.inserted_sessions).toBe(0);
+      expect(after).toEqual(before);
+    });
+
+    it('SQLite-backed fileScanCache 下，檔案內容與 mtime 一起變動後，下一輪 scan（新 provider，共用同一個 fileScanCache）會重新解析並反映新資料', () => {
+      const fileScanCache = createSqliteFileScanCache(db);
+      const codexFile = join(homeDir, '.codex', 'sessions', '2026', '06', '28', 'rollout-2026-06-28T11-00-00-codex-session-1.jsonl');
+
+      const first = runManualScan(db, { scope: 'project', projectId: 1, today: TODAY, provider: createCliLogScanProvider({ homeDir, fileScanCache }) });
+      expect(first.status).toBe('success');
+      const initialTotal = (
+        db.prepare(`SELECT token_total FROM sessions WHERE source_log_ref = 'codex-cli://codex-session-1'`).get() as { token_total: number }
+      ).token_total;
+      expect(initialTotal).toBe(115);
+
+      writeJsonl(codexFile, [
+        { timestamp: `${TODAY}T11:00:00.000Z`, type: 'session_meta', payload: { id: 'codex-session-1', timestamp: `${TODAY}T11:00:00.000Z`, cwd: projectRoot } },
+        { timestamp: `${TODAY}T11:01:00.000Z`, type: 'turn_context', payload: { cwd: projectRoot, model: 'gpt-5-codex' } },
+        { timestamp: `${TODAY}T11:05:00.000Z`, type: 'event_msg', payload: { info: { total_token_usage: { input_tokens: 900, output_tokens: 100 } } } },
+      ]);
+      const touchedMtime = new Date(Date.now() + 60_000);
+      utimesSync(codexFile, touchedMtime, touchedMtime);
+
+      const second = runManualScan(db, { scope: 'project', projectId: 1, today: TODAY, provider: createCliLogScanProvider({ homeDir, fileScanCache }) });
+      expect(second.status).toBe('success');
+      const updatedTotal = (
+        db.prepare(`SELECT token_total FROM sessions WHERE source_log_ref = 'codex-cli://codex-session-1'`).get() as { token_total: number }
+      ).token_total;
+      expect(updatedTotal).toBe(1000);
     });
   });
 

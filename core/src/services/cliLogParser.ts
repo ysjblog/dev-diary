@@ -3,6 +3,7 @@ import { accessSync, constants, existsSync, lstatSync, readdirSync, readFileSync
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
 import type { CanonicalAgentId } from '../domain/types.js';
+import { createInMemoryFileScanCache, type FileScanCache } from './logFileScanCache.js';
 import type { ProjectScanCandidate, ScanProvider, ScanSessionCandidate, ScannableProject } from './scans.js';
 
 export type ParserWarningKind = 'malformed_jsonl' | 'unreadable_file' | 'missing_root' | 'unreadable_root' | 'invalid_data_root_layout' | 'symlink_escape' | 'symlink_cycle';
@@ -19,6 +20,7 @@ export interface CliLogParserOptions {
   homeDir?: string;
   maxFilesPerProject?: number;
   dataRoots?: Partial<Record<CanonicalAgentId, string[]>>;
+  fileScanCache?: FileScanCache;
 }
 
 export interface CliLogScanProviderOptions extends CliLogParserOptions {
@@ -71,7 +73,28 @@ interface SessionAccumulator {
   hasUsage: boolean;
 }
 
-const DEFAULT_MAX_FILES = 500;
+interface ClaudeFileSessionEntry {
+  sessionId: string;
+  cwd: string | null;
+  model: string;
+  start_time: string | null;
+  end_time: string | null;
+  token_input: number;
+  token_cached: number;
+  token_output: number;
+  token_reasoning: number;
+  hasUsage: boolean;
+}
+
+interface ScannedFile {
+  path: string;
+  mtimeMs: number;
+}
+
+// DevDiary is a records-first app: history must stay scannable no matter how
+// old it is, so this is a defensive ceiling, not a real cap. Actual scan cost
+// is bounded by the per-file cache (opts.fileScanCache), not this number.
+const DEFAULT_MAX_FILES = Number.MAX_SAFE_INTEGER;
 
 export function escapeClaudeProjectPath(projectPath: string): string {
   return projectPath.replace(/[\/\s]+/g, '-').replace(/[^A-Za-z0-9.-]/g, '-');
@@ -165,9 +188,9 @@ function durationSeconds(start: string, end: string | null): number | null {
   return Math.round((endMs - startMs) / 1000);
 }
 
-function sortedJsonlFiles(dir: string, maxFiles: number, warnings?: ParserWarning[], agentName?: ParserWarning['agent_name']): string[] {
+function sortedJsonlFiles(dir: string, maxFiles: number, warnings?: ParserWarning[], agentName?: ParserWarning['agent_name']): ScannedFile[] {
   if (!existsSync(dir)) return [];
-  const out: Array<{ path: string; mtimeMs: number }> = [];
+  const out: ScannedFile[] = [];
   const visit = (current: string) => {
     let entries: string[] = [];
     try {
@@ -195,15 +218,12 @@ function sortedJsonlFiles(dir: string, maxFiles: number, warnings?: ParserWarnin
     }
   };
   visit(dir);
-  return out
-    .sort((a, b) => b.mtimeMs - a.mtimeMs || a.path.localeCompare(b.path))
-    .slice(0, maxFiles)
-    .map((entry) => entry.path);
+  return out.sort((a, b) => b.mtimeMs - a.mtimeMs || a.path.localeCompare(b.path)).slice(0, maxFiles);
 }
 
-function sortedLogFiles(dir: string, maxFiles: number, warnings?: ParserWarning[], agentName?: ParserWarning['agent_name']): string[] {
+function sortedLogFiles(dir: string, maxFiles: number, warnings?: ParserWarning[], agentName?: ParserWarning['agent_name']): ScannedFile[] {
   if (!existsSync(dir)) return [];
-  const out: string[] = [];
+  const out: ScannedFile[] = [];
   let entries: string[] = [];
   try {
     entries = readdirSync(dir).sort();
@@ -221,7 +241,7 @@ function sortedLogFiles(dir: string, maxFiles: number, warnings?: ParserWarning[
     }
     if (stat.isSymbolicLink()) {
       warnings?.push({ agent_name: agentName ?? 'antigravity-cli', kind: 'symlink_escape', source: `${agentName ?? 'agent'}:${basename(path)}`, message: 'Skipped symbolic link while scanning activity logs.' });
-    } else if (stat.isFile() && path.endsWith('.log')) out.push(path);
+    } else if (stat.isFile() && path.endsWith('.log')) out.push({ path, mtimeMs: stat.mtimeMs });
   }
   return out;
 }
@@ -282,21 +302,60 @@ function toCandidate(acc: SessionAccumulator): ScanSessionCandidate | null {
   };
 }
 
+function extractClaudeFileSessions(file: string, warnings: ParserWarning[]): ClaudeFileSessionEntry[] {
+  const sessions = new Map<string, ClaudeFileSessionEntry>();
+  for (const row of readJsonl(file, 'claude-code', warnings)) {
+    const sessionId = stringValue(row.sessionId) ?? stableId(file);
+    let entry = sessions.get(sessionId);
+    if (!entry) {
+      entry = { sessionId, cwd: null, model: 'unknown', start_time: null, end_time: null, token_input: 0, token_cached: 0, token_output: 0, token_reasoning: 0, hasUsage: false };
+      sessions.set(sessionId, entry);
+    }
+
+    const cwd = stringValue(row.cwd);
+    if (cwd) entry.cwd = cwd;
+    const ts = stringValue(row.timestamp);
+    if (ts && !Number.isNaN(Date.parse(ts))) {
+      if (!entry.start_time || ts < entry.start_time) entry.start_time = ts;
+      if (!entry.end_time || ts > entry.end_time) entry.end_time = ts;
+    }
+
+    const message = isObject(row.message) ? row.message : null;
+    const usage = message && isObject(message.usage) ? message.usage : null;
+    const model = message ? stringValue(message.model) : null;
+    if (model) entry.model = model;
+    if (!usage) continue;
+
+    entry.hasUsage = true;
+    entry.token_input += numberValue(usage.input_tokens);
+    entry.token_cached += numberValue(usage.cache_creation_input_tokens) + numberValue(usage.cache_read_input_tokens);
+    entry.token_output += numberValue(usage.output_tokens);
+    entry.token_reasoning += numberValue(usage.reasoning_tokens);
+  }
+  return Array.from(sessions.values());
+}
+
+function claudeFileSessions(file: ScannedFile, opts: Required<CliLogParserOptions>, warnings: ParserWarning[]): ClaudeFileSessionEntry[] {
+  const cached = opts.fileScanCache.get('claude-code', file.path, file.mtimeMs);
+  if (cached) return cached.payload as ClaudeFileSessionEntry[];
+  const entries = extractClaudeFileSessions(file.path, warnings);
+  opts.fileScanCache.set('claude-code', file.path, file.mtimeMs, entries);
+  return entries;
+}
+
 function parseClaude(project: ScannableProject, opts: Required<CliLogParserOptions>, warnings: ParserWarning[]): ScanSessionCandidate[] {
   const files = claudeProjectDirs(opts, project.root_path, warnings).flatMap((projectDir) => sortedJsonlFiles(projectDir, opts.maxFilesPerProject, warnings, 'claude-code'));
   const sessions = new Map<string, SessionAccumulator>();
 
   for (const file of files) {
-    for (const row of readJsonl(file, 'claude-code', warnings)) {
-      const cwd = stringValue(row.cwd);
-      if (cwd && cwd !== project.root_path) continue;
-      const sessionId = stringValue(row.sessionId) ?? stableId(file);
-      let acc = sessions.get(sessionId);
+    for (const entry of claudeFileSessions(file, opts, warnings)) {
+      if (entry.cwd && entry.cwd !== project.root_path) continue;
+      let acc = sessions.get(entry.sessionId);
       if (!acc) {
         acc = {
           agent_name: 'claude-code',
-          sessionId,
-          source_log_ref: `claude-code://${safeSourceToken(sessionId)}`,
+          sessionId: entry.sessionId,
+          source_log_ref: `claude-code://${safeSourceToken(entry.sessionId)}`,
           model: 'unknown',
           start_time: null,
           end_time: null,
@@ -308,21 +367,18 @@ function parseClaude(project: ScannableProject, opts: Required<CliLogParserOptio
           parser_confidence: 0.95,
           hasUsage: false,
         };
-        sessions.set(sessionId, acc);
+        sessions.set(entry.sessionId, acc);
       }
-      updateTimes(acc, row.timestamp);
-
-      const message = isObject(row.message) ? row.message : null;
-      const usage = message && isObject(message.usage) ? message.usage : null;
-      const model = message ? stringValue(message.model) : null;
-      if (model) acc.model = model;
-      if (!usage) continue;
+      if (entry.start_time && (!acc.start_time || entry.start_time < acc.start_time)) acc.start_time = entry.start_time;
+      if (entry.end_time && (!acc.end_time || entry.end_time > acc.end_time)) acc.end_time = entry.end_time;
+      if (entry.model !== 'unknown') acc.model = entry.model;
+      if (!entry.hasUsage) continue;
 
       acc.hasUsage = true;
-      acc.token_input += numberValue(usage.input_tokens);
-      acc.token_cached += numberValue(usage.cache_creation_input_tokens) + numberValue(usage.cache_read_input_tokens);
-      acc.token_output += numberValue(usage.output_tokens);
-      acc.token_reasoning += numberValue(usage.reasoning_tokens);
+      acc.token_input += entry.token_input;
+      acc.token_cached += entry.token_cached;
+      acc.token_output += entry.token_output;
+      acc.token_reasoning += entry.token_reasoning;
     }
   }
 
@@ -358,75 +414,92 @@ function setUsageTotals(acc: SessionAccumulator, usage: JsonObject): void {
   acc.token_reasoning = reasoning;
 }
 
+interface CodexFileResult {
+  cwd: string;
+  candidate: ScanSessionCandidate;
+}
+
+function parseCodexFile(file: string, warnings: ParserWarning[]): CodexFileResult | null {
+  const rows = readJsonl(file, 'codex-cli', warnings);
+  let sessionId: string | null = null;
+  let cwd: string | null = null;
+  let model = 'unknown';
+  let startTime: string | null = null;
+  let endTime: string | null = null;
+  const acc: SessionAccumulator = {
+    agent_name: 'codex-cli',
+    sessionId: stableId(file),
+    source_log_ref: `codex-cli://${stableId(file)}`,
+    model,
+    start_time: null,
+    end_time: null,
+    token_input: 0,
+    token_cached: 0,
+    token_output: 0,
+    token_reasoning: 0,
+    command: 'codex-cli',
+    parser_confidence: 0.55,
+    hasUsage: false,
+  };
+
+  for (const row of rows) {
+    updateTimes(acc, row.timestamp);
+    if (acc.start_time && (!startTime || acc.start_time < startTime)) startTime = acc.start_time;
+    if (acc.end_time && (!endTime || acc.end_time > endTime)) endTime = acc.end_time;
+
+    const payload = isObject(row.payload) ? row.payload : null;
+    const item = isObject(row.item) ? row.item : null;
+    if (row.type === 'session_meta' && payload) {
+      sessionId = stringValue(payload.id) ?? sessionId;
+      cwd = stringValue(payload.cwd) ?? cwd;
+      startTime = stringValue(payload.timestamp) ?? startTime;
+    }
+    if (row.type === 'turn_context' && payload) {
+      cwd = stringValue(payload.cwd) ?? cwd;
+      model = stringValue(payload.model) ?? model;
+    }
+    const payloadUsage = payload && isObject(payload.usage) ? payload.usage : null;
+    const itemUsage = item && isObject(item.usage) ? item.usage : null;
+    const info = payload && isObject(payload.info) ? payload.info : null;
+    const lastTokenUsage = info && isObject(info.last_token_usage) ? info.last_token_usage : null;
+    const totalTokenUsage = info && isObject(info.total_token_usage) ? info.total_token_usage : null;
+    if (payloadUsage) addUsage(acc, payloadUsage);
+    if (itemUsage) addUsage(acc, itemUsage);
+    if (lastTokenUsage) addUsage(acc, lastTokenUsage);
+    if (totalTokenUsage) setUsageTotals(acc, totalTokenUsage);
+  }
+
+  if (!cwd || !startTime) return null;
+  const stableSessionId = sessionId ?? stableId(file);
+  acc.sessionId = stableSessionId;
+  acc.source_log_ref = `codex-cli://${safeSourceToken(stableSessionId)}`;
+  acc.model = model;
+  acc.start_time = startTime;
+  acc.end_time = endTime ?? startTime;
+  acc.parser_confidence = acc.hasUsage ? 0.85 : 0.55;
+  const candidate = toCandidate(acc);
+  return candidate ? { cwd, candidate } : null;
+}
+
+function codexFileResult(file: ScannedFile, opts: Required<CliLogParserOptions>, warnings: ParserWarning[]): CodexFileResult | null {
+  const cached = opts.fileScanCache.get('codex-cli', file.path, file.mtimeMs);
+  if (cached) return cached.payload as CodexFileResult | null;
+  const result = parseCodexFile(file.path, warnings);
+  opts.fileScanCache.set('codex-cli', file.path, file.mtimeMs, result);
+  return result;
+}
+
 function parseCodexIndex(opts: Required<CliLogParserOptions>, warnings: ParserWarning[]): Map<string, ScanSessionCandidate[]> {
   const roots = usableDataRoots(opts, 'codex-cli', warnings).flatMap((root) => [join(root, 'sessions'), join(root, 'archived_sessions')]);
   const files = roots.flatMap((root) => sortedJsonlFiles(root, opts.maxFilesPerProject, warnings, 'codex-cli'));
   const sessionsByProject = new Map<string, ScanSessionCandidate[]>();
 
   for (const file of files) {
-    const rows = readJsonl(file, 'codex-cli', warnings);
-    let sessionId: string | null = null;
-    let cwd: string | null = null;
-    let model = 'unknown';
-    let startTime: string | null = null;
-    let endTime: string | null = null;
-    const acc: SessionAccumulator = {
-      agent_name: 'codex-cli',
-      sessionId: stableId(file),
-      source_log_ref: `codex-cli://${stableId(file)}`,
-      model,
-      start_time: null,
-      end_time: null,
-      token_input: 0,
-      token_cached: 0,
-      token_output: 0,
-      token_reasoning: 0,
-      command: 'codex-cli',
-      parser_confidence: 0.55,
-      hasUsage: false,
-    };
-
-    for (const row of rows) {
-      updateTimes(acc, row.timestamp);
-      if (acc.start_time && (!startTime || acc.start_time < startTime)) startTime = acc.start_time;
-      if (acc.end_time && (!endTime || acc.end_time > endTime)) endTime = acc.end_time;
-
-      const payload = isObject(row.payload) ? row.payload : null;
-      const item = isObject(row.item) ? row.item : null;
-      if (row.type === 'session_meta' && payload) {
-        sessionId = stringValue(payload.id) ?? sessionId;
-        cwd = stringValue(payload.cwd) ?? cwd;
-        startTime = stringValue(payload.timestamp) ?? startTime;
-      }
-      if (row.type === 'turn_context' && payload) {
-        cwd = stringValue(payload.cwd) ?? cwd;
-        model = stringValue(payload.model) ?? model;
-      }
-      const payloadUsage = payload && isObject(payload.usage) ? payload.usage : null;
-      const itemUsage = item && isObject(item.usage) ? item.usage : null;
-      const info = payload && isObject(payload.info) ? payload.info : null;
-      const lastTokenUsage = info && isObject(info.last_token_usage) ? info.last_token_usage : null;
-      const totalTokenUsage = info && isObject(info.total_token_usage) ? info.total_token_usage : null;
-      if (payloadUsage) addUsage(acc, payloadUsage);
-      if (itemUsage) addUsage(acc, itemUsage);
-      if (lastTokenUsage) addUsage(acc, lastTokenUsage);
-      if (totalTokenUsage) setUsageTotals(acc, totalTokenUsage);
-    }
-
-    if (!cwd || !startTime) continue;
-    const stableSessionId = sessionId ?? stableId(file);
-    acc.sessionId = stableSessionId;
-    acc.source_log_ref = `codex-cli://${safeSourceToken(stableSessionId)}`;
-    acc.model = model;
-    acc.start_time = startTime;
-    acc.end_time = endTime ?? startTime;
-    acc.parser_confidence = acc.hasUsage ? 0.85 : 0.55;
-    const candidate = toCandidate(acc);
-    if (candidate) {
-      const projectSessions = sessionsByProject.get(cwd) ?? [];
-      projectSessions.push(candidate);
-      sessionsByProject.set(cwd, projectSessions);
-    }
+    const result = codexFileResult(file, opts, warnings);
+    if (!result) continue;
+    const projectSessions = sessionsByProject.get(result.cwd) ?? [];
+    projectSessions.push(result.candidate);
+    sessionsByProject.set(result.cwd, projectSessions);
   }
 
   for (const sessions of sessionsByProject.values()) {
@@ -475,54 +548,67 @@ function transcriptTimes(opts: Required<CliLogParserOptions>, roots: string[], c
   return { start, end, exists: true };
 }
 
+function parseAntigravityFile(file: string, warnings: ParserWarning[]): AntigravityLogEntry | null {
+  let content = '';
+  try {
+    content = readFileSync(file, 'utf8');
+  } catch (err) {
+    warnings.push({
+      agent_name: 'antigravity-cli',
+      kind: 'unreadable_file',
+      source: `antigravity-cli:${basename(file)}`,
+      message: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+
+  const workspaceDirsAll: string[] = [];
+  let model = 'unknown';
+  let conversationId: string | null = null;
+  let firstTime: string | null = null;
+  let lastTime: string | null = null;
+  let completedTime: string | null = null;
+
+  for (const line of content.split(/\r?\n/)) {
+    const ts = parseAntigravityTimestamp(file, line);
+    if (ts) {
+      if (!firstTime || ts < firstTime) firstTime = ts;
+      if (!lastTime || ts > lastTime) lastTime = ts;
+    }
+
+    const workspace = line.match(/workspaceDirs=\[([^\]]*)\]/)?.[1];
+    if (workspace) workspaceDirsAll.push(workspace);
+
+    const printModel = line.match(/Print mode: starting .*model="([^"]+)"/)?.[1];
+    if (printModel) model = printModel;
+
+    const created = line.match(/Created conversation ([A-Za-z0-9._-]+)/)?.[1];
+    const streamed = line.match(/Print mode: conversation=([A-Za-z0-9._-]+)/)?.[1];
+    if (created || streamed) conversationId = created ?? streamed ?? conversationId;
+
+    if (conversationId && line.includes(`Stream completed for ${conversationId}`) && ts) completedTime = ts;
+  }
+
+  if (!conversationId || !firstTime) return null;
+  return { workspaceDirsAll, model, conversationId, firstTime, lastTime, completedTime };
+}
+
+function antigravityFileEntry(file: ScannedFile, opts: Required<CliLogParserOptions>, warnings: ParserWarning[]): AntigravityLogEntry | null {
+  const cached = opts.fileScanCache.get('antigravity-cli', file.path, file.mtimeMs);
+  if (cached) return cached.payload as AntigravityLogEntry | null;
+  const entry = parseAntigravityFile(file.path, warnings);
+  opts.fileScanCache.set('antigravity-cli', file.path, file.mtimeMs, entry);
+  return entry;
+}
+
 function parseAntigravityIndex(opts: Required<CliLogParserOptions>, warnings: ParserWarning[]): { entries: AntigravityLogEntry[]; roots: string[] } {
   const roots = usableDataRoots(opts, 'antigravity-cli', warnings);
   const files = roots.flatMap((root) => sortedLogFiles(join(root, 'log'), opts.maxFilesPerProject, warnings, 'antigravity-cli'));
   const entries: AntigravityLogEntry[] = [];
 
   for (const file of files) {
-    let content = '';
-    try {
-      content = readFileSync(file, 'utf8');
-    } catch (err) {
-      warnings.push({
-        agent_name: 'antigravity-cli',
-        kind: 'unreadable_file',
-        source: `antigravity-cli:${basename(file)}`,
-        message: err instanceof Error ? err.message : String(err),
-      });
-      continue;
-    }
-
-    const workspaceDirsAll: string[] = [];
-    let model = 'unknown';
-    let conversationId: string | null = null;
-    let firstTime: string | null = null;
-    let lastTime: string | null = null;
-    let completedTime: string | null = null;
-
-    for (const line of content.split(/\r?\n/)) {
-      const ts = parseAntigravityTimestamp(file, line);
-      if (ts) {
-        if (!firstTime || ts < firstTime) firstTime = ts;
-        if (!lastTime || ts > lastTime) lastTime = ts;
-      }
-
-      const workspace = line.match(/workspaceDirs=\[([^\]]*)\]/)?.[1];
-      if (workspace) workspaceDirsAll.push(workspace);
-
-      const printModel = line.match(/Print mode: starting .*model="([^"]+)"/)?.[1];
-      if (printModel) model = printModel;
-
-      const created = line.match(/Created conversation ([A-Za-z0-9._-]+)/)?.[1];
-      const streamed = line.match(/Print mode: conversation=([A-Za-z0-9._-]+)/)?.[1];
-      if (created || streamed) conversationId = created ?? streamed ?? conversationId;
-
-      if (conversationId && line.includes(`Stream completed for ${conversationId}`) && ts) completedTime = ts;
-    }
-
-    if (!conversationId || !firstTime) continue;
-    entries.push({ workspaceDirsAll, model, conversationId, firstTime, lastTime, completedTime });
+    const entry = antigravityFileEntry(file, opts, warnings);
+    if (entry) entries.push(entry);
   }
 
   return { entries, roots };
@@ -576,6 +662,7 @@ function normalizedOptions(options: CliLogParserOptions = {}): Required<CliLogPa
     homeDir: options.homeDir ?? homedir(),
     maxFilesPerProject: options.maxFilesPerProject ?? DEFAULT_MAX_FILES,
     dataRoots: options.dataRoots ?? {},
+    fileScanCache: options.fileScanCache ?? createInMemoryFileScanCache(),
   };
 }
 

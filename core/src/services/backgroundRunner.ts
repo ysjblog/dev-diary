@@ -65,7 +65,7 @@ function cycleResultBase(settings: AppSettings, startedAt: Date): Pick<Backgroun
   };
 }
 
-function scanProviderFor(settings: AppSettings, injected?: ScanProvider): ScanProvider {
+function scanProviderFor(db: DB, settings: AppSettings, injected?: ScanProvider): ScanProvider {
   if (injected) return injected;
   return createConfiguredScanProvider({
     DEVDIARY_DB: settings.data_storage.active_db_path,
@@ -73,7 +73,7 @@ function scanProviderFor(settings: AppSettings, injected?: ScanProvider): ScanPr
     DEVDIARY_SCAN_FALLBACK: settings.scan_provider.fallback,
   }, {
     dataRoots: Object.fromEntries(settings.agents.map((agent) => [agent.id, resolveCanonicalActivityDataRoots(agent.id, agent.sources)])),
-  });
+  }, db);
 }
 
 export async function runBackgroundCycle(
@@ -109,7 +109,7 @@ export async function runBackgroundCycle(
   const scan = runManualScan(db, {
     scope: 'global',
     today,
-    provider: scanProviderFor(settings, options.scanProvider),
+    provider: scanProviderFor(db, settings, options.scanProvider),
     projectRoots,
     projectDocFilenames: settings.project_doc_filenames,
     projectDocFolders: settings.project_doc_folders,
