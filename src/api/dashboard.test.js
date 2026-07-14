@@ -187,3 +187,13 @@ test('buildTrendAxis returns readable token and date labels', () => {
   assert.deepEqual(axis.yLabels.map((label) => label.label), ['3.00M', '1.50M', '0']);
   assert.deepEqual(axis.xLabels.map((label) => label.label), ['04-15', '05-01', '06-29']);
 });
+
+test('buildTrendAxis formats hourly bucket_start (24h range) as HH:00', () => {
+  const axis = buildTrendAxis([
+    { series_key: 'total', bucket_start: '2026-06-29T00:00', token_total: 0 },
+    { series_key: 'total', bucket_start: '2026-06-29T14:00', token_total: 500_000 },
+    { series_key: 'total', bucket_start: '2026-06-29T23:00', token_total: 100_000 },
+  ]);
+
+  assert.deepEqual(axis.xLabels.map((label) => label.label), ['00:00', '14:00', '23:00']);
+});

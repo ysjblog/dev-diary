@@ -74,6 +74,52 @@ describe('dashboard snapshot', () => {
     }
   });
 
+  it('24h range buckets by hour rather than a single day blob', () => {
+    const s = getDashboardSnapshot(db, { range: '24h', today: TODAY });
+    const totalPts = s.trend.filter((p) => p.series_key === 'total');
+    expect(totalPts.length).toBe(24);
+    for (const p of totalPts) {
+      expect(p.bucket_start).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:00$/);
+    }
+  });
+
+  it('24h hours with no seeded sessions still emit a zero-value bucket (seed only fills 09:00-18:00)', () => {
+    const s = getDashboardSnapshot(db, { range: '24h', today: TODAY });
+    const totalPts = s.trend.filter((p) => p.series_key === 'total');
+    const midnight = totalPts.find((p) => p.bucket_start === `${TODAY}T00:00`);
+    expect(midnight).toBeDefined();
+    expect(midnight?.token_total).toBe(0);
+  });
+
+  it('24h hourly bucket total equals the metric token_total for the same day', () => {
+    const s = getDashboardSnapshot(db, { range: '24h', today: TODAY });
+    const hourlyTotal = s.trend
+      .filter((p) => p.series_key === 'total')
+      .reduce((a, p) => a + p.token_total, 0);
+    expect(hourlyTotal).toBe(s.metric.token_total);
+  });
+
+  it('24h per-hour agent series sum to that hour\'s total series', () => {
+    const s = getDashboardSnapshot(db, { range: '24h', today: TODAY });
+    const byHour = new Map<string, number>();
+    for (const p of s.trend) {
+      if (p.series_key === 'total') continue;
+      byHour.set(p.bucket_start, (byHour.get(p.bucket_start) ?? 0) + p.token_total);
+    }
+    for (const p of s.trend.filter((point) => point.series_key === 'total')) {
+      expect(byHour.get(p.bucket_start) ?? 0).toBe(p.token_total);
+    }
+  });
+
+  it('7d/1m/all trend buckets remain date-only (no hour suffix) after adding 24h hourly bucketing', () => {
+    for (const range of ['7d', '1m', 'all'] as const) {
+      const s = getDashboardSnapshot(db, { range, today: TODAY });
+      for (const p of s.trend) {
+        expect(p.bucket_start).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      }
+    }
+  });
+
   it('heatmap is data-backed and deterministic; levels are 0..4', () => {
     const s1 = getDashboardSnapshot(db, { range: '1m', today: TODAY });
     const s2 = getDashboardSnapshot(freshDb(), { range: '1m', today: TODAY });

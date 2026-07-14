@@ -151,6 +151,7 @@ export interface DashboardAgentMix {
 
 export interface DashboardTrendPoint {
   range_key: RangeKey;
+  /** `YYYY-MM-DD` for day buckets (7d/1m/custom/all); `YYYY-MM-DDTHH:00` hourly for 24h. */
   bucket_start: string;
   bucket_end: string;
   series_key: SeriesKey;

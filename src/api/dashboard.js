@@ -52,9 +52,15 @@ export function buildTrendAxis(trend) {
         .filter((point, index, arr) => arr.findIndex((item) => item.bucket_start === point.bucket_start) === index)
         .map((point) => ({
           value: point.bucket_start,
-          label: String(point.bucket_start).slice(5),
+          label: formatTrendXLabel(point.bucket_start),
         }));
   return { yMax, yLabels, xLabels };
+}
+
+// 24h range buckets are `YYYY-MM-DDTHH:00` (hourly); other ranges stay `YYYY-MM-DD` (daily/weekly).
+function formatTrendXLabel(bucketStart) {
+  const str = String(bucketStart);
+  return str.includes('T') ? str.slice(11) : str.slice(5);
 }
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

@@ -150,7 +150,63 @@ function buildProjectConcentration(db: DB, start: string, end: string, total: nu
   }));
 }
 
+/** Hourly trend for the 24h range. `sessions.start_time` carries hour-of-day
+ *  granularity that `token_usage` (date-only) cannot provide. */
+function buildHourlyTrend(db: DB, start: string, end: string): DashboardTrendPoint[] {
+  const rows = db
+    .prepare(
+      `SELECT substr(start_time,1,10) AS date, substr(start_time,12,2) AS hour,
+              agent_name, SUM(token_total) AS tokens
+       FROM sessions WHERE substr(start_time,1,10) >= ? AND substr(start_time,1,10) <= ?
+       GROUP BY date, hour, agent_name`,
+    )
+    .all(start, end) as { date: string; hour: string; agent_name: string; tokens: number }[];
+  const sessRows = db
+    .prepare(
+      `SELECT substr(start_time,1,10) AS date, substr(start_time,12,2) AS hour,
+              agent_name, COUNT(*) AS sessions
+       FROM sessions WHERE substr(start_time,1,10) >= ? AND substr(start_time,1,10) <= ?
+       GROUP BY date, hour, agent_name`,
+    )
+    .all(start, end) as { date: string; hour: string; agent_name: string; sessions: number }[];
+
+  const series: SeriesKey[] = ['total', ...CANON_ORDER, 'other'];
+  const points: DashboardTrendPoint[] = [];
+  for (let d = start; daysBetween(d, end) >= 0; d = addDays(d, 1)) {
+    for (let h = 0; h < 24; h++) {
+      const hourStr = String(h).padStart(2, '0');
+      const bucketStart = `${d}T${hourStr}:00`;
+      const tok: Record<SeriesKey, number> = { total: 0, 'claude-code': 0, 'codex-cli': 0, 'antigravity-cli': 0, other: 0 };
+      const ses: Record<SeriesKey, number> = { total: 0, 'claude-code': 0, 'codex-cli': 0, 'antigravity-cli': 0, other: 0 };
+      for (const r of rows) {
+        if (r.date !== d || r.hour !== hourStr) continue;
+        const k = mixKeyOf(r.agent_name);
+        tok[k] += r.tokens;
+        tok.total += r.tokens;
+      }
+      for (const r of sessRows) {
+        if (r.date !== d || r.hour !== hourStr) continue;
+        const k = mixKeyOf(r.agent_name);
+        ses[k] += r.sessions;
+        ses.total += r.sessions;
+      }
+      for (const sk of series) {
+        points.push({
+          range_key: '24h',
+          bucket_start: bucketStart,
+          bucket_end: bucketStart,
+          series_key: sk,
+          token_total: tok[sk],
+          session_count: ses[sk],
+        });
+      }
+    }
+  }
+  return points;
+}
+
 function buildTrend(db: DB, rangeKey: RangeKey, start: string, end: string): DashboardTrendPoint[] {
+  if (rangeKey === '24h') return buildHourlyTrend(db, start, end);
   const span = daysBetween(start, end);
   // Daily buckets for short ranges; weekly for long/all-time to keep the series readable.
   const bucketDays = span <= 31 ? 1 : 7;
