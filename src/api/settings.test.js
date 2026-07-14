@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  coreApiUrl,
-} from './coreFetch.js';
-import {
   DEFAULT_AGENT_MODEL_OPTIONS,
   REASONING_OPTIONS,
   fetchAgentDetection,
@@ -32,14 +29,6 @@ import {
   updateCanonicalExecutableSource,
   withCoreStartupRetry,
 } from './settings.js';
-
-test('coreApiUrl keeps browser dev requests relative and points Tauri to loopback Core', () => {
-  assert.equal(coreApiUrl('/api/health', { location: { protocol: 'http:', hostname: 'localhost' } }), '/api/health');
-  assert.equal(
-    coreApiUrl('/api/health', { __TAURI_INTERNALS__: {}, location: { protocol: 'tauri:', hostname: 'tauri.localhost' } }),
-    'http://127.0.0.1:4317/api/health',
-  );
-});
 
 test('multilineToList trims empty lines and removes duplicates without executing values', () => {
   assert.deepEqual(

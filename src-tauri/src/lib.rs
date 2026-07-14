@@ -103,6 +103,71 @@ fn app_data_dir() -> Option<PathBuf> {
     .map(|home| home.join("Library").join("Application Support").join("DevDiary"))
 }
 
+fn default_core_manifest_path() -> Option<PathBuf> {
+  app_data_dir().map(|dir| dir.join("core-runtime.json"))
+}
+
+fn resolve_core_manifest_path() -> Option<PathBuf> {
+  if let Ok(explicit) = env::var("DEVDIARY_CORE_MANIFEST") {
+    let trimmed = explicit.trim();
+    if !trimmed.is_empty() {
+      return Some(PathBuf::from(trimmed));
+    }
+  }
+  default_core_manifest_path()
+}
+
+fn is_pid_alive(pid: i64) -> bool {
+  if pid <= 0 {
+    return false;
+  }
+  Command::new("/bin/kill")
+    .arg("-0")
+    .arg(pid.to_string())
+    .status()
+    .map(|status| status.success())
+    .unwrap_or(false)
+}
+
+// Mirrors src/api/devCoreTarget.js's resolveCoreApiTarget: only trust a manifest
+// that names the Core service, points at loopback, and whose owner pid is alive.
+// A manifest left behind by a crashed/killed Core (no cleanup ran) must not be
+// trusted, or the packaged app would keep dialing a dead port forever.
+fn resolve_core_api_origin_from_manifest(manifest_path: &Path, is_alive: impl Fn(i64) -> bool) -> Option<String> {
+  let contents = fs::read_to_string(manifest_path).ok()?;
+  let manifest: serde_json::Value = serde_json::from_str(&contents).ok()?;
+  if manifest.get("service").and_then(|value| value.as_str()) != Some("devdiary-core") {
+    return None;
+  }
+  let runtime = manifest.get("runtime")?;
+  let host = runtime.get("host").and_then(|value| value.as_str())?;
+  if host != "127.0.0.1" && host != "localhost" {
+    return None;
+  }
+  let port = runtime.get("port").and_then(|value| value.as_i64())?;
+  if port <= 0 {
+    return None;
+  }
+  if let Some(pid) = runtime.get("pid").and_then(|value| value.as_i64()) {
+    if pid > 0 && !is_alive(pid) {
+      return None;
+    }
+  }
+  Some(format!("http://{host}:{port}"))
+}
+
+fn fallback_core_api_origin() -> String {
+  let port = env::var("DEVDIARY_PORT").unwrap_or_else(|_| "4317".to_string());
+  format!("http://127.0.0.1:{port}")
+}
+
+#[tauri::command]
+fn resolve_core_api_origin() -> String {
+  resolve_core_manifest_path()
+    .and_then(|path| resolve_core_api_origin_from_manifest(&path, is_pid_alive))
+    .unwrap_or_else(fallback_core_api_origin)
+}
+
 fn launch_agent_storage_dir(app_dir: &Path) -> PathBuf {
   app_dir.join("LaunchAgents")
 }
@@ -477,7 +542,7 @@ fn open_project_folder(path: String) -> Result<(), String> {
 pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_dialog::init())
-    .invoke_handler(tauri::generate_handler![open_project_folder])
+    .invoke_handler(tauri::generate_handler![open_project_folder, resolve_core_api_origin])
     .manage(CoreProcess(Mutex::new(None)))
     .setup(|app| {
       if cfg!(debug_assertions) {
@@ -514,7 +579,10 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-  use super::{first_executable_node, launch_agent_storage_dir, legacy_devdiary_background_label, packaged_launch_agent_storage_dir};
+  use super::{
+    first_executable_node, launch_agent_storage_dir, legacy_devdiary_background_label,
+    packaged_launch_agent_storage_dir, resolve_core_api_origin_from_manifest,
+  };
   use std::{fs, os::unix::fs::PermissionsExt, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
 
   fn temporary_executable(name: &str) -> (PathBuf, PathBuf) {
@@ -588,5 +656,79 @@ mod tests {
     assert_eq!(legacy_devdiary_background_label(&missing_run, "current.devdiary.background", app_dir), None);
     let unrelated_logs = accepted.replace("/tmp/DevDiary/logs", "/tmp/other/logs");
     assert_eq!(legacy_devdiary_background_label(&unrelated_logs, "current.devdiary.background", app_dir), None);
+  }
+
+  fn temporary_manifest(contents: &str) -> (PathBuf, PathBuf) {
+    let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let directory = std::env::temp_dir().join(format!("devdiary-manifest-test-{unique}"));
+    fs::create_dir_all(&directory).unwrap();
+    let manifest = directory.join("core-runtime.json");
+    fs::write(&manifest, contents).unwrap();
+    (directory, manifest)
+  }
+
+  #[test]
+  fn core_api_origin_reads_the_bound_port_from_a_live_manifest() {
+    let (dir, manifest) = temporary_manifest(
+      r#"{"service":"devdiary-core","runtime":{"host":"127.0.0.1","port":4322,"pid":4242}}"#,
+    );
+    let resolved = resolve_core_api_origin_from_manifest(&manifest, |pid| pid == 4242);
+    assert_eq!(resolved, Some("http://127.0.0.1:4322".to_string()));
+    fs::remove_dir_all(dir).unwrap();
+  }
+
+  #[test]
+  fn core_api_origin_ignores_a_manifest_whose_owner_pid_is_dead() {
+    let (dir, manifest) = temporary_manifest(
+      r#"{"service":"devdiary-core","runtime":{"host":"127.0.0.1","port":4322,"pid":999999}}"#,
+    );
+    let resolved = resolve_core_api_origin_from_manifest(&manifest, |_| false);
+    assert_eq!(resolved, None);
+    fs::remove_dir_all(dir).unwrap();
+  }
+
+  #[test]
+  fn core_api_origin_ignores_a_non_loopback_manifest() {
+    let (dir, manifest) = temporary_manifest(
+      r#"{"service":"devdiary-core","runtime":{"host":"example.com","port":4322,"pid":4242}}"#,
+    );
+    let resolved = resolve_core_api_origin_from_manifest(&manifest, |_| true);
+    assert_eq!(resolved, None);
+    fs::remove_dir_all(dir).unwrap();
+  }
+
+  #[test]
+  fn core_api_origin_ignores_a_manifest_with_the_wrong_service_name() {
+    let (dir, manifest) = temporary_manifest(
+      r#"{"service":"something-else","runtime":{"host":"127.0.0.1","port":4322,"pid":4242}}"#,
+    );
+    let resolved = resolve_core_api_origin_from_manifest(&manifest, |_| true);
+    assert_eq!(resolved, None);
+    fs::remove_dir_all(dir).unwrap();
+  }
+
+  #[test]
+  fn core_api_origin_ignores_malformed_json() {
+    let (dir, manifest) = temporary_manifest("not json");
+    let resolved = resolve_core_api_origin_from_manifest(&manifest, |_| true);
+    assert_eq!(resolved, None);
+    fs::remove_dir_all(dir).unwrap();
+  }
+
+  #[test]
+  fn core_api_origin_ignores_a_missing_manifest_file() {
+    let missing = std::env::temp_dir().join("devdiary-manifest-test-missing/core-runtime.json");
+    let resolved = resolve_core_api_origin_from_manifest(&missing, |_| true);
+    assert_eq!(resolved, None);
+  }
+
+  #[test]
+  fn core_api_origin_trusts_a_manifest_with_no_pid_for_backward_compatibility() {
+    let (dir, manifest) = temporary_manifest(
+      r#"{"service":"devdiary-core","runtime":{"host":"127.0.0.1","port":4322}}"#,
+    );
+    let resolved = resolve_core_api_origin_from_manifest(&manifest, |_| false);
+    assert_eq!(resolved, Some("http://127.0.0.1:4322".to_string()));
+    fs::remove_dir_all(dir).unwrap();
   }
 }
