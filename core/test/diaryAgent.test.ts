@@ -278,6 +278,10 @@ describe('AI Diary Agent', () => {
       expect(calls[0]!.options.cwd).toBe(runDir);
       expect(calls[0]!.options.cwd).not.toBe(snapshot.project.root_path);
       expect(calls[0]!.options.env.HOME).toBe(home);
+      expect(calls[0]!.options.env.USER).toBe(process.env.USER);
+      expect(calls[0]!.options.env.TERM).toBe(process.env.TERM);
+      expect(calls[0]!.options.env.SHELL).toBe(process.env.SHELL);
+      expect(calls[0]!.options.env.PWD).toBeUndefined();
       expect(calls[0]!.options.env.CLAUDE_CODE_OAUTH_TOKEN).toBeUndefined();
     });
 
@@ -296,7 +300,7 @@ describe('AI Diary Agent', () => {
 
       expect(result.agent_id).toBe('codex-cli');
       expect(calls[0]!.file).toBe('/tmp/codex-fixture');
-      expect(calls[0]!.args.slice(0, 7)).toEqual(['exec', '--sandbox', 'read-only', '--ephemeral', '--cd', calls[0]!.options.cwd, '--color']);
+      expect(calls[0]!.args.slice(0, 8)).toEqual(['exec', '--sandbox', 'read-only', '--ephemeral', '--cd', calls[0]!.options.cwd, '--skip-git-repo-check', '--color']);
       expect(calls[0]!.args).toContain('never');
       expect(calls[0]!.options.shell).toBe(false);
       expect(calls[0]!.options.cwd).not.toBe(snapshot.project.root_path);

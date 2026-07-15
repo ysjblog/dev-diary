@@ -201,7 +201,7 @@ export function createCodexPromptRunner(options: CodexDiaryAgentOptions = {}): (
     if (!cliPath) throw new DiaryAgentError('Codex CLI executable is unavailable');
     const temporaryCwd = mkdtempSync(join(parent, 'run-'));
     try {
-      const args = ['exec', '--sandbox', 'read-only', '--ephemeral', '--cd', temporaryCwd, '--color', 'never', truncate(prompt, MAX_PROMPT_CHARS)];
+      const args = ['exec', '--sandbox', 'read-only', '--ephemeral', '--cd', temporaryCwd, '--skip-git-repo-check', '--color', 'never', truncate(prompt, MAX_PROMPT_CHARS)];
       const result = await execFileImpl(cliPath, args, {
         cwd: temporaryCwd,
         env: safeEnv(homeDir),

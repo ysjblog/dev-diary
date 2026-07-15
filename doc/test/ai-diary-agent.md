@@ -56,3 +56,19 @@
 ## [x] 【RWD】Dashboard trend chart 底線貼齊 chart panel 可用下緣
 **範例輸入**：desktop/mobile Dashboard all-time。  
 **期待輸出**：chart SVG 填滿 panel 的剩餘高度，折線圖 baseline 與外框下緣視覺對齊，不被 legend 撐出大空坑。
+
+## [x] 【整合流程】Claude Code Diary Agent 在 safe subprocess env 下產生 Markdown
+**範例輸入**：enabled `claude-code`、default diary agent、real local `claude -p` print mode。
+**期待輸出**：實際回傳 `agent_id=claude-code` 的 Markdown，不走 fallback；只傳遞必要的非 secret runtime env，不把完整 parent env 或 project cwd 帶入 child。
+
+## [x] 【環境解析】Claude GUI app bundle 不被當成 Claude Code CLI
+**範例輸入**：PATH 中有可執行的 Claude CLI，系統同時存在 `/Applications/Claude.app/Contents/MacOS/claude`。
+**期待輸出**：resolver 選 PATH CLI；不把 GUI bundle 傳給 `claude -p`，避免空輸出、GUI lock 或 100 秒 timeout。
+
+## [x] 【整合流程】Codex CLI Diary Agent 使用 read-only trusted-boundary bypass
+**範例輸入**：enabled `codex-cli`、default diary agent、real local `codex exec`。
+**期待輸出**：實際回傳 `agent_id=codex-cli` 的 Markdown；argv 保留 `--sandbox read-only`、`--ephemeral`、temporary cwd，並加上 `--skip-git-repo-check` 以支援非 Git temp cwd。
+
+## [x] 【安全繞過】Canonical Diary Agent 不洩漏 secrets 或 project path
+**範例輸入**：parent env 含 credential-like variables、project snapshot 含 root path/source ref。
+**期待輸出**：child env 僅含 allowlisted non-secret values；prompt 不含 raw project path/source ref；錯誤 fallback 不保存 CLI stderr、argv 或 token。

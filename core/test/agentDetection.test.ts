@@ -86,6 +86,28 @@ describe('Agent detection', () => {
       expect(calls).toContain(bundledCodex);
     });
 
+    it('Claude CLI 優先使用 PATH binary，不把 Claude GUI app bundle 當成 print CLI', async () => {
+      const root = tempRoot();
+      const binRoot = join(root, 'bin');
+      mkdirSync(binRoot);
+      const cli = fakeBin(binRoot, 'claude');
+      const guiBundle = fakeBin(root, 'claude-gui-bundle');
+      const calls: string[] = [];
+
+      const snapshot = await detectCliAgents({
+        homeDir: root,
+        env: { PATH: binRoot },
+        appBundleCandidates: { 'claude-code': [guiBundle] },
+        execFileImpl: async (file) => {
+          calls.push(file);
+          return { stdout: 'claude 2.1.204\n', stderr: '' };
+        },
+      });
+
+      expect(snapshot.agents.find((agent) => agent.id === 'claude-code')?.binary_path).toBe(realpathSync(cli));
+      expect(calls).not.toContain(guiBundle);
+    });
+
     it('probe 期間 executable identity 改變會失敗且不回報 connected', async () => {
       const root = tempRoot();
       const binary = fakeBin(root, 'codex');
