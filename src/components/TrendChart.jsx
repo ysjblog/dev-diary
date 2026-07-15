@@ -91,7 +91,12 @@ export default function TrendChart({ trend, filter, axis }) {
             </linearGradient>
           ))}
           {Object.entries(SERIES_COLOR).map(([key, color]) => (
-            <filter key={key} id={`trend-glow-${key}`} x="-10%" y="-20%" width="120%" height="150%">
+            // userSpaceOnUse + fixed viewBox-sized margins, not objectBoundingBox percentages:
+            // a single-bucket (e.g. 24h) series draws a perfectly flat line, whose bounding
+            // box has zero height. Percentage-based filter regions scale off that bbox, so
+            // 150% of a zero height is still zero — the filter region collapses and WebKit
+            // renders the whole path as invisible. Fixed user-space coordinates sidestep this.
+            <filter key={key} id={`trend-glow-${key}`} filterUnits="userSpaceOnUse" x={-20} y={-30} width={W + 40} height={H + 60}>
               <feDropShadow dx="0" dy="0" stdDeviation="2.7" floodColor={color} floodOpacity="0.32" />
             </filter>
           ))}
