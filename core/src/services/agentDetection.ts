@@ -151,7 +151,7 @@ function resolveBinary(spec: ProbeSpec, env: NodeJS.ProcessEnv): { path: string 
 }
 
 export function buildSafeChildEnv(input: NodeJS.ProcessEnv, homeDir: string): NodeJS.ProcessEnv {
-  const allow = new Set(['TMPDIR', 'LANG', 'LC_ALL', 'LC_CTYPE', 'SSL_CERT_FILE', 'SSL_CERT_DIR', 'HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'http_proxy', 'https_proxy', 'no_proxy']);
+  const allow = new Set(['TMPDIR', 'LANG', 'LC_ALL', 'LC_CTYPE', 'SSL_CERT_FILE', 'SSL_CERT_DIR', 'HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'http_proxy', 'https_proxy', 'no_proxy', 'USER', 'TERM', 'SHELL']);
   const out: NodeJS.ProcessEnv = { HOME: homeDir, PATH: String(input.PATH ?? '') };
   for (const [key, value] of Object.entries(input)) {
     if (allow.has(key) && value !== undefined) out[key] = value;
@@ -266,11 +266,10 @@ function probeSpecs(homeDir: string, appBundleCandidates: Partial<Record<Canonic
     {
       id: 'claude-code',
       envNames: ['DEVDIARY_CLAUDE_BIN', 'CLAUDE_CODE_BIN'],
-      candidates: [
-        ...(appBundleCandidates['claude-code'] ?? []),
-        '/Applications/Claude.app/Contents/MacOS/claude',
-        'claude',
-      ],
+      // Claude.app/Contents/MacOS/claude is the desktop GUI launcher, not the
+      // Claude Code print-mode CLI. Resolve the CLI from an explicit env path
+      // or PATH so Diary Agent never launches the GUI bundle and hangs.
+      candidates: ['claude'],
       args: ['--version'],
     },
     {
