@@ -64,7 +64,7 @@ describe('Kanban AI auto-add', () => {
       const prompt = buildKanbanAiPrompt(detail, '請產生卡片');
       const serialized = JSON.stringify(prompt.input);
 
-      expect(serialized).toContain('Development log');
+      expect(serialized).toContain('Example Workspace');
       expect(serialized).not.toContain('/Users/demo/Developer/projects');
       expect(serialized).not.toContain('source_log_ref');
       expect(serialized).not.toContain('docs/private.md');

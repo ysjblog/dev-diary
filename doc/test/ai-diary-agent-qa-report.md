@@ -82,7 +82,7 @@
 ### Findings
 
 - Severity: none
-- Reproduction steps: CLI Agents → 新增 Agent → 自訂 Custom CLI → `~/.local/bin/grok` → `--version` → 連線測試 → 完成新增 → reload
+- Reproduction steps: CLI Agents → 新增 Agent → 自訂 Custom CLI → `/path/to/custom-agent` → `--version` → 連線測試 → 完成新增 → reload
 - Expected: successful probe, persisted custom agent, reload-safe Connected card
 - Actual: exactly matched expected behavior
 

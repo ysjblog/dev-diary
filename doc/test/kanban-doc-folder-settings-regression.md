@@ -32,7 +32,7 @@
 **期待輸出**：UI error tells the user the Core runtime may be stale and should be restarted, instead of showing only `Core API error (HTTP 404)`.
 
 ## [x] 【整合流程】Live Core route and Docs tab smoke
-**範例輸入**：localhost Core contract 5, `project_doc_folders=["docs/specs"]`, project `Development log`.
+**範例輸入**：localhost Core contract 5, `project_doc_folders=["docs/specs"]`, project `Example Workspace`.
 **期待輸出**：`POST /api/projects/999999/kanban/ai-sync?range=all` reaches the route without token-generating AI work; project 3 docs include `docs/specs/*`; Workspace Docs tab shows folder-scan cards.
 
 ## [x] 【RWD】Workspace Docs desktop and mobile check

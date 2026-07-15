@@ -50,7 +50,7 @@
 **期待輸出**：Docs snapshot includes `docs/specs/MASTER.md`; unsafe path is ignored.
 
 ## [x] 【function 邏輯】Claude underscore path is discoverable
-**範例輸入**：project root contains `Sample_projects`; Claude folder uses hyphen escaping.
+**範例輸入**：project root contains `Project_with_underscores`; Claude folder uses hyphen escaping.
 **期待輸出**：parser emits a Claude session with token usage.
 
 ## [x] 【Mock API】UI daily diary helpers call daily Core routes

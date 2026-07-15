@@ -1,8 +1,8 @@
 [package]
 name = "app"
-version = "0.1.0"
+version = "0.1.1"
 description = "DevDiary local-first desktop shell"
-authors = ["ysjblog"]
+authors = ["DevDiary"]
 license = ""
 repository = ""
 edition = "2021"

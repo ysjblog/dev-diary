@@ -58,5 +58,5 @@
 **期待輸出**：no overlap, clipped text, or unusable controls。
 
 ## [x] 【實機 GUI】Grok CLI 透過新增 Agent wizard 完成連線與保存
-**範例輸入**：local executable `~/.local/bin/grok`、probe arg `--version`。
+**範例輸入**：local executable `/path/to/custom-agent`、probe arg `--version`。
 **期待輸出**：wizard 顯示 `連線測試成功` 與版本摘要；完成後 CLI Agents card 顯示 `Connected` / `可用`，reload 後仍存在，且 custom probe API 回 200。

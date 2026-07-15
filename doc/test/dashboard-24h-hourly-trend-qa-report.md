@@ -22,7 +22,7 @@
 
 - [PASS] 「近24小時」統計卡片與排行同步更新
   - Expected: 累積總計 TOKEN/PROJECTS/SESSIONS/主要 AGENT/Agent Token 比例/專案集中度排行 皆應改為對應 24h 區間數值，且與「全部」不同。
-  - Actual: TOKEN 變為 26.42M（↓94.6% vs 上一區段）、PROJECTS 4/21、SESSIONS 4次、主要 AGENT 變為 Claude Code（100% 佔比）、Agent Token 比例圓餅圖僅顯示 Claude Code 100%、專案集中度排行變為「近24小時」標題並列出 Development log 76.9%、Veggie finder 23.1% 兩筆，與「全部」的 11 筆排行明顯不同。
+  - Actual: TOKEN 變為 26.42M（↓94.6% vs 上一區段）、PROJECTS 4/21、SESSIONS 4次、主要 AGENT 變為 Claude Code（100% 佔比）、Agent Token 比例圓餅圖僅顯示 Claude Code 100%、專案集中度排行變為「近24小時」標題並列出 Example Workspace 76.9%、Example Project 23.1% 兩筆，與「全部」的 11 筆排行明顯不同。
 
 - [PASS] 切換「近7天」，檢查趨勢圖 X 軸格式維持日期
   - Expected: X 軸應為 MM-DD 格式（如 07-08），不受本次修改影響。

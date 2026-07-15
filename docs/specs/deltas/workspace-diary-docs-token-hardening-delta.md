@@ -14,7 +14,7 @@ Workspace 的日記、留言、Kanban、Docs 與 token detail 已接 Core API，
 - Docs tab 只讀 `project_docs`，但 scan 不會從 project root 讀取使用者指定的主文件。
 - Comments filter 有 Global 分類，但新增留言時不能選 Global tag。
 - Kanban 使用 HTML5 drag/drop，但沒有寫入 drag payload，部分 webview 無法穩定拖拉。
-- Claude Code project path 內含 `_` 時，parser 找錯 `.claude/projects/*` 目錄，造成 Development log 的 Claude token usage 漏掃。
+- Claude Code project path 內含 `_` 時，parser 找錯 `.claude/projects/*` 目錄，造成 example workspace 的 Claude token usage 漏掃。
 
 ## Changes
 
@@ -47,7 +47,7 @@ Workspace 的日記、留言、Kanban、Docs 與 token detail 已接 Core API，
 - [x] Project Docs 會由 Core scan 讀取 Settings allowlist 中的相對檔名。
 - [x] Project Docs preview 使用大型 rich Markdown modal，light mode 不再是灰色底。
 - [x] Docs scan 不允許跳出 project root。
-- [x] Development log 這種含 `_` path 的 Claude Code logs 能被 parser 找到。
+- [x] Example workspace 這種含 `_` path 的 Claude Code logs 能被 parser 找到。
 - [x] Kanban drag/drop 在 webview 中有明確 drag payload。
 
 ## Verification

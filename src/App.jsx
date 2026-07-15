@@ -61,9 +61,9 @@ import TrendChart from './components/TrendChart.jsx';
     const INITIAL_PROJECTS = [
       {
         id: 1,
-        name: "Development log UI",
+        name: "Example Workspace UI",
         status: "active",
-        path: "/Users/demo/Developer/dev-diary-ui",
+        path: "/Users/demo/Developer/example-workspace-ui",
         agents: ["antigravity-cli", "claude-code"],
         logsCount: 12,
         tokensCount: "24.5k",

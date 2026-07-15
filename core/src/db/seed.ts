@@ -42,9 +42,9 @@ interface SeedProject {
 }
 
 const SEED_PROJECTS: SeedProject[] = [
-  { id: 1, name: 'Development log', root_path: '/Users/demo/Developer/dev-diary', tracking_status: 'active', activity: 1.0, detected_agents: ['claude-code', 'antigravity-cli'] },
-  { id: 2, name: 'Hermes agent', root_path: '/Users/demo/Developer/projects/Hermes agent', tracking_status: 'idle', activity: 0.55, detected_agents: ['codex-cli', 'claude-code'] },
-  { id: 3, name: 'DevDiary Core', root_path: '/Users/demo/Developer/devdiary-core', tracking_status: 'active', activity: 0.7, detected_agents: ['claude-code', 'codex-cli', 'antigravity-cli'] },
+  { id: 1, name: 'Example Workspace', root_path: '/Users/demo/Developer/example-workspace', tracking_status: 'active', activity: 1.0, detected_agents: ['claude-code', 'antigravity-cli'] },
+  { id: 2, name: 'Example Agent Lab', root_path: '/Users/demo/Developer/projects/example-agent-lab', tracking_status: 'idle', activity: 0.55, detected_agents: ['codex-cli', 'claude-code'] },
+  { id: 3, name: 'Example Core', root_path: '/Users/demo/Developer/example-core', tracking_status: 'active', activity: 0.7, detected_agents: ['claude-code', 'codex-cli', 'antigravity-cli'] },
 ];
 
 export interface SeedOptions {

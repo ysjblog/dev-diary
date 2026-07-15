@@ -317,7 +317,7 @@ describe('CLI log parser scan provider', () => {
     });
 
     it('Claude Code parser 使用實際資料夾命名規則，支援 project path 裡的 underscore', () => {
-      const underscoredRoot = join(root, 'Sample_projects', 'Development log');
+      const underscoredRoot = join(root, 'Project_with_underscores', 'Development_log');
       mkdirSync(underscoredRoot, { recursive: true });
       const actualClaudeDir = join(homeDir, '.claude', 'projects', escapeClaudeProjectPath(underscoredRoot));
       writeJsonl(join(actualClaudeDir, 'underscore-session.jsonl'), [

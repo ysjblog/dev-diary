@@ -12,7 +12,7 @@
 
 - `core/src/services/scans.ts`：`runManualScan()` 的 `scope: 'global'` 分支移除 `shouldDiscoverProjectRoots()` 節流判斷，改為每次 global scan（含 background scan，每 5 分鐘一次）都呼叫 `discoverProjectsFromRoots()`。
   - 原本行為：只要某個 scan root 底下**曾經**被發現過任一個 project，之後該 root 永久跳過重新探索——即使使用者事後在同一個 root 底下新增了新的 git repo / package.json 資料夾，也不會被自動掃描加入。
-  - 修正後行為：`discoverProjectsFromRoots()` 本身是 idempotent（依 `root_path` insert-or-update，不會重複新增），因此每次 global scan 都重新探索是安全的；對目前實際的兩個 scan root（`~/Desktop/side-projects`、`~/Projects`）而言，探索只做 `maxDepth=2` 的 `readdirSync`/`statSync`，並跳過 `.git`/`node_modules`/`dist` 等目錄，開銷極小。
+  - 修正後行為：`discoverProjectsFromRoots()` 本身是 idempotent（依 `root_path` insert-or-update，不會重複新增），因此每次 global scan 都重新探索是安全的；對一般使用者提供的兩個 scan root（`/path/to/projects`、`/path/to/another-project`）而言，探索只做 `maxDepth=2` 的 `readdirSync`/`statSync`，並跳過 `.git`/`node_modules`/`dist` 等目錄，開銷極小。
 - `core/test/projectDiscovery.test.ts`：原本名為「global scan 對已追蹤 root 直接掃 known projects，避免每次更新都重新 discovery」的測試斷言新增的 sibling 資料夾**不會**被發現——這是舊行為的迴歸保護，現已改為斷言新增的 sibling 資料夾**會**被發現。
 
 ## 移除（Removed）

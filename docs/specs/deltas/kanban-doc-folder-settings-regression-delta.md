@@ -29,7 +29,7 @@
 
 - [x] Selecting a folder under a detected project path converts to `docs/specs` instead of `project/docs/specs`.
 - [x] `project_doc_folders=["docs/specs"]` persists through Core settings.
-- [x] Docs-only scan for `Development log` ingests `docs/specs/*` docs.
+- [x] Docs-only scan for `Example Workspace` ingests `docs/specs/*` docs.
 - [x] Workspace Docs tab shows `docs/specs` documents with folder-scan badges.
 - [x] Kanban stale route 404 shows restart guidance.
 - [x] Live Core health reports `kanban.ai-sync`.
