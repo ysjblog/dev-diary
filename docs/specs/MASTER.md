@@ -90,7 +90,7 @@
 - `deltas/settings-ui-delta.md` — Settings UI wiring to `GET/PATCH /api/settings`（implemented, branch feature/core-engine）
 - `deltas/codex-scan-heatmap-fix-delta.md` — Codex token usage parsing and Dashboard heatmap calendar layout fix（implemented, branch feature/core-engine）
 - `deltas/settings-dashboard-polish-delta.md` — Settings real-log-only policy and Dashboard chart/readability polish（implemented, branch feature/core-engine）
-- `deltas/ai-diary-agent-delta.md` — Core Diary Agent + Antigravity adapter attempt/fallback and Dashboard trend bottom alignment（implemented, branch feature/core-engine）
+- `deltas/ai-diary-agent-delta.md` — Core Diary Agent + Claude/Codex runtime hardening + Antigravity adapter attempt/fallback and Dashboard trend bottom alignment（merged, main）
 - `deltas/settings-agent-detection-daily-scheduler-delta.md` — Core safe agent detection、Settings scheduler controls、in-app daily scheduler（implemented, branch feature/core-engine）
 - `deltas/export-backup-delta.md` — Markdown daily export 與 redacted structured backup（implemented, branch feature/core-engine）
 - `deltas/local-api-runtime-discovery-delta.md` — Core runtime identity / Settings stale runtime detection（implemented, branch feature/core-engine）

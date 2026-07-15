@@ -2,7 +2,7 @@
 
 > PR: feature/core-engine
 > Date: 2026-06-30
-> Status: implemented
+> Status: merged
 
 ## 新增（Added）
 
