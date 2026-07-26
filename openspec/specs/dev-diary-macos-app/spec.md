@@ -32,9 +32,7 @@ This capability gives a local developer one auditable view of coding-agent activ
 - React UI is an unprivileged client. It may call loopback Core endpoints and render returned snapshots, but SHALL NOT read project folders, SQLite, agent logs, or execute shell/Git commands directly.
 - Core Engine is the trusted local boundary for configured read-only filesystem scans, parser execution, SQLite writes, agent probes, exports, scheduler work, and Git read-only snapshots.
 - CLI agents and custom agents are external local providers. They are probed with safe, bounded, non-mutating commands; a disabled, unavailable, failing, or timed-out provider must not destroy the user's manually saved content.
-
 ## Requirements
-
 ### Requirement: Core-owned local data boundary
 
 The system SHALL route filesystem reads, CLI-log parsing, Git inspection, SQLite persistence, scheduler work, exports, and app-owned writes through the local Core Engine and its loopback HTTP API; the React client MUST NOT perform those operations directly.
@@ -124,6 +122,25 @@ The system SHALL start the Core through the Tauri desktop shell, clean up the ch
 
 - **WHEN** the user opens the packaged app and allows it through the macOS manual approval flow
 - **THEN** the shell starts a loopback Core, resolves its runtime origin, serves the UI, and does not require the user to run a separate Node installation command.
+
+### Requirement: Desktop-only presentation boundary
+
+The system SHALL present the existing desktop workspace as the only supported UI composition. It SHALL NOT define mobile-specific layout breakpoints or alternate mobile markup for the sidebar, Dashboard, Projects Workspace, Agents, Settings, dialogs, or their controls. A layout viewport narrower than 768 CSS pixels is unsupported presentation space: the existing desktop workspace may remain mounted and may overflow, but the UI SHALL NOT present a mobile-specific replacement, a narrow-screen notice, or a claim that the mobile viewport is supported. At 768 CSS pixels and wider, the existing desktop workspace SHALL remain available with its existing navigation, data-backed views, and actions.
+
+#### Scenario: Narrow viewport does not receive a mobile layout
+
+- **WHEN** the app is rendered in a 390 CSS-pixel-wide layout viewport
+- **THEN** it does not apply mobile-specific breakpoint rules, does not mount alternate mobile markup or a narrow-screen notice, and does not claim that the viewport is a supported mobile workspace.
+
+#### Scenario: Desktop viewport keeps the existing workspace
+
+- **WHEN** the layout viewport is 768 CSS pixels wide or wider
+- **THEN** the existing `.mac-window` desktop workspace, navigation, Dashboard, Projects Workspace, Agents, Settings, dialogs, and actionable controls remain available without a mobile-specific branch.
+
+#### Scenario: Removing RWD rules does not change Core-backed behavior
+
+- **WHEN** the user uses the supported desktop viewport after the CSS change
+- **THEN** existing Core-backed scan, scheduler status, project, diary, settings, export, and read-only Git interactions retain their current routes and data boundary.
 
 ## Data Contracts
 

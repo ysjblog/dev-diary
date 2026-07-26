@@ -27,11 +27,11 @@
 - [x] 3.2 Run fresh browser checks at 390px and at least 768px: narrow view has no mobile-specific rearrangement or replacement notice, while desktop retains the existing workspace and controls. Treat narrow view as unsupported, not as a passing mobile workflow.
 - [x] 3.3 After Execute is green, create the required independent Verify-QA task; only later reconcile current Feature Spec, `docs/specs/MASTER.md`, and archive readiness.
 
-Archive readiness is BLOCKED: the active `fix-scan-status-and-daily-diary-scheduler` Delta specifies the opposite narrow-viewport notice/guard. The current Feature Spec remains unchanged until an explicit conflict decision; `docs/specs/MASTER.md` records this Closeout state.
+Archive readiness was initially blocked by the active `fix-scan-status-and-daily-diary-scheduler` Delta. Its review state now records the user's ownership decision: `remove-mobile-rwd-layout` is the sole owner of desktop-only presentation behavior and the scheduler Change owns no app-shell presentation behavior. The scheduler files remain untouched.
 
 ## 4. Archive Blocker
 
-- [ ] 4.1 Resolve the conflicting narrow-viewport contract with `fix-scan-status-and-daily-diary-scheduler`, then reconcile the current Feature Spec and archive this Change without mixing the scheduler/scan worktree changes.
+- [x] 4.1 Resolve the conflicting narrow-viewport contract with `fix-scan-status-and-daily-diary-scheduler`, then reconcile the current Feature Spec and archive this Change without mixing the scheduler/scan worktree changes. The current Feature Spec was reconciled and this Change archived on 2026-07-26.
 
 ## Verification
 
