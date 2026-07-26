@@ -1,0 +1,23 @@
+schema: spec-driven
+
+context: |
+  MASTER.md is primarily Traditional Chinese.
+  Proposal, Delta Spec, Design, Tasks and current Feature Specs are English-first and require a Traditional-Chinese `## 中文摘要`.
+  `openspec/specs/` is current truth. `openspec/changes/` contains proposed/active changes.
+  Physical files under a Change `specs/<capability>/spec.md` are always called Delta Specs.
+  This repository has completed the one-time migration from `docs/specs/`; files under `docs/specs/legacy/` are provenance only.
+
+rules:
+  proposal:
+    - Use the global Change Proposal template and exact capability names.
+    - Include Scope, Non-Goals, Risks and resolved Open Questions.
+  specs:
+    - Current Feature Specs describe complete behavior that is true now; do not use delta operation headers.
+    - Every Requirement uses SHALL/MUST and has at least one four-hash Scenario with WHEN/THEN.
+    - Include readers/writers, compatibility/migration and verification mapping.
+  design:
+    - Include runtime path, contract inventory, execution/failure order, security/privacy and rollback.
+    - Distinguish verified existing identifiers from planned NEW identifiers.
+  tasks:
+    - Include Requirement traceability and dependency-ordered parseable checkboxes.
+    - Put tests before executable implementation and finish with verification/reconciliation.
