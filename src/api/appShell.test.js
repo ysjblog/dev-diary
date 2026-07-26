@@ -146,3 +146,13 @@ test('CLI card keeps executable metadata in its dedicated section and docs suppo
   assert.match(cssSource, /\.docs-search-control\s*\{/);
   assert.match(cssSource, /\.docs-path-group\s*\{/);
 });
+
+test('app shell keeps one desktop tree without mobile layout rules or viewport branches', () => {
+  assert.doesNotMatch(cssSource, /@media\s*\(\s*max-width\s*:\s*1180px\s*\)/);
+  assert.doesNotMatch(cssSource, /@media\s*\(\s*max-width\s*:\s*820px\s*\)/);
+  assert.doesNotMatch(cssSource, /@media\s*\(\s*max-width\s*:\s*640px\s*\)/);
+  assert.equal((appSource.match(/className=\{`mac-window/g) ?? []).length, 1);
+  assert.doesNotMatch(appSource, /\bmobile\b|narrow[-\s]?screen/i);
+  assert.doesNotMatch(appSource, /window\.(?:innerWidth|visualViewport)/);
+  assert.doesNotMatch(appSource, /matchMedia\(\s*['"]\(\s*max-width/i);
+});

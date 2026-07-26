@@ -16,7 +16,11 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 
 ## 進行中變更
 
-目前沒有能由現行 source、tests 與 Git history 證實仍 open 的 active Change。舊 Delta 的「後續」段落已由後續 commit 覆蓋，或是明確 deferred/non-goal；它們不會被假裝成 active work。
+| Change | 狀態 | 摘要 |
+|---|---|---|
+| [`remove-mobile-rwd-layout`](../../openspec/changes/remove-mobile-rwd-layout/proposal.md) | Closeout / 等待與 scheduler Change 的衝突決議 | 已完成 desktop-only CSS/test 與獨立 QA；暫不 archive，避免與另一份「窄螢幕 notice」Delta 的相反契約混入 current truth。 |
+
+舊 Delta 的「後續」段落已由後續 commit 覆蓋，或是明確 deferred/non-goal；它們不會被假裝成 active work。
 
 ## 目前架構
 

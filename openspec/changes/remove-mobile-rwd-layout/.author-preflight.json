@@ -1,0 +1,14 @@
+{
+  "schema": "codex.openspec-author-preflight/v1",
+  "change": "remove-mobile-rwd-layout",
+  "content_sha256": "e41b7c8b10795c27cfe5e3a20082ad27e43b1428d9df085173437a53b556629f",
+  "tracked_files": [
+    "openspec/changes/remove-mobile-rwd-layout/design.md",
+    "openspec/changes/remove-mobile-rwd-layout/proposal.md",
+    "openspec/changes/remove-mobile-rwd-layout/specs/dev-diary-macos-app/spec.md",
+    "openspec/changes/remove-mobile-rwd-layout/tasks.md",
+    "openspec/specs/dev-diary-macos-app/spec.md"
+  ],
+  "checked_at": "2026-07-26T08:55:27.088232+00:00",
+  "status": "pass"
+}
