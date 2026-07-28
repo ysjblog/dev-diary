@@ -1,6 +1,6 @@
 # DevDiary — 專案規格總覽
 
-> Last updated: 2026-07-26
+> Last updated: 2026-07-28
 > Source of truth: `openspec/specs/`；`openspec/changes/` 只放尚未封存的工作。
 > Legacy 文件位於 `docs/specs/legacy/`，僅供 provenance 查閱，不是 active contract。
 
@@ -16,9 +16,7 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 
 ## 進行中變更
 
-| Change | 狀態 | 摘要 |
-|---|---|---|
-| [`fix-scan-status-and-daily-diary-scheduler`](../../openspec/changes/fix-scan-status-and-daily-diary-scheduler/proposal.md) | Plan-Spec / 待 review 與使用者 acceptance | 修正 stale scan-operation 造成的永久忙碌顯示，並讓每日排程生成 Project summary、Daily diary 與 Daily highlight，同時保護使用者確認內容。 |
+目前沒有 active OpenSpec Change；已完成的變更保留在 `openspec/changes/archive/` 作為歷史依據。
 
 舊 Delta 的「後續」段落已由後續 commit 覆蓋，或是明確 deferred/non-goal；它們不會被假裝成 active work。
 
@@ -80,5 +78,6 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 ## 變更紀錄
 
 - 2026-07-26：封存 `remove-mobile-rwd-layout`；current Feature Spec 現明確定義 desktop-only presentation boundary，窄於 768 CSS px 的 viewport 不提供 mobile 重排、替代 markup 或提示。
+- 2026-07-28：封存 `fix-scan-status-and-daily-diary-scheduler` 與 `release-v0-1-2-distribution`；current Feature Spec 已同步掃描／每日排程與 macOS Release provenance 契約。
 - 2026-07-23：完成一次性 OpenSpec migration；current truth 轉入 `openspec/specs/`，legacy Feature/Delta/review/MASTER 保存於 `docs/specs/legacy/`。
 - 歷史 archive 尚未有 OpenSpec-native `openspec/changes/archive/YYYY-MM-DD-<change>/` 目錄內容；完整 legacy provenance 與舊 review state 由 [`MIGRATION-MAP.md`](legacy/MIGRATION-MAP.md) 對照。
