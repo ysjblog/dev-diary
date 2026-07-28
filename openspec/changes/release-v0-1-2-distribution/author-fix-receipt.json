@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "matrix_digest": "756dc4c4d96636be66130ed42cabd6194d3256d956d50a700078866a7bb8e193",
-  "review_revision": "92c7708dad909f453df88b65f9a102e40a649d81",
+  "matrix_digest": "80c3ab650bc23031568c9a02933faeec35d4456d385a64509ae479fd49f3eb3b",
+  "review_revision": "7d7aec57f05141b2161ef682ae92d9f4536c3876",
   "reviewed_finding_ids": ["SOL-IA-001", "SOL-IA-002", "SOL-FR-001", "SOL-FR-002"],
-  "changed_artifact_digest": "009897346a66d4212bffa8eaa55f40b5466a6e574c9e2a5f3e1c420dc6c6f059",
+  "changed_artifact_digest": "503dc6f5397cb553274439664d4cb9a901fdb412d90b7f844d09bc428a650ae2",
   "landing_checks_passed": true,
   "strict_validation_passed": true,
-  "author_preflight_receipt_digest": "4bca941ec1d54d3980caabeca574f742372c23a4a4b202b9abeb43959f0c0379",
+  "author_preflight_receipt_digest": "490b5f2f44e2d209a5748a0b76bc1ce3ddbccfe9e9127a1bee8f533d11ef0c13",
   "concern_tags": ["execution-order", "design-contract", "readers-writers"],
   "verify_strings": ["no tag-push trigger", "one-shot external-write checkpoint", "Partial-upload recovery table", "MUST be manually dispatched", "MUST NOT overwrite"],
   "fix_report": [
@@ -15,5 +15,5 @@
     {"finding_ids":["SOL-FR-001"],"what_changed":"The design now supplies a remote-state recovery table that permits only digest-verified missing-asset upload."},
     {"finding_ids":["SOL-FR-002"],"what_changed":"The unimplemented output/release copy claim was removed; the Tauri DMG path is the sole upload source."}
   ],
-  "receipt_digest": "b6c6db836c1e1e4645a9b52ab367aa80ae36e57acaee8448fadc04f79012817a"
+  "receipt_digest": "185c21d1b458dd0d2f41b8d98d03df7dd2363a10994f35a843eb66c89d4097ed"
 }

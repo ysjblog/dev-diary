@@ -1,11 +1,11 @@
 {
   "schema_version": 2,
-  "generated_revision": "92c7708dad909f453df88b65f9a102e40a649d81",
-  "input_manifest_digest": "3893d2a55a06795eb9385572eb3cf7106880b9e1d41b7bae2a5506fe4fffb3ad",
+  "generated_revision": "7d7aec57f05141b2161ef682ae92d9f4536c3876",
+  "input_manifest_digest": "7d9930c8175331284351f79d7de8c91d87038541e8bbda75d50e2ecb0eb33a4f",
   "artifact_inventory": [
     {
       "path": "openspec/changes/release-v0-1-2-distribution/design.md",
-      "sha256": "8ec412341ba3682ce2ab004475e0510f72022f63b004a67c17eae81080ec02cd"
+      "sha256": "3284373d4f9c7f43c68cd7eb8f3f4c10e10b0f50f0ec4f29ae078c7f6eec4c22"
     },
     {
       "path": "openspec/changes/release-v0-1-2-distribution/proposal.md",
@@ -17,7 +17,7 @@
     },
     {
       "path": "openspec/changes/release-v0-1-2-distribution/tasks.md",
-      "sha256": "3a32aaedbde46b4201483311c4fffe63ae760afd45ce15b1946bba384ed5b607"
+      "sha256": "92b35349b62cfb16255912ecc65be8357bf4887331522ab52ba28c1babed7641"
     },
     {
       "path": "openspec/specs/dev-diary-macos-app/spec.md",
@@ -257,5 +257,5 @@
       ]
     }
   ],
-  "matrix_digest": "756dc4c4d96636be66130ed42cabd6194d3256d956d50a700078866a7bb8e193"
+  "matrix_digest": "80c3ab650bc23031568c9a02933faeec35d4456d385a64509ae479fd49f3eb3b"
 }

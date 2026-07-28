@@ -2,8 +2,8 @@
   "schema_version": 1,
   "stage": "initial",
   "reviewer_id": "sol:/root/release_spec_review",
-  "review_revision": "92c7708dad909f453df88b65f9a102e40a649d81",
-  "matrix_digest": "756dc4c4d96636be66130ed42cabd6194d3256d956d50a700078866a7bb8e193",
+  "review_revision": "7d7aec57f05141b2161ef682ae92d9f4536c3876",
+  "matrix_digest": "80c3ab650bc23031568c9a02933faeec35d4456d385a64509ae479fd49f3eb3b",
   "lens_results": {
     "failure_recovery": "findings",
     "integration_authority": "findings"
@@ -16,5 +16,5 @@
     {"id":"SOL-FR-002","severity":"medium","lens":"failure_recovery","title":"Release-copy path is not implemented","location":"proposal.md; design.md","suggestedFix":"Use the Tauri DMG path as the sole upload artifact or implement and verify a copy path."}
   ],
   "summary":"Independent review found four integration-authority and failure-recovery issues. The owner applied one consolidated spec-only fix before the required fresh closer.",
-  "receipt_digest": "fd66b7e660c5514da25db857067565ddf9a91c20a58c9a92296fa188ca4ff9aa"
+  "receipt_digest": "934b7ad88adb05b44b36c440bf8e2dbec5e6dd5846da8654fcb469c1ab1a1b0b"
 }

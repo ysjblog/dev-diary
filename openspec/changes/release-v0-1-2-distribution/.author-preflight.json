@@ -1,7 +1,7 @@
 {
   "schema": "codex.openspec-author-preflight/v1",
   "change": "release-v0-1-2-distribution",
-  "content_sha256": "5329ac67e28d90647b79a2089a323fdf7c433624529b5b27250855228a1d79c8",
+  "content_sha256": "492bc2fd45564b20578d4bccba29939d8f871c1e0dab6efd063319d1357cdd06",
   "tracked_files": [
     "openspec/changes/release-v0-1-2-distribution/design.md",
     "openspec/changes/release-v0-1-2-distribution/proposal.md",
@@ -9,6 +9,6 @@
     "openspec/changes/release-v0-1-2-distribution/tasks.md",
     "openspec/specs/dev-diary-macos-app/spec.md"
   ],
-  "checked_at": "2026-07-28T15:27:41.742890+00:00",
+  "checked_at": "2026-07-28T15:57:43.871521+00:00",
   "status": "pass"
 }

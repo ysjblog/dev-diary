@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "stage": "final",
+  "reviewer_id": "sol:/root/release_closer",
+  "review_revision": "7d7aec57f05141b2161ef682ae92d9f4536c3876",
+  "matrix_digest": "80c3ab650bc23031568c9a02933faeec35d4456d385a64509ae479fd49f3eb3b",
+  "lens_results": {
+    "integration_authority": "findings",
+    "failure_recovery": "pass"
+  },
+  "finding_ids": ["SOL-FC-003"],
+  "findings": [
+    {
+      "id": "SOL-FC-003",
+      "severity": "medium",
+      "lens": "integration_authority",
+      "title": "Release source-of-truth is bound to a stale revision",
+      "location": "openspec/changes/release-v0-1-2-distribution/design.md:15,24",
+      "evidence": "8c71412 is the immutable release/tag commit and origin/main at publication; 7d7aec57 is the later local documentation revision.",
+      "suggestedFix": "Separate release-candidate evidence from current documentation revision and refresh closeout evidence."
+    }
+  ],
+  "summary": "Fresh closer rejected archive only because the documentation conflated the release candidate with the current local review revision.",
+  "receipt_digest": "9d0e161d1264278321fca9ee561a15ba63106616845795025fd36816fadc8894"
+}

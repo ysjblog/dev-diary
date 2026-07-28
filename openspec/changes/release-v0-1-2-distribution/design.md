@@ -12,7 +12,7 @@ reasons: external_write
 
 ## Context
 
-At planning time `main` was published at `92c7708`, while the only current GitHub Release was `v0.1.1` at `7330756`. The completed release now has `main` and annotated `v0.1.2` at `8c71412`; `v0.1.1` remains unchanged.
+At planning time `main` was published at `92c7708`, while the only current GitHub Release was `v0.1.1` at `7330756`. At publication, `origin/main` and annotated `v0.1.2` both identified immutable release candidate `8c71412`; `v0.1.1` remains unchanged. The later local documentation revision `7d7aec5` records closeout evidence and is intentionally not part of the released DMG or tag.
 
 ## Goals / Non-Goals
 
@@ -21,7 +21,7 @@ At planning time `main` was published at `92c7708`, while the only current GitHu
 
 ## Threat and Authority Model
 
-- Local source of truth: checked-out `main` at `8c71412` plus the four version declarations.
+- Release source of truth: immutable `v0.1.2` / `8c71412` plus the four version declarations. Current closeout-document source of truth: checked-out `main` at `7d7aec5`; it does not retarget the release.
 - Artifact source: `npm run package:mac` writes one fresh ignored DMG under `src-tauri/target/release/bundle/dmg/`; that exact path is the only upload candidate.
 - Remote sinks: `origin/main`, immutable `v0.1.2` tag, and the GitHub Release for that tag.
 - Authority: only the user-approved one-time Git/GitHub publish operations; no asset replacement, release deletion, or credential inspection.
