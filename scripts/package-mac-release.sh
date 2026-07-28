@@ -25,10 +25,13 @@ cleanup() {
 trap cleanup EXIT
 
 cd "$root_dir"
+app_version="$(node -p "require('./package.json').version")"
+[[ "$app_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "package.json has an invalid release version: $app_version"
+expected_dmg="$root_dir/src-tauri/target/release/bundle/dmg/DevDiary_${app_version}_aarch64.dmg"
 npx tauri build --bundles dmg --no-sign
 
-dmg_path="$(find "$root_dir/src-tauri/target/release/bundle/dmg" -type f -name '*.dmg' -newer "$marker" -print | head -n 1)"
-[[ -n "$dmg_path" ]] || fail "Tauri did not create a fresh DMG artifact."
+dmg_path="$expected_dmg"
+[[ -f "$dmg_path" && "$dmg_path" -nt "$marker" ]] || fail "Tauri did not create the expected fresh DMG: $expected_dmg"
 hdiutil convert "$dmg_path" -format UDRW -o "$rw_dmg" -ov >/dev/null
 hdiutil resize -size 350m "$rw_dmg" >/dev/null
 mkdir -p "$mount_dir"

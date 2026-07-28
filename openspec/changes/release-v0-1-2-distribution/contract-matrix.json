@@ -1,0 +1,261 @@
+{
+  "schema_version": 2,
+  "generated_revision": "92c7708dad909f453df88b65f9a102e40a649d81",
+  "input_manifest_digest": "3893d2a55a06795eb9385572eb3cf7106880b9e1d41b7bae2a5506fe4fffb3ad",
+  "artifact_inventory": [
+    {
+      "path": "openspec/changes/release-v0-1-2-distribution/design.md",
+      "sha256": "8ec412341ba3682ce2ab004475e0510f72022f63b004a67c17eae81080ec02cd"
+    },
+    {
+      "path": "openspec/changes/release-v0-1-2-distribution/proposal.md",
+      "sha256": "658e01734b8a487b4af4c6a7bbef1b544e2a1a73732c891fc39456bfd7aaf574"
+    },
+    {
+      "path": "openspec/changes/release-v0-1-2-distribution/specs/dev-diary-macos-app/spec.md",
+      "sha256": "2244afc745c8b5d0f7ce62d1fef9b45d46496f6d25d7108059805b4c632dfbd7"
+    },
+    {
+      "path": "openspec/changes/release-v0-1-2-distribution/tasks.md",
+      "sha256": "3a32aaedbde46b4201483311c4fffe63ae760afd45ce15b1946bba384ed5b607"
+    },
+    {
+      "path": "openspec/specs/dev-diary-macos-app/spec.md",
+      "sha256": "b147cd803760d5be8a67267878c86253506189ce17dff1ce4a161723add3cf90"
+    }
+  ],
+  "inventory_scope": {
+    "change": [
+      "openspec/changes/release-v0-1-2-distribution/design.md",
+      "openspec/changes/release-v0-1-2-distribution/proposal.md",
+      "openspec/changes/release-v0-1-2-distribution/specs/dev-diary-macos-app/spec.md",
+      "openspec/changes/release-v0-1-2-distribution/tasks.md"
+    ],
+    "baseline": [
+      "openspec/specs/dev-diary-macos-app/spec.md"
+    ]
+  },
+  "invariants": [
+    {
+      "id": "version_consistency",
+      "value": "0.1.2",
+      "search_terms": [
+        "0.1.2"
+      ],
+      "writers": [
+        "openspec/changes/release-v0-1-2-distribution/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/release-v0-1-2-distribution/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/design.md",
+          "line": 26
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/design.md",
+          "line": 36
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/design.md",
+          "line": 42
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/design.md",
+          "line": 43
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/design.md",
+          "line": 50
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/design.md",
+          "line": 51
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/design.md",
+          "line": 52
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/design.md",
+          "line": 69
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/design.md",
+          "line": 82
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/proposal.md",
+          "line": 11
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/proposal.md",
+          "line": 19
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/proposal.md",
+          "line": 20
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/proposal.md",
+          "line": 21
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/proposal.md",
+          "line": 54
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/proposal.md",
+          "line": 58
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/specs/dev-diary-macos-app/spec.md",
+          "line": 45
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/specs/dev-diary-macos-app/spec.md",
+          "line": 53
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/tasks.md",
+          "line": 27
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/tasks.md",
+          "line": 29
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/tasks.md",
+          "line": 34
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/tasks.md",
+          "line": 35
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/tasks.md",
+          "line": 40
+        }
+      ]
+    },
+    {
+      "id": "artifact_identity",
+      "value": "DevDiary_0.1.2_aarch64.dmg",
+      "search_terms": [
+        "DevDiary_0.1.2_aarch64.dmg"
+      ],
+      "writers": [
+        "openspec/changes/release-v0-1-2-distribution/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/release-v0-1-2-distribution/proposal.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/design.md",
+          "line": 42
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/design.md",
+          "line": 51
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/proposal.md",
+          "line": 20
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/tasks.md",
+          "line": 29
+        }
+      ]
+    },
+    {
+      "id": "tag_identity",
+      "value": "v0.1.2",
+      "search_terms": [
+        "v0.1.2"
+      ],
+      "writers": [
+        "openspec/changes/release-v0-1-2-distribution/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/release-v0-1-2-distribution/tasks.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/design.md",
+          "line": 26
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/design.md",
+          "line": 43
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/design.md",
+          "line": 51
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/design.md",
+          "line": 52
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/design.md",
+          "line": 69
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/design.md",
+          "line": 82
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/proposal.md",
+          "line": 11
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/proposal.md",
+          "line": 21
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/specs/dev-diary-macos-app/spec.md",
+          "line": 45
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/specs/dev-diary-macos-app/spec.md",
+          "line": 53
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/tasks.md",
+          "line": 34
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/tasks.md",
+          "line": 35
+        },
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/tasks.md",
+          "line": 40
+        }
+      ]
+    },
+    {
+      "id": "no_overwrite",
+      "value": "MUST NOT overwrite",
+      "search_terms": [
+        "MUST NOT overwrite"
+      ],
+      "writers": [
+        "openspec/changes/release-v0-1-2-distribution/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/release-v0-1-2-distribution/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/release-v0-1-2-distribution/specs/dev-diary-macos-app/spec.md",
+          "line": 21
+        }
+      ]
+    }
+  ],
+  "matrix_digest": "756dc4c4d96636be66130ed42cabd6194d3256d956d50a700078866a7bb8e193"
+}

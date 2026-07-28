@@ -9,6 +9,14 @@ usage() {
 [[ $# -eq 1 ]] || usage
 dmg_path="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 [[ -f "$dmg_path" ]] || { echo "DMG not found: $dmg_path" >&2; exit 1; }
+dmg_name="$(basename "$dmg_path")"
+[[ "$dmg_name" =~ ^DevDiary_([0-9]+\.[0-9]+\.[0-9]+)_aarch64\.dmg$ ]] || {
+  echo "DMG name must be DevDiary_<semantic-version>_aarch64.dmg: $dmg_name" >&2
+  exit 1
+}
+expected_version="${BASH_REMATCH[1]}"
+expected_name="DevDiary_${expected_version}_aarch64.dmg"
+[[ "$dmg_name" == "$expected_name" ]] || { echo "DMG name does not match its parsed version." >&2; exit 1; }
 
 mount_dir="$(mktemp -d "${TMPDIR:-/tmp}/devdiary-release-verify.XXXXXX")"
 cleanup() {
@@ -22,6 +30,16 @@ hdiutil attach "$dmg_path" -nobrowse -readonly -mountpoint "$mount_dir" -quiet
 
 app_path="$mount_dir/DevDiary.app"
 [[ -d "$app_path" ]] || { echo "Release DMG is missing DevDiary.app." >&2; exit 1; }
+bundle_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app_path/Contents/Info.plist")"
+bundle_build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app_path/Contents/Info.plist")"
+[[ "$bundle_version" == "$expected_version" ]] || {
+  echo "DMG filename version $expected_version does not match app version $bundle_version." >&2
+  exit 1
+}
+[[ "$bundle_build" == "$expected_version" ]] || {
+  echo "DMG filename version $expected_version does not match app build version $bundle_build." >&2
+  exit 1
+}
 [[ -L "$mount_dir/Applications" ]] || { echo "Release DMG is missing the Applications drag-install shortcut." >&2; exit 1; }
 [[ "$(readlink "$mount_dir/Applications")" == "/Applications" ]] || { echo "Release DMG Applications shortcut does not point to /Applications." >&2; exit 1; }
 [[ -f "$mount_dir/.background/dmg-background.png" ]] || { echo "Release DMG is missing the drag-install background." >&2; exit 1; }

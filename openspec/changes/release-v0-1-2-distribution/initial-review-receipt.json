@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "stage": "initial",
+  "reviewer_id": "sol:/root/release_spec_review",
+  "review_revision": "92c7708dad909f453df88b65f9a102e40a649d81",
+  "matrix_digest": "756dc4c4d96636be66130ed42cabd6194d3256d956d50a700078866a7bb8e193",
+  "lens_results": {
+    "failure_recovery": "findings",
+    "integration_authority": "findings"
+  },
+  "finding_ids": ["SOL-IA-001", "SOL-IA-002", "SOL-FR-001", "SOL-FR-002"],
+  "findings": [
+    {"id":"SOL-IA-001","severity":"high","lens":"integration_authority","title":"Workflow can overwrite existing assets","location":".github/workflows/macos-release.yml","suggestedFix":"Make the workflow manual-only and fail before an existing tag, release, or asset; remove --clobber."},
+    {"id":"SOL-IA-002","severity":"high","lens":"integration_authority","title":"Publish authority is not bound to the exact operation","location":"proposal.md; design.md; tasks.md","suggestedFix":"Bind the one-shot checkpoint to repository, candidate commit, tag, asset names/digests, and allowed actions."},
+    {"id":"SOL-FR-001","severity":"high","lens":"failure_recovery","title":"Partial uploads lack a safe continuation contract","location":"design.md; tasks.md","suggestedFix":"Define readback-only recovery states and upload only a missing asset after its existing peer matches digest."},
+    {"id":"SOL-FR-002","severity":"medium","lens":"failure_recovery","title":"Release-copy path is not implemented","location":"proposal.md; design.md","suggestedFix":"Use the Tauri DMG path as the sole upload artifact or implement and verify a copy path."}
+  ],
+  "summary":"Independent review found four integration-authority and failure-recovery issues. The owner applied one consolidated spec-only fix before the required fresh closer.",
+  "receipt_digest": "fd66b7e660c5514da25db857067565ddf9a91c20a58c9a92296fa188ca4ff9aa"
+}
