@@ -19,7 +19,7 @@ reasons: external_write
 ## 1. Plan and Review
 
 - [x] 1.1 Confirm user authorization, exact source revision, existing release inventory, and no-overwrite boundary.
-- [ ] 1.2 Complete the O3 `integration_authority` and `failure_recovery` review, one consolidated author fix if needed, and one fresh closer.
+- [x] 1.2 Administrative closeout authorized by the user on 2026-07-29. The archived review record retains the prior closer findings and root-cause notes; this checkbox does not claim an additional independent review.
 - [x] 1.3 Add the Level-4 release test plan before executable metadata changes.
 
 ## 2. Implementation and Local Verification
