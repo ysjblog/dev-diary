@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { openDb, type DB } from '../src/db/index.js';
 import { seedDatabase } from '../src/db/seed.js';
 import { createServer } from '../src/server.js';
@@ -178,6 +178,39 @@ describe('Projects Workspace', () => {
         expect(e.markdown.trim().length).toBeGreaterThan(0);
         expect(typeof e.title).toBe('string');
       }
+    });
+
+    it('confirmed diary table row 會先於 legacy per-project summary 載入，且同日期不查該 projection', () => {
+      const markdown = '## confirmed diary\n- 使用者確認內容。';
+      db.prepare(
+        `INSERT INTO project_daily_diaries (project_id, date, markdown, status, fallback_report, created_at, updated_at)
+         VALUES (1, ?, ?, 'confirmed', NULL, ?, ?)`,
+      ).run(TODAY, markdown, `${TODAY}T12:00:00.000Z`, `${TODAY}T12:00:00.000Z`);
+      const prepare = db.prepare.bind(db);
+      const guard = vi.spyOn(db, 'prepare').mockImplementation((sql: string) => {
+        if (sql.includes('per_project_summary')) throw new Error('confirmed diary must not read legacy per-project summary');
+        return prepare(sql);
+      });
+
+      const detail = getProjectDetail(db, 1, TODAY, { range: 'custom', customStart: TODAY, customEnd: TODAY });
+
+      expect(detail!.diary).toEqual(expect.arrayContaining([expect.objectContaining({ date: TODAY, markdown })]));
+      guard.mockRestore();
+    });
+
+    it('non-diary snapshot 不讀 legacy per-project summary', () => {
+      const prepare = db.prepare.bind(db);
+      const guard = vi.spyOn(db, 'prepare').mockImplementation((sql: string) => {
+        if (sql.includes('per_project_summary')) throw new Error('non-diary snapshot must not read legacy per-project summary');
+        return prepare(sql);
+      });
+
+      const detail = getProjectDetail(db, 1, TODAY, {
+        range: 'custom', customStart: TODAY, customEnd: TODAY, includeDiary: false,
+      });
+
+      expect(detail!.summary_markdown).toContain('開發摘要');
+      guard.mockRestore();
     });
 
     it('summary：持久化 per_project_summary 優先於生成 fallback', () => {

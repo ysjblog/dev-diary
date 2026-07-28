@@ -7,6 +7,7 @@ import { createConfiguredScanProvider, runManualScan, type ManualScanResult, typ
 import {
   getSettings,
   recordScanOperation,
+  startScanOperationHeartbeat,
   updateDailySchedulerState,
   type AppSettings,
   type SettingsRuntimeDefaults,
@@ -91,92 +92,129 @@ export async function runBackgroundCycle(
     scope: 'background',
     started_at: base.started_at,
   }).operation;
+  const stopHeartbeatTimer = startScanOperationHeartbeat(db, runtimeDefaults, operation);
+  let heartbeatStopped = false;
+  const stopHeartbeat = () => {
+    if (heartbeatStopped) return;
+    heartbeatStopped = true;
+    stopHeartbeatTimer();
+  };
+  let finished = false;
   const persistResult = (result: BackgroundCycleResult): BackgroundCycleResult => {
-    const state = recordScanOperation(db, runtimeDefaults, {
-      phase: 'finish',
-      operation,
-      completed_at: result.completed_at,
-      status: result.status,
-      error: result.error_message,
-      scanned_projects: result.scan?.scanned_projects.length ?? 0,
-      inserted_sessions: result.scan?.inserted_sessions ?? 0,
-    }).settings.background_scan;
-    return { ...result, next_interval_ms: state.next_interval_ms ?? result.next_interval_ms };
+    if (finished) return result;
+    finished = true;
+    stopHeartbeat();
+    try {
+      const state = recordScanOperation(db, runtimeDefaults, {
+        phase: 'finish',
+        operation,
+        completed_at: result.completed_at,
+        status: result.status,
+        error: result.error_message,
+        scanned_projects: result.scan?.scanned_projects.length ?? 0,
+        inserted_sessions: result.scan?.inserted_sessions ?? 0,
+      }).settings.background_scan;
+      return { ...result, next_interval_ms: state.next_interval_ms ?? result.next_interval_ms };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Background scan state finalization failed.';
+      return {
+        ...result,
+        status: 'failed',
+        message: `${result.message} Scan state finalization failed.`,
+        error_message: result.error_message ?? message,
+      };
+    }
   };
 
   const today = dateInTaipei(started);
   const projectRoots = settings.project_roots.length > 0 ? settings.project_roots : runtimeDefaults.projectRoots;
-  const scan = runManualScan(db, {
-    scope: 'global',
-    today,
-    provider: scanProviderFor(db, settings, options.scanProvider),
-    projectRoots,
-    projectDocFilenames: settings.project_doc_filenames,
-    projectDocFolders: settings.project_doc_folders,
-  });
+  let scan: ManualScanResult | null = null;
+  let antigravitySkipped = false;
+  try {
+    scan = runManualScan(db, {
+      scope: 'global',
+      today,
+      provider: scanProviderFor(db, settings, options.scanProvider),
+      projectRoots,
+      projectDocFilenames: settings.project_doc_filenames,
+      projectDocFolders: settings.project_doc_folders,
+    });
+    if (scan.status === 'failed') {
+      updateDailySchedulerState(
+        db,
+        {
+          last_run_date: today,
+          last_run_at: nowIso(started),
+          last_status: 'failed',
+          last_error: scan.error_message ?? 'Background scan failed.',
+          last_project_count: 0,
+        },
+        runtimeDefaults,
+      );
+      return persistResult({
+        ...base,
+        status: 'failed',
+        completed_at: completed(),
+        scan,
+        diary: null,
+        message: 'Background scan failed before diary generation.',
+        antigravity_skipped: false,
+        error_message: scan.error_message,
+      });
+    }
 
-  if (scan.status === 'failed') {
-    updateDailySchedulerState(
-      db,
-      {
-        last_run_date: today,
-        last_run_at: nowIso(started),
-        last_status: 'failed',
-        last_error: scan.error_message ?? 'Background scan failed.',
-        last_project_count: 0,
-      },
-      runtimeDefaults,
-    );
+    // agy session 健康檢查:失效就整輪跳過 agy 呼叫改用 deterministic fallback,
+    // 避免逐專案狂彈 GUI 登入視窗。此處只做「回報用」的健康探測,與 daily scheduler
+    // 共用同一個 gate 實例(TTL 內不會重複 probe)。
+    //
+    // 注意:kanban AI 自動加卡「不再」每輪獨立執行。過去每個 background cycle(預設每
+    // 5 分鐘)都對所有專案各叫一次 agy 產生看板卡,一天累積上千次 agy 呼叫、把額度燒光。
+    // 現在 kanban AI 與每日摘要一律只在 daily scheduler 的「一天一次」排程內執行
+    // (見 DailySchedulerRuntime.runNow),受 daily_scheduler.enabled 開關與 run_time_local
+    // 排程時間控管。頻繁的 background cycle 只保留「免費、不呼叫 agy」的本機掃描。
+    if (options.antigravityGate && usesAntigravityProvider(settings)) {
+      const health = await options.antigravityGate.ensureHealthy(started.getTime(), createAntigravityProbe(settings));
+      antigravitySkipped = !health.healthy;
+    }
+
+    const scheduler = options.scheduler ?? new DailySchedulerRuntime(db, runtime, {
+      projectSummaryAgent: options.projectSummaryAgent,
+      globalSummaryAgent: options.globalSummaryAgent,
+      kanbanAiGenerator: options.kanbanAiGenerator,
+      antigravityGate: options.antigravityGate,
+    });
+    const diary = await scheduler.tick(started);
+    const failed = diary.status === 'failed';
+    const skipNote = antigravitySkipped ? ' (Antigravity 未登入,本輪已跳過 AI 改用 fallback)' : '';
+    return persistResult({
+      ...base,
+      status: failed ? 'failed' : 'success',
+      completed_at: completed(),
+      scan,
+      diary,
+      message: (failed
+        ? 'Background diary generation failed after scan.'
+        : diary.status === 'success'
+          ? 'Background scan and diary generation completed.'
+          : 'Background scan completed; daily diary did not run on this interval.') + skipNote,
+      antigravity_skipped: antigravitySkipped,
+      error_message: diary.error_message,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Background cycle failed.';
     return persistResult({
       ...base,
       status: 'failed',
       completed_at: completed(),
       scan,
       diary: null,
-      message: 'Background scan failed before diary generation.',
-      antigravity_skipped: false,
-      error_message: scan.error_message,
+      message,
+      antigravity_skipped: antigravitySkipped,
+      error_message: message,
     });
+  } finally {
+    stopHeartbeat();
   }
-
-  // agy session 健康檢查:失效就整輪跳過 agy 呼叫改用 deterministic fallback,
-  // 避免逐專案狂彈 GUI 登入視窗。此處只做「回報用」的健康探測,與 daily scheduler
-  // 共用同一個 gate 實例(TTL 內不會重複 probe)。
-  //
-  // 注意:kanban AI 自動加卡「不再」每輪獨立執行。過去每個 background cycle(預設每
-  // 5 分鐘)都對所有專案各叫一次 agy 產生看板卡,一天累積上千次 agy 呼叫、把額度燒光。
-  // 現在 kanban AI 與每日摘要一律只在 daily scheduler 的「一天一次」排程內執行
-  // (見 DailySchedulerRuntime.runNow),受 daily_scheduler.enabled 開關與 run_time_local
-  // 排程時間控管。頻繁的 background cycle 只保留「免費、不呼叫 agy」的本機掃描。
-  let antigravitySkipped = false;
-  if (options.antigravityGate && usesAntigravityProvider(settings)) {
-    const health = await options.antigravityGate.ensureHealthy(started.getTime(), createAntigravityProbe(settings));
-    antigravitySkipped = !health.healthy;
-  }
-
-  const scheduler = options.scheduler ?? new DailySchedulerRuntime(db, runtime, {
-    projectSummaryAgent: options.projectSummaryAgent,
-    globalSummaryAgent: options.globalSummaryAgent,
-    kanbanAiGenerator: options.kanbanAiGenerator,
-    antigravityGate: options.antigravityGate,
-  });
-  const diary = await scheduler.tick(started);
-  const failed = diary.status === 'failed';
-  const skipNote = antigravitySkipped ? ' (Antigravity 未登入,本輪已跳過 AI 改用 fallback)' : '';
-  return persistResult({
-    ...base,
-    status: failed ? 'failed' : 'success',
-    completed_at: completed(),
-    scan,
-    diary,
-    message: (failed
-      ? 'Background diary generation failed after scan.'
-      : diary.status === 'success'
-        ? 'Background scan and diary generation completed.'
-        : 'Background scan completed; daily diary did not run on this interval.') + skipNote,
-    antigravity_skipped: antigravitySkipped,
-    error_message: diary.error_message,
-  });
 }
 
 export function formatBackgroundCycleLog(result: BackgroundCycleResult): string {

@@ -238,18 +238,6 @@ function splitEligible(projects: ScannableProject[]): { eligible: ScannableProje
   return { eligible, skipped };
 }
 
-function mergeProjectSummary(existingJson: string | null, projectId: number, summary: string): string {
-  let current: Record<string, string> = {};
-  try {
-    const parsed = JSON.parse(existingJson ?? '{}');
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) current = parsed as Record<string, string>;
-  } catch {
-    current = {};
-  }
-  current[String(projectId)] = summary;
-  return JSON.stringify(current);
-}
-
 function safeProjectDocPath(projectRoot: string, relativePath: string): string | null {
   const raw = relativePath.trim();
   if (raw.startsWith('/')) return null;
@@ -544,24 +532,8 @@ export function runManualScan(db: DB, opts: ManualScanOptions): ManualScanResult
           if (upsert.updated) result.updated_kanban_cards++;
         }
 
-        if (scanned.daily_summary) {
-          const existing = db
-            .prepare(`SELECT per_project_summary FROM daily_logs WHERE date = ?`)
-            .get(opts.today) as { per_project_summary: string | null } | undefined;
-          const merged = mergeProjectSummary(existing?.per_project_summary ?? null, project.id, scanned.daily_summary);
-          db.prepare(
-            `INSERT INTO daily_logs (date, global_summary_ai, global_summary_user, per_project_summary,
-               blockers, warnings, fallback_report, summary_status)
-             VALUES (?, NULL, NULL, ?, '[]', '[]', NULL, 'ai_generated')
-             ON CONFLICT(date) DO UPDATE SET
-               per_project_summary = excluded.per_project_summary,
-               summary_status = CASE
-                 WHEN daily_logs.summary_status = 'confirmed' THEN daily_logs.summary_status
-                 ELSE excluded.summary_status
-               END`,
-          ).run(opts.today, merged);
-          result.updated_daily_logs++;
-        }
+        // Scan-derived text may contribute to Kanban synthesis above, but the
+        // scheduler is the sole owner of the global daily_logs projection.
       }
       return result;
     });

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "stage": "initial",
+  "reviewer_id": "spec-review-sol",
+  "review_revision": "b4469854eff716f61f4d0a97078fd9c0b11605ee",
+  "matrix_digest": "f20e04dee6d24672be686fb601b9cc2a4fd451647c25a1c9886119c7ac4a9b30",
+  "lens_results": {
+    "data-and-facts": "findings",
+    "naming-and-types": "findings",
+    "blast-radius": "findings",
+    "execution-order": "findings",
+    "logic-and-design": "findings"
+  },
+  "finding_ids": [
+    "SOL-DATA-001",
+    "SOL-DATA-002",
+    "SOL-TYPE-001",
+    "SOL-BLAST-001",
+    "SOL-ORDER-001",
+    "SOL-ORDER-002",
+    "SOL-LOGIC-001"
+  ],
+  "findings": [
+    {"id":"SOL-DATA-001","severity":"medium","title":"Daily diary fallback evidence and counter are not persisted","location":"Delta Spec:36,50-51; Scheduler lifecycle:55","evidence":["core/src/services/diaryAgent.ts:551-562","core/src/services/projectWrites.ts:81-103","core/src/services/dailyScheduler.ts:320-328,361-365"],"suggestedFix":"Propagate sanitized fallback_report through the diary upsert, distinguish provider fallback, and increment daily_diaries_fallback from the persisted result."},
+    {"id":"SOL-DATA-002","severity":"medium","title":"Read-time scan recovery is not durably written","location":"Delta Spec:17,80","evidence":["core/src/services/settings.ts:877-911","core/src/services/settings.ts:1113-1116"],"suggestedFix":"Persist the reconciled active array and last_recovered_operation atomically during Core reconciliation."},
+    {"id":"SOL-TYPE-001","severity":"medium","title":"owner_instance_id is per-operation and weakly validated, not a process-start UUID","location":"Delta Spec:17; Design scan lifecycle:33,52","evidence":["core/src/services/settings.ts:850-865","core/src/services/settings.ts:1207-1215"],"suggestedFix":"Create one UUID at process start, reuse it for all scan operations, and validate the persisted value as a UUID."},
+    {"id":"SOL-BLAST-001","severity":"medium","title":"The Taipei date contract is not shared by all default project readers","location":"Delta Spec:55,75; Design D4:72","evidence":["core/src/services/projects.ts:64-74","core/src/server.ts:188-194"],"suggestedFix":"Use the shared taipeiDate helper for projects.ts default arguments and remove the UTC fallback."},
+    {"id":"SOL-ORDER-001","severity":"high","title":"Background scans can exit without a terminal finish attempt","location":"Delta Spec:29-32; Design scan lifecycle:35","evidence":["core/src/services/backgroundRunner.ts:90-105","core/src/services/backgroundRunner.ts:111-158","core/src/services/backgroundRunner.ts:176-198"],"suggestedFix":"Wrap the entire post-start background cycle in one finally-owned terminal finish path with exactly-once guarding."},
+    {"id":"SOL-ORDER-002","severity":"high","title":"Scheduler lease can expire during work and still report success","location":"Delta Spec:55,69-70; Design D4:72","evidence":["core/src/services/dailyScheduler.ts:315-353","core/src/services/dailyScheduler.ts:424-436"],"suggestedFix":"Renew or bound the lease during execution and conditionally finalize only while the owner still holds it."},
+    {"id":"SOL-LOGIC-001","severity":"high","title":"Confirming one Daily diary changes the global daily-log confirmation state","location":"Delta Spec:36,45-46; Scheduler scenario:64-65","evidence":["core/src/services/projectWrites.ts:89-113","core/src/services/dailyScheduler.ts:222-240"],"suggestedFix":"Keep project_daily_diaries confirmation independent from daily_logs.summary_status and legacy per_project_summary."}
+  ],
+  "summary":"Initial independent review rejected the Change. Desktop-only scope is accepted; mobile/RWD validation is not a finding.",
+  "receipt_digest":"001afb7ee216f0af304f2aaeb753e104b5c217a01a1c2d63c7f75b793b2e017a"
+}

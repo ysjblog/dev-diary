@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { shouldAutoScanOnStartup } from './api/autoScanPolicy.js';
+import { scanActivityPresentation, shouldAutoScanOnStartup } from './api/autoScanPolicy.js';
 import { buildProjectConcentrationFromProjects, fetchDashboard, fetchDashboardWithRetry, toDashboardView } from './api/dashboard.js';
 import {
   classifyRuntimeHealth,
@@ -401,12 +401,14 @@ import TrendChart from './components/TrendChart.jsx';
 
       // Core scan states
       const [isScanRunning, setIsScanRunning] = useState(false);
+      const [isScanRefreshing, setIsScanRefreshing] = useState(false);
       const [scanningProjectId, setScanningProjectId] = useState(null);
       const [kanbanAiSyncing, setKanbanAiSyncing] = useState(false);
       const [kanbanAiSyncSummary, setKanbanAiSyncSummary] = useState(null);
       const autoScanStartedRef = useRef(false);
-      const isAnyScanRunning = isScanRunning || scanningProjectId !== null || kanbanAiSyncing;
+      const isAnyScanRunning = isScanRunning || isScanRefreshing || scanningProjectId !== null || kanbanAiSyncing;
       const backgroundScanRunning = (settingsSnapshot?.background_scan?.running_operations || []).length > 0;
+      const scanActivity = scanActivityPresentation({ activeWorkPending: isScanRunning, coreScanRunning: backgroundScanRunning });
 
       // Add Agent Wizard modal states
       const [isAddAgentOpen, setIsAddAgentOpen] = useState(false);
@@ -1132,6 +1134,11 @@ import TrendChart from './components/TrendChart.jsx';
             start: dashRange === "custom" ? dashboardCustomStartDate : "",
             end: dashRange === "custom" ? dashboardCustomEndDate : "",
           });
+          // The Core response arrives only after both the scan and inline Kanban
+          // AI sync finish. Keep duplicate actions disabled while snapshots reload,
+          // but stop the scan spinner before those unrelated follow-up reads.
+          setIsScanRunning(false);
+          setIsScanRefreshing(true);
           if (body.background_scan) setSettingsSnapshot((current) => current ? { ...current, background_scan: body.background_scan } : current);
           setDashSnapshot(body.dashboard);
           const sidebarSnapshot = dashRange === "24h" ? body.dashboard : await fetchDashboard("24h");
@@ -1153,6 +1160,7 @@ import TrendChart from './components/TrendChart.jsx';
           triggerToast(`${auto ? "自動掃描" : "掃描"}失敗：${message}`);
         } finally {
           setIsScanRunning(false);
+          setIsScanRefreshing(false);
         }
       };
 
@@ -1685,11 +1693,11 @@ import TrendChart from './components/TrendChart.jsx';
                 <span>更新</span>
                 <span style={{ color: 'var(--muted)' }}>{sbScanLabel}</span>
               </div>
-              <button className={`btn-scan ${isScanRunning || backgroundScanRunning ? 'scanning' : ''}`} onClick={handleRunScan} disabled={isAnyScanRunning} title={isScanRunning || backgroundScanRunning ? "正在掃描..." : "Scan Now"}>
-                <svg className={`nav-icon ${isScanRunning || backgroundScanRunning ? 'scanning-spinner' : ''}`} viewBox="0 0 24 24">
+              <button className={`btn-scan ${scanActivity.busy ? 'scanning' : ''}`} onClick={handleRunScan} disabled={isAnyScanRunning} title={scanActivity.title}>
+                <svg className={`nav-icon ${scanActivity.busy ? 'scanning-spinner' : ''}`} viewBox="0 0 24 24">
                   <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
                 </svg>
-                <span>{isScanRunning || backgroundScanRunning ? "正在掃描..." : "Scan Now"}</span>
+                <span>{scanActivity.label}</span>
               </button>
             </div>
           </div>
@@ -1744,8 +1752,8 @@ import TrendChart from './components/TrendChart.jsx';
                       )}
                     </div>
                     <button className="btn" onClick={handleRunScan} disabled={isAnyScanRunning}>
-                      <svg className={`nav-icon ${isScanRunning ? 'scanning-spinner' : ''}`} viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                      <span>{isScanRunning ? "更新中..." : "更新日誌"}</span>
+                      <svg className={`nav-icon ${scanActivity.busy ? 'scanning-spinner' : ''}`} viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                      <span>{scanActivity.actionLabel}</span>
                     </button>
                   </div>
                   {isDashboardDatePickerOpen && (

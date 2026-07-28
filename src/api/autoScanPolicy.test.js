@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { hasConfiguredProjectRoots, shouldAutoScanOnStartup } from './autoScanPolicy.js';
+import { hasConfiguredProjectRoots, scanActivityPresentation, shouldAutoScanOnStartup } from './autoScanPolicy.js';
 
 test('hasConfiguredProjectRoots requires at least one non-empty persisted root', () => {
   assert.equal(hasConfiguredProjectRoots(null), false);
@@ -38,4 +38,25 @@ test('startup auto scan runs once only after Core is connected and roots are con
     settingsSnapshot,
     runtimeStatus: { status: 'unreachable' },
   }), false);
+});
+
+test('scan activity label only represents Core scan or inline AI work, not response refresh', () => {
+  assert.deepEqual(scanActivityPresentation({ activeWorkPending: true, coreScanRunning: true }), {
+    label: '正在掃描...',
+    actionLabel: '更新中...',
+    title: '正在掃描...',
+    busy: true,
+  });
+  assert.deepEqual(scanActivityPresentation({ activeWorkPending: true, coreScanRunning: false }), {
+    label: '正在掃描...',
+    actionLabel: '更新中...',
+    title: '正在掃描...',
+    busy: true,
+  });
+  assert.deepEqual(scanActivityPresentation({ activeWorkPending: false, refreshPending: true, coreScanRunning: false }), {
+    label: 'Scan Now',
+    actionLabel: '更新日誌',
+    title: 'Scan Now',
+    busy: false,
+  });
 });

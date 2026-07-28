@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openDb, type DB } from '../src/db/index.js';
 import { createServer } from '../src/server.js';
 import {
@@ -12,6 +12,7 @@ import {
   DEFAULT_PROJECT_DIARY_PROMPT,
   getSettings,
   recordScanOperation,
+  startScanOperationHeartbeat,
   updateCanonicalAgentSources,
   updateSettings,
   SettingsValidationError,
@@ -352,6 +353,123 @@ describe('Settings backend', () => {
       expect(state.last_completed_at).toBe('2026-07-13T00:02:00.000Z');
       expect(state.next_due_at).toBe('2026-07-13T00:07:00.000Z');
       expect(state.last_scanned_projects).toBe(2);
+    });
+
+    it('scan operation state recovers invalid owners while preserving a live concurrent operation', () => {
+      const db = openDb(':memory:');
+      const runtime = { activeDbPath: ':memory:', projectRoots: [] };
+      const live = recordScanOperation(db, runtime, {
+        phase: 'start',
+        scope: 'background',
+        started_at: new Date().toISOString(),
+      }).operation;
+      const persisted = JSON.parse(
+        (db.prepare(`SELECT value FROM app_settings WHERE key = 'core'`).get() as { value: string }).value,
+      ) as Record<string, unknown> & { background_scan: Record<string, unknown> };
+      const invalid = [
+        { ...live, operation_id: '11111111-1111-4111-8111-111111111111', owner_pid: 2_147_483_647 },
+        { ...live, operation_id: '22222222-2222-4222-8222-222222222222', deadline_at: '2000-01-01T00:00:00.000Z' },
+        { ...live, operation_id: '33333333-3333-4333-8333-333333333333', owner_pid: 'not-a-pid' },
+        {
+          operation_id: '44444444-4444-4444-8444-444444444444',
+          scope: 'global',
+          project_id: null,
+          started_at: '2026-07-13T00:00:00.000Z',
+        },
+      ];
+      db.prepare(`UPDATE app_settings SET value = ? WHERE key = 'core'`).run(JSON.stringify({
+        ...persisted,
+        background_scan: {
+          ...persisted.background_scan,
+          running_operations: [live, ...invalid],
+        },
+      }));
+
+      const state = getSettings(db, runtime).background_scan;
+
+      expect(state.running_operations).toEqual([live]);
+      expect(state.last_recovered_operation).toMatchObject({
+        operation_id: invalid[3]!.operation_id,
+        reason: 'legacy_unowned',
+      });
+      expect(state.last_completed_at).toBeNull();
+      expect(state.next_due_at).toBeNull();
+      const persistedAfterRecovery = JSON.parse(
+        (db.prepare(`SELECT value FROM app_settings WHERE key = 'core'`).get() as { value: string }).value,
+      ) as { background_scan: { running_operations: unknown[] } };
+      expect(persistedAfterRecovery.background_scan.running_operations).toEqual([live]);
+    });
+
+    it('scan operations reuse one UUID owner id for the current process', () => {
+      const db = openDb(':memory:');
+      const runtime = { activeDbPath: ':memory:', projectRoots: [] };
+      const first = recordScanOperation(db, runtime, {
+        phase: 'start',
+        scope: 'global',
+        started_at: '2026-07-13T00:00:00.000Z',
+      }).operation;
+      const second = recordScanOperation(db, runtime, {
+        phase: 'start',
+        scope: 'background',
+        started_at: '2026-07-13T00:01:00.000Z',
+      }).operation;
+
+      expect(first.owner_instance_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+      expect(second.owner_instance_id).toBe(first.owner_instance_id);
+    });
+
+    it('legacy completed scan metadata does not prevent Core startup and is reconciled', () => {
+      const db = openDb(':memory:');
+      const runtime = { activeDbPath: ':memory:', projectRoots: [] };
+      recordScanOperation(db, runtime, { phase: 'start', scope: 'background', started_at: '2026-07-13T00:00:00.000Z' });
+      const persistedBefore = JSON.parse((db.prepare(`SELECT value FROM app_settings WHERE key = 'core'`).get() as { value: string }).value) as Record<string, unknown> & {
+        background_scan: Record<string, unknown>;
+      };
+      db.prepare(`UPDATE app_settings SET value = ? WHERE key = 'core'`).run(JSON.stringify({
+        ...persistedBefore,
+        background_scan: {
+          ...persistedBefore.background_scan,
+          running_operations: [],
+          last_completed_operation: {
+            operation_id: 'legacy-operation',
+            scope: 'background',
+            project_id: null,
+            started_at: '2026-07-13T00:00:00.000Z',
+            completed_at: '2026-07-13T00:01:00.000Z',
+          },
+        },
+      }));
+
+      expect(getSettings(db, runtime).background_scan.last_completed_operation).toBeNull();
+      const persisted = JSON.parse((db.prepare(`SELECT value FROM app_settings WHERE key = 'core'`).get() as { value: string }).value) as {
+        background_scan: { last_completed_operation: unknown };
+      };
+      expect(persisted.background_scan.last_completed_operation).toBeNull();
+    });
+
+    it('scan operation heartbeat renews every 30 seconds and stops without leaving a timer', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-07-13T00:00:00.000Z'));
+      try {
+        const db = openDb(':memory:');
+        const runtime = { activeDbPath: ':memory:', projectRoots: [] };
+        const operation = recordScanOperation(db, runtime, {
+          phase: 'start',
+          scope: 'global',
+          started_at: '2026-07-13T00:00:00.000Z',
+        }).operation;
+        const stop = startScanOperationHeartbeat(db, runtime, operation);
+
+        await vi.advanceTimersByTimeAsync(30_000);
+        const renewed = getSettings(db, runtime).background_scan.running_operations[0]!;
+        expect(renewed.heartbeat_at).toBe('2026-07-13T00:00:30.000Z');
+        expect(renewed.deadline_at).toBe('2026-07-13T00:10:30.000Z');
+
+        stop();
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('GET settings replaces legacy custom prompt overrides with upgraded defaults', () => {

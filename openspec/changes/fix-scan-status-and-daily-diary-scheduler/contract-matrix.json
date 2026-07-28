@@ -1,0 +1,296 @@
+{
+  "schema_version": 2,
+  "generated_revision": "b4469854eff716f61f4d0a97078fd9c0b11605ee",
+  "input_manifest_digest": "14f825d2a0c20d1d56bf4507349816addaca0d3e62a3b1e394efab2467f58a31",
+  "artifact_inventory": [
+    {
+      "path": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+      "sha256": "d5ad4541188c74daebcb20b10200a77d21e4be3e7e5a31eec90f809c88c9392d"
+    },
+    {
+      "path": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/proposal.md",
+      "sha256": "7335b08f140f64f350b0694496c68a2aecc8d9edcb7ef8040adfe8b30c2c5840"
+    },
+    {
+      "path": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+      "sha256": "86af8aa0e0d961dc4b0bce7e24861c2d8ef62c8027bdb931f85e83e47080cd84"
+    },
+    {
+      "path": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/tasks.md",
+      "sha256": "48867b4113a2f5acbcdf17fd6472d79f48445ef299f07211492556ae006c4678"
+    },
+    {
+      "path": "openspec/specs/dev-diary-macos-app/spec.md",
+      "sha256": "b147cd803760d5be8a67267878c86253506189ce17dff1ce4a161723add3cf90"
+    }
+  ],
+  "inventory_scope": {
+    "change": [
+      "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+      "openspec/changes/fix-scan-status-and-daily-diary-scheduler/proposal.md",
+      "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+      "openspec/changes/fix-scan-status-and-daily-diary-scheduler/tasks.md"
+    ],
+    "baseline": [
+      "openspec/specs/dev-diary-macos-app/spec.md"
+    ]
+  },
+  "invariants": [
+    {
+      "id": "scan-operation",
+      "value": "running_operations",
+      "search_terms": [
+        "running_operations"
+      ],
+      "writers": [
+        "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+          "line": 9
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/proposal.md",
+          "line": 5
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 17
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 80
+        }
+      ]
+    },
+    {
+      "id": "daily-diary",
+      "value": "daily_diary_entry",
+      "search_terms": [
+        "daily_diary_entry"
+      ],
+      "writers": [
+        "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/fix-scan-status-and-daily-diary-scheduler/tasks.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+          "line": 43
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+          "line": 91
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 36
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/tasks.md",
+          "line": 25
+        }
+      ]
+    },
+    {
+      "id": "scheduler-idempotency",
+      "value": "confirmed",
+      "search_terms": [
+        "confirmed"
+      ],
+      "writers": [
+        "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/specs/dev-diary-macos-app/spec.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+          "line": 12
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+          "line": 21
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+          "line": 44
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+          "line": 66
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+          "line": 72
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+          "line": 84
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+          "line": 111
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/proposal.md",
+          "line": 14
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/proposal.md",
+          "line": 25
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 36
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 38
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 40
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 43
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 45
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 51
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 55
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 64
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 65
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 70
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 80
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 87
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/tasks.md",
+          "line": 25
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/tasks.md",
+          "line": 39
+        }
+      ]
+    },
+    {
+      "id": "scheduler-date",
+      "value": "Asia/Taipei",
+      "search_terms": [
+        "Asia/Taipei"
+      ],
+      "writers": [
+        "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+          "line": 42
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+          "line": 72
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/proposal.md",
+          "line": 14
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 55
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 75
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/tasks.md",
+          "line": 26
+        }
+      ]
+    },
+    {
+      "id": "export-backup",
+      "value": "project_daily_diaries",
+      "search_terms": [
+        "project_daily_diaries"
+      ],
+      "writers": [
+        "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+          "line": 44
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+          "line": 66
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+          "line": 82
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 36
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 76
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 80
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/tasks.md",
+          "line": 19
+        },
+        {
+          "file": "openspec/changes/fix-scan-status-and-daily-diary-scheduler/tasks.md",
+          "line": 25
+        }
+      ]
+    }
+  ],
+  "matrix_digest": "f20e04dee6d24672be686fb601b9cc2a4fd451647c25a1c9886119c7ac4a9b30"
+}
