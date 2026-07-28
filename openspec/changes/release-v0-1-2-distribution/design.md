@@ -12,7 +12,7 @@ reasons: external_write
 
 ## Context
 
-`main` is already published at `92c7708`, while the only current GitHub Release is `v0.1.1` at `7330756`. A locally verified 0.1.1-named artifact cannot be uploaded without conflicting with that historical asset.
+At planning time `main` was published at `92c7708`, while the only current GitHub Release was `v0.1.1` at `7330756`. The completed release now has `main` and annotated `v0.1.2` at `8c71412`; `v0.1.1` remains unchanged.
 
 ## Goals / Non-Goals
 
@@ -21,7 +21,7 @@ reasons: external_write
 
 ## Threat and Authority Model
 
-- Local source of truth: checked-out `main` at `92c7708` plus the four version declarations.
+- Local source of truth: checked-out `main` at `8c71412` plus the four version declarations.
 - Artifact source: `npm run package:mac` writes one fresh ignored DMG under `src-tauri/target/release/bundle/dmg/`; that exact path is the only upload candidate.
 - Remote sinks: `origin/main`, immutable `v0.1.2` tag, and the GitHub Release for that tag.
 - Authority: only the user-approved one-time Git/GitHub publish operations; no asset replacement, release deletion, or credential inspection.
@@ -45,7 +45,7 @@ Tracked version declarations -> `npm run package:mac` -> mounted DMG verifier ->
 ## Execution Order and Failure Recovery
 
 1. Update all four version declarations and README together; `rg` must find no old release version in active release instructions.
-2. Update the manual GitHub Actions workflow so it has no tag-push trigger, requires a supplied tag, fails if that tag/release/asset already exists, and never invokes `--clobber`.
+2. Update the manual GitHub Actions workflow so it has no tag-push trigger or release-write permission, accepts an explicit source ref, and only builds and verifies the artifact. The workflow never invokes `gh release` or `--clobber`; the user-authorized Owner CLI remains the sole publisher.
 3. Build/test the exact candidate. Package only after source gates pass.
 4. Verify the mounted DMG using `scripts/verify-macos-release.sh`; record SHA-256 and assert the app bundle version is `0.1.2`.
 5. At the one-shot external-write checkpoint, bind the user authority to `ysjblog/dev-diary`, candidate commit, `v0.1.2`, `DevDiary_0.1.2_aarch64.dmg`, its checksum, `SHA256SUMS.txt`, and the exact `main`/tag/release-create/upload actions; reject overwrite, delete, retarget, extra asset, or a different commit.
@@ -63,9 +63,13 @@ Tracked version declarations -> `npm run package:mac` -> mounted DMG verifier ->
 | both expected assets exist | read back and finish only if both digests match; otherwise stop for new user authority and a new version |
 | tag/release target or any existing digest differs | stop; never overwrite, delete, retarget, or auto-retry |
 
+### Completed release evidence and exception
+
+The owner created `v0.1.2` from `8c71412`, uploaded the 87,623,444-byte DMG, then downloaded both remote assets and verified the DMG digest. That readback found that the first checksum file used a build-relative pathname, so a user could not run it directly after download. Under the user's explicit publish authorization, the owner replaced only `SHA256SUMS.txt` with the same DMG digest and a basename-only pathname; the tag and DMG asset were not changed. A second remote download ran `shasum -a 256 -c SHA256SUMS.txt` successfully. This corrective exception is historical evidence, not authority for future automatic overwrite or deletion.
+
 ## Migration and Rollback
 
-- Existing `v0.1.1` tag and assets remain unchanged. The workflow is manual-only and fail-closed; the Owner CLI is the sole publisher for this release.
+- Existing `v0.1.1` tag and assets remain unchanged. The workflow is manual-only and read-only; the Owner CLI is the sole publisher for this release.
 - `v0.1.2` targets Apple Silicon and retains the documented manual-approval/ad-hoc-signing flow; this change does not add notarization.
 - A discovered bad new release is not automatically deleted or replaced. Any corrective release requires a distinct user authorization and a new version.
 

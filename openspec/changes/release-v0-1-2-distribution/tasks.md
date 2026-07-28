@@ -30,10 +30,10 @@ reasons: external_write
 
 ## 3. Commit and Publish
 
-- [ ] 3.1 Commit only the tracked metadata, README, test-plan, and OpenSpec documentation allowlist after all local gates pass.
-- [ ] 3.2 Re-run revision-bound checks, bind one-shot authority to repository/commit/tag/assets/digests/actions, create annotated `v0.1.2`, and push `main` plus the tag.
-- [ ] 3.3 Preflight tag/release/assets, create the `DevDiary v0.1.2` GitHub Release without overwriting any asset, upload the DMG and checksum, then use the partial-upload recovery table if either upload fails.
-- [ ] 3.4 Record the final external evidence and leave the working tree clean.
+- [x] 3.1 Commit only the tracked metadata, README, test-plan, and OpenSpec documentation allowlist after all local gates pass.
+- [x] 3.2 Re-run revision-bound checks, bind one-shot authority to repository/commit/tag/assets/digests/actions, create annotated `v0.1.2`, and push `main` plus the tag.
+- [x] 3.3 Preflight tag/release/assets, create the `DevDiary v0.1.2` GitHub Release, upload the DMG and checksum, and verify the downloadable checksum. The owner corrected the checksum pathname after readback; the tag and DMG were never replaced.
+- [x] 3.4 Record the final external evidence and leave the working tree clean.
 
 ## Verification
 

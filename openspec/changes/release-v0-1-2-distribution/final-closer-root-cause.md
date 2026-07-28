@@ -2,7 +2,7 @@
 
 ## 中文摘要
 
-最終規格審查拒絕的原因不是版本號，而是發布權限與 DMG 選取不具決定性。使用者確認擴大修正後，最小修正落在只讀 Actions workflow、精確版本化 DMG 選取、掛載後版本驗證與回歸測試；未建立或覆寫任何遠端 Release。
+最終規格審查拒絕的原因不是版本號，而是發布權限與 DMG 選取不具決定性。使用者確認擴大修正後，最小修正落在只讀 Actions workflow、精確版本化 DMG 選取、掛載後版本驗證與回歸測試；其後由使用者授權建立新的 `v0.1.2` Release，且只因 checksum 路徑格式錯誤而更正過同名 checksum 檔。
 
 ## ROOT CAUSE DEBUGGING
 
@@ -12,4 +12,5 @@
 - Root cause: release publication authority was duplicated and artifact identity was determined by directory enumeration instead of the declared application version.
 - Fix boundary: `.github/workflows/macos-release.yml`, `scripts/package-mac-release.sh`, `scripts/verify-macos-release.sh`, version declarations, README, and the regression test only.
 - Verification: release-distribution regression tests, root/Core suites, build, fresh package, mounted verifier, checksum verification, and independent offline QA report.
-- Residual risk: no remote `v0.1.2` tag or Release exists yet. Developer ID/notarization and a real end-user Finder click remain outside this local artifact proof.
+- Published evidence: `main`、annotated `v0.1.2` 與 Release 同指向 `8c71412`; the remote DMG is 87,623,444 bytes with SHA-256 `6502c4d6c3cb31b78e2385ba6939edc8f53e97b0349ff692c7f252177ef566eb`; a fresh remote download passes `shasum -a 256 -c SHA256SUMS.txt`.
+- Residual risk: Developer ID/notarization and a real end-user Finder click remain outside this local artifact proof.
