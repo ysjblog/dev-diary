@@ -66,37 +66,35 @@ function normalizeDate(value: unknown): string {
   return value;
 }
 
-function mergeProjectSummary(existingJson: string | null, projectId: number, markdown: string): string {
-  let current: Record<string, string> = {};
-  try {
-    const parsed = JSON.parse(existingJson ?? '{}');
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) current = parsed as Record<string, string>;
-  } catch {
-    current = {};
-  }
-  current[String(projectId)] = markdown;
-  return JSON.stringify(current);
-}
-
 function upsertDailyProjectSummary(
   db: DB,
   projectId: number,
   date: string,
   markdown: string,
   status: 'confirmed' | 'ai_generated',
+  fallbackReport: string | null = null,
 ): void {
-  const existing = db
-    .prepare(`SELECT per_project_summary FROM daily_logs WHERE date = ?`)
-    .get(date) as { per_project_summary: string | null } | undefined;
-  const merged = mergeProjectSummary(existing?.per_project_summary ?? null, projectId, markdown);
-  db.prepare(
-    `INSERT INTO daily_logs (date, global_summary_ai, global_summary_user, per_project_summary,
-       blockers, warnings, fallback_report, summary_status)
-     VALUES (?, NULL, NULL, ?, '[]', '[]', NULL, ?)
-     ON CONFLICT(date) DO UPDATE SET
-       per_project_summary = excluded.per_project_summary,
-       summary_status = excluded.summary_status`,
-  ).run(date, merged, status);
+  const ts = nowISO();
+  if (status === 'confirmed') {
+    db.prepare(
+      `INSERT INTO project_daily_diaries (project_id, date, markdown, status, fallback_report, created_at, updated_at)
+       VALUES (?, ?, ?, 'confirmed', NULL, ?, ?)
+       ON CONFLICT(project_id, date) DO UPDATE SET markdown = excluded.markdown, status = 'confirmed', fallback_report = NULL, updated_at = excluded.updated_at`,
+    ).run(projectId, date, markdown, ts, ts);
+    // Confirmation belongs to the project/date diary table. The global daily
+    // highlight projection is written later by the scheduler only.
+    return;
+  } else {
+    // The WHERE clause is the final guard: a confirmation made while an agent is
+    // generating must win over this AI result.
+    db.prepare(
+      `INSERT INTO project_daily_diaries (project_id, date, markdown, status, fallback_report, created_at, updated_at)
+       VALUES (?, ?, ?, 'ai_generated', ?, ?, ?)
+       ON CONFLICT(project_id, date) DO UPDATE SET markdown = excluded.markdown, status = 'ai_generated', fallback_report = excluded.fallback_report, updated_at = excluded.updated_at
+       WHERE project_daily_diaries.status != 'confirmed'`,
+    ).run(projectId, date, markdown, fallbackReport, ts, ts);
+    return;
+  }
 }
 
 function normalizeTags(value: unknown): string[] {
@@ -309,7 +307,13 @@ export async function regenerateProjectDiaryEntryWithAgent(
   generator?: ProjectSummaryDraftGenerator | null,
 ): Promise<ProjectDetailSnapshot> {
   const date = normalizeDate(dateInput);
-  const before = requireSnapshot(db, projectId, date, { range: 'custom', customStart: date, customEnd: date });
+  const diaryQuery: ProjectDetailQuery = {
+    range: 'custom',
+    customStart: date,
+    customEnd: date,
+    includeDiary: query.includeDiary,
+  };
+  const before = requireSnapshot(db, projectId, date, diaryQuery);
   const draftSnapshot: ProjectDetailSnapshot = {
     ...before,
     metric_strip: {
@@ -320,9 +324,9 @@ export async function regenerateProjectDiaryEntryWithAgent(
   const draft = await generateProjectDiaryDraft(draftSnapshot, date, generator);
   db.transaction(() => {
     ensureProject(db, projectId);
-    upsertDailyProjectSummary(db, projectId, date, draft.markdown, 'ai_generated');
+    upsertDailyProjectSummary(db, projectId, date, draft.markdown, 'ai_generated', draft.fallback_report);
   })();
-  return requireSnapshot(db, projectId, date, { range: 'custom', customStart: date, customEnd: date });
+  return requireSnapshot(db, projectId, date, diaryQuery);
 }
 
 export function acceptProjectSummaryDraft(

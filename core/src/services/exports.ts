@@ -33,6 +33,7 @@ export interface RedactedBackupBundle {
   daily_logs: Array<Record<string, unknown>>;
   comments: Array<Record<string, unknown>>;
   project_docs: Array<Record<string, unknown>>;
+  project_daily_diaries: Array<Record<string, unknown>>;
 }
 
 const SECRET_PATTERNS = [
@@ -120,6 +121,10 @@ export function buildDailyMarkdownExport(db: DB, opts: DailyMarkdownExportOption
   );
   const projectSummaryById = new Map(projectSummaries.map((item) => [Number(item.project_id), item]));
   const perProject = safeJsonMap(daily?.per_project_summary);
+  const diaryRows = rows<{ project_id: number; markdown: string }>(
+    db, `SELECT project_id, markdown FROM project_daily_diaries WHERE date = ?`, opts.date,
+  );
+  const diaryByProject = new Map(diaryRows.map((item) => [Number(item.project_id), item.markdown]));
   const tokenTotals = row<{ token_total: number; session_count: number }>(
     db,
     `SELECT COALESCE(SUM(token_total), 0) AS token_total,
@@ -174,7 +179,7 @@ export function buildDailyMarkdownExport(db: DB, opts: DailyMarkdownExportOption
   parts.push('## Projects');
   for (const project of projects) {
     const summary = projectSummaryById.get(Number(project.id));
-    const content = summary?.markdown_user ?? summary?.markdown_ai ?? perProject[String(project.id)] ?? daily?.fallback_report ?? '';
+    const content = diaryByProject.get(Number(project.id)) ?? summary?.markdown_user ?? summary?.markdown_ai ?? perProject[String(project.id)] ?? daily?.fallback_report ?? '';
     parts.push(`### ${redact(project.name, opts.redactSensitiveValues)}`);
     parts.push(line(redact(content, opts.redactSensitiveValues)));
     parts.push('');
@@ -261,6 +266,7 @@ export function buildRedactedBackupExport(db: DB, opts: BackupExportOptions): Re
       ? rows(db, `SELECT id, project_id, content, tags, pinned, created_at, updated_at FROM comments ORDER BY created_at ASC, id ASC`)
       : [],
     project_docs: rows(db, `SELECT id, project_id, name, content, updated_at FROM project_docs ORDER BY project_id ASC, id ASC`),
+    project_daily_diaries: rows(db, `SELECT project_id, date, markdown, status, fallback_report, created_at, updated_at FROM project_daily_diaries ORDER BY date ASC, project_id ASC`),
   };
   return redact(bundle, opts.redactSensitiveValues) as RedactedBackupBundle;
 }

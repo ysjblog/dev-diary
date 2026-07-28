@@ -7,3 +7,10 @@ export function shouldAutoScanOnStartup({ alreadyStarted, isAnyScanRunning, sett
   if (!hasConfiguredProjectRoots(settingsSnapshot)) return false;
   return runtimeStatus?.status === 'connected';
 }
+
+export function scanActivityPresentation({ activeWorkPending, coreScanRunning }) {
+  if (coreScanRunning || activeWorkPending) {
+    return { label: '正在掃描...', actionLabel: '更新中...', title: '正在掃描...', busy: true };
+  }
+  return { label: 'Scan Now', actionLabel: '更新日誌', title: 'Scan Now', busy: false };
+}

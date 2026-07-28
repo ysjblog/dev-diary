@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { openDb } from '../src/db/index.js';
 import { seedDatabase } from '../src/db/seed.js';
 import { createServer } from '../src/server.js';
@@ -31,6 +31,44 @@ describe('Export and backup', () => {
       expect(artifact.content).toContain('## Sessions');
       expect(artifact.content).not.toContain('cost');
       expect(artifact.content).not.toContain('source_log_ref');
+    });
+
+    it('Daily export prefers project_daily_diaries and backup includes that collection', () => {
+      const db = openDb(':memory:');
+      seedDatabase(db, { today: '2026-06-30' });
+      const legacy = '## legacy daily_logs content';
+      const tableFirst = '## table-first confirmed diary';
+      db.prepare(`UPDATE daily_logs SET per_project_summary = ? WHERE date = ?`).run(
+        JSON.stringify({ 1: legacy }),
+        '2026-06-30',
+      );
+      db.prepare(
+        `INSERT INTO project_daily_diaries
+         (project_id, date, markdown, status, fallback_report, created_at, updated_at)
+         VALUES (1, '2026-06-30', ?, 'confirmed', NULL, ?, ?)`,
+      ).run(tableFirst, '2026-06-30T01:00:00.000Z', '2026-06-30T01:00:00.000Z');
+
+      const markdown = buildDailyMarkdownExport(db, {
+        date: '2026-06-30',
+        includeComments: false,
+        redactSensitiveValues: true,
+      });
+      const backup = buildRedactedBackupExport(db, {
+        includeComments: false,
+        redactSensitiveValues: true,
+      });
+
+      expect(markdown.content).toContain(tableFirst);
+      expect(markdown.content).not.toContain(legacy);
+      expect(backup.project_daily_diaries).toEqual(expect.arrayContaining([
+        expect.objectContaining({ project_id: 1, date: '2026-06-30', markdown: tableFirst, status: 'confirmed' }),
+      ]));
+      expect(db.prepare(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('project_daily_diaries', 'daily_scheduler_runs') ORDER BY name`,
+      ).all()).toEqual([
+        { name: 'daily_scheduler_runs' },
+        { name: 'project_daily_diaries' },
+      ]);
     });
 
     it('Markdown export redacts secret-like values and source refs', () => {
@@ -108,6 +146,27 @@ describe('Export and backup', () => {
   });
 
   describe('Mock API', () => {
+    it('Daily export default date uses the Asia/Taipei calendar day', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-06-30T17:30:00.000Z'));
+      const db = openDb(':memory:');
+      seedDatabase(db, { today: '2026-07-01' });
+      const app = createServer(db, { dbPath: ':memory:', projectRoots: [] });
+      const server = app.listen(0);
+      try {
+        const address = server.address();
+        if (!address || typeof address === 'string') throw new Error('test server failed to listen');
+        const res = await fetch(`http://127.0.0.1:${address.port}/api/exports/daily`);
+
+        expect(res.status).toBe(200);
+        expect(res.headers.get('content-disposition')).toContain('devdiary-daily-2026-07-01.md');
+        expect(await res.text()).toContain('# DevDiary Daily Export - 2026-07-01');
+      } finally {
+        await closeServer(server);
+        vi.useRealTimers();
+      }
+    });
+
     it('Daily export endpoint returns downloadable Markdown', async () => {
       const db = openDb(':memory:');
       seedDatabase(db, { today: '2026-06-30' });

@@ -142,6 +142,70 @@ describe('Background LaunchAgent runner', () => {
       expect(afterSessions).toBeGreaterThan(beforeSessions);
     });
 
+    it('background scan failure records one terminal failure and clears its running operation', async () => {
+      const db = freshDb();
+      const failingProvider = {
+        scanProject() {
+          throw new Error('isolated background scan failure');
+        },
+      };
+
+      const result = await runBackgroundCycle(db, runtime, {
+        now: new Date('2026-06-30T12:00:00.000Z'),
+        scanProvider: failingProvider,
+      });
+      const state = getSettings(db, runtime()).background_scan;
+
+      expect(result.status).toBe('failed');
+      expect(state.running_operations).toEqual([]);
+      expect(state.last_status).toBe('failed');
+      expect(state.last_completed_operation).not.toBeNull();
+      expect(state.last_completed_operation?.operation_id).toBeDefined();
+    });
+
+    it('background scheduler downstream error still records one terminal failure', async () => {
+      const db = freshDb();
+      const scheduler = {
+        tick: async () => {
+          throw new Error('scheduler downstream failure');
+        },
+      } as unknown as import('../src/services/dailyScheduler.js').DailySchedulerRuntime;
+
+      const result = await runBackgroundCycle(db, runtime, {
+        now: new Date('2026-06-30T12:00:00.000Z'),
+        scanProvider: mockScanProvider(),
+        scheduler,
+      });
+      const state = getSettings(db, runtime()).background_scan;
+
+      expect(result.status).toBe('failed');
+      expect(result.error_message).toBe('scheduler downstream failure');
+      expect(state.running_operations).toEqual([]);
+      expect(state.last_completed_operation?.operation_id).toBeDefined();
+    });
+
+    it('background Antigravity health error still records one terminal failure', async () => {
+      const db = freshDb();
+      updateSettings(db, { default_diary_agent: 'antigravity-cli' }, runtime());
+      const antigravityGate = {
+        ensureHealthy: async () => {
+          throw new Error('health probe failure');
+        },
+      } as unknown as AntigravitySessionGate;
+
+      const result = await runBackgroundCycle(db, runtime, {
+        now: new Date('2026-06-30T12:00:00.000Z'),
+        scanProvider: mockScanProvider(),
+        antigravityGate,
+      });
+      const state = getSettings(db, runtime()).background_scan;
+
+      expect(result.status).toBe('failed');
+      expect(result.error_message).toBe('health probe failure');
+      expect(state.running_operations).toEqual([]);
+      expect(state.last_completed_operation?.operation_id).toBeDefined();
+    });
+
     it('daily scheduler disabled 時,每輪 cycle 不再獨立跑 kanban AI(不呼叫 agy generator)', async () => {
       // 回歸測試:過去每個 background cycle 都獨立跑 kanban AI 自動加卡,一天上千次
       // agy 呼叫把額度燒光。現在 kanban AI 只在 daily scheduler 的一天一次排程內執行,

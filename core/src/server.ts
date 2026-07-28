@@ -29,6 +29,7 @@ import {
   updateCustomAgentEnabled,
   updateSettings,
   recordScanOperation,
+  startScanOperationHeartbeat,
   BackgroundScanStateBusyError,
   type AppSettings,
 } from './services/settings.js';
@@ -49,6 +50,7 @@ import {
 import { RangeValidationError } from './domain/dateRange.js';
 import type { RangeKey } from './domain/types.js';
 import { normalizeAgentId } from './domain/agents.js';
+import { taipeiDate } from './services/taipeiDate.js';
 
 const VALID_RANGES: RangeKey[] = ['all', '24h', '7d', '1m', 'custom'];
 const ALLOWED_BROWSER_ORIGINS = new Set([
@@ -67,7 +69,7 @@ function applyLocalCors(req: Request, res: Response): void {
 }
 
 function todayUTC(): string {
-  return new Date().toISOString().slice(0, 10);
+  return taipeiDate();
 }
 
 function parsePositiveId(raw: string | undefined): number | null {
@@ -471,14 +473,21 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
       if (err instanceof BackgroundScanStateBusyError) return res.status(503).json({ error: err.code, message: '資料庫正在更新，掃描尚未開始；請稍後再試。' });
       throw err;
     }
-    const scan = runManualScan(db, {
-      scope: 'global',
-      today,
-      provider: scanProviderFor(settings),
-      projectRoots: settings.project_roots,
-      projectDocFilenames: settings.project_doc_filenames,
-      projectDocFolders: settings.project_doc_folders,
-    });
+    const stopHeartbeat = startScanOperationHeartbeat(db, settingsRuntime(), operation);
+    let scan;
+    try {
+      scan = runManualScan(db, {
+        scope: 'global', today, provider: scanProviderFor(settings), projectRoots: settings.project_roots,
+        projectDocFilenames: settings.project_doc_filenames, projectDocFolders: settings.project_doc_folders,
+      });
+    } catch (err) {
+      stopHeartbeat();
+      // A thrown scan still owns one terminal cleanup attempt; recovery handles a
+      // transient SQLite-busy cleanup on a later Core read.
+      try { recordScanOperation(db, settingsRuntime(), { phase: 'finish', operation, status: 'failed', error: 'Scan aborted unexpectedly.' }); } catch { /* safe later reconciliation */ }
+      throw err;
+    }
+    stopHeartbeat();
     let scanState;
     try {
       scanState = recordScanOperation(db, settingsRuntime(), {
@@ -519,15 +528,20 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
     const today = todayUTC();
     try {
       const settings = getSettings(db, settingsRuntime());
+      let scan;
       const operation = recordScanOperation(db, settingsRuntime(), { phase: 'start', scope: 'project', project_id: projectId }).operation;
-      const scan = runManualScan(db, {
-        scope: 'project',
-        projectId,
-        today,
-        provider: scanProviderFor(settings),
-        projectDocFilenames: settings.project_doc_filenames,
-        projectDocFolders: settings.project_doc_folders,
-      });
+      const stopHeartbeat = startScanOperationHeartbeat(db, settingsRuntime(), operation);
+      try {
+        scan = runManualScan(db, {
+          scope: 'project', projectId, today, provider: scanProviderFor(settings),
+          projectDocFilenames: settings.project_doc_filenames, projectDocFolders: settings.project_doc_folders,
+        });
+      } catch (err) {
+        stopHeartbeat();
+        try { recordScanOperation(db, settingsRuntime(), { phase: 'finish', operation, status: 'failed', error: 'Scan aborted unexpectedly.' }); } catch { /* recovered later */ }
+        throw err;
+      }
+      stopHeartbeat();
       const scanState = recordScanOperation(db, settingsRuntime(), {
         phase: 'finish', operation, completed_at: scan.completed_at,
         status: scan.status === 'success' ? 'success' : 'failed', error: scan.error_message,

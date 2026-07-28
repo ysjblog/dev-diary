@@ -21,6 +21,7 @@ import type {
   WorkspaceTrackingStatus,
 } from '../domain/types.js';
 import { getGitStatusSnapshot } from './gitStatus.js';
+import { taipeiDate } from './taipeiDate.js';
 
 const AGENT_ORDER: CanonicalAgentId[] = ['claude-code', 'codex-cli', 'antigravity-cli'];
 const ACTIVE_SESSION_WINDOW_DAYS = 5;
@@ -29,6 +30,8 @@ export interface ProjectDetailQuery {
   range?: RangeKey;
   customStart?: string | null;
   customEnd?: string | null;
+  /** Scheduler-only snapshots omit per-project diary markdown. */
+  includeDiary?: boolean;
 }
 
 /** Bucket a raw agent name into a canonical id or `other`. */
@@ -61,17 +64,13 @@ function mergeAgents(...sources: unknown[]): CanonicalAgentId[] {
   return AGENT_ORDER.filter((id) => seen.has(id));
 }
 
-function todayUTC(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function deriveTrackingStatus(latestSessionDate: string | null, today: string): WorkspaceTrackingStatus {
   const activeSince = addDays(today, -(ACTIVE_SESSION_WINDOW_DAYS - 1));
   return latestSessionDate && latestSessionDate >= activeSince ? 'active' : 'idle';
 }
 
 /** Workspace project list (spec §11 left rail). Excludes ignored projects. */
-export function getProjectList(db: DB, today = todayUTC()): ProjectListItem[] {
+export function getProjectList(db: DB, today = taipeiDate()): ProjectListItem[] {
   const rows = db
     .prepare(
       `SELECT p.id, p.name, p.root_path, p.tracking_status, p.last_activity_at,
@@ -290,25 +289,35 @@ function buildDiary(
   projectId: number,
   days: DayAgg[],
   resolved: ResolvedRange,
+  includeDiary: boolean,
 ): { diary: ProjectDiaryEntry[]; latestSummary: string | null } {
   const clause = rangeDateClause('date', resolved);
-  const logRows = db
-    .prepare(`SELECT date, per_project_summary FROM daily_logs WHERE 1 = 1${clause.sql} ORDER BY date DESC`)
-    .all(...clause.params) as { date: string; per_project_summary: string }[];
   const summaryByDate = new Map<string, string>();
-  for (const r of logRows) {
-    const s = perProjectSummary(r.per_project_summary, projectId);
-    if (s) summaryByDate.set(r.date, s);
+  if (includeDiary) {
+    const tableRows = db.prepare(
+      `SELECT date, markdown FROM project_daily_diaries WHERE project_id = ?${clause.sql} ORDER BY date DESC`,
+    ).all(projectId, ...clause.params) as { date: string; markdown: string }[];
+    for (const row of tableRows) summaryByDate.set(row.date, row.markdown);
   }
-  // Latest persisted per-project summary takes priority over generated fallback.
-  let latestSummary: string | null = null;
-  for (const r of logRows) {
-    const s = summaryByDate.get(r.date);
-    if (s) {
-      latestSummary = s;
-      break;
+
+  // A project diary table row is authoritative. Legacy global projections are
+  // queried only for diary dates that have no project/date row at all.
+  const fallbackDates = includeDiary
+    ? [...new Set(days.map((day) => day.date))].filter((date) => !summaryByDate.has(date))
+    : [];
+  if (fallbackDates.length > 0) {
+    const placeholders = fallbackDates.map(() => '?').join(', ');
+    const logRows = db
+      .prepare(`SELECT date, per_project_summary FROM daily_logs WHERE date IN (${placeholders}) ORDER BY date DESC`)
+      .all(...fallbackDates) as { date: string; per_project_summary: string }[];
+    for (const row of logRows) {
+      const summary = perProjectSummary(row.per_project_summary, projectId);
+      if (summary) summaryByDate.set(row.date, summary);
     }
   }
+  // Latest persisted per-project summary takes priority over generated fallback.
+  const latestSummary = [...summaryByDate.entries()]
+    .sort(([left], [right]) => (left < right ? 1 : left > right ? -1 : 0))[0]?.[1] ?? null;
 
   const diary: ProjectDiaryEntry[] = days.map((d) => {
     const persisted = summaryByDate.get(d.date);
@@ -464,7 +473,7 @@ export function getProjectDetail(
   if (!p) return null;
 
   const days = dayAggregates(db, projectId, resolved);
-  const { diary, latestSummary } = buildDiary(db, projectId, days, resolved);
+  const { diary, latestSummary } = buildDiary(db, projectId, days, resolved, query.includeDiary !== false);
   const fallbackSummary =
     days.length > 0
       ? `## ${String(p.name)} 開發摘要\n- 最近活動：${days[0]!.date}，${days[0]!.sessions} 個 session。\n- 累積 ${days.reduce((a, d) => a + d.tokens, 0).toLocaleString()} tokens。`

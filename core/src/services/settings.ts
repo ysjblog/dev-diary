@@ -7,6 +7,9 @@ import { CANONICAL_AGENTS, normalizeAgentId } from '../domain/agents.js';
 import type { CanonicalAgentId, KanbanStatus } from '../domain/types.js';
 import type { ScanFallbackMode, ScanProviderMode, ScanProviderPolicy } from './scans.js';
 
+const SCAN_OWNER_INSTANCE_ID = randomUUID();
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 type AppearanceMode = 'light' | 'dark' | 'system';
 export type AgentReasoningLevel = 'default' | 'light' | 'medium' | 'high' | 'extra_high' | 'speed';
 export type DiaryAgentId = CanonicalAgentId | `custom-${string}`;
@@ -90,6 +93,7 @@ export interface BackgroundScanSettings {
   next_due_at: string | null;
   running_operations: BackgroundScanOperation[];
   last_completed_operation: BackgroundCompletedOperation | null;
+  last_recovered_operation: BackgroundRecoveredOperation | null;
 }
 
 export type BackgroundScanScope = 'global' | 'project' | 'background';
@@ -99,10 +103,23 @@ export interface BackgroundScanOperation {
   scope: BackgroundScanScope;
   project_id: number | null;
   started_at: string;
+  owner_instance_id: string;
+  owner_pid: number;
+  heartbeat_at: string;
+  deadline_at: string;
 }
 
 export interface BackgroundCompletedOperation extends BackgroundScanOperation {
   completed_at: string;
+}
+
+export interface BackgroundRecoveredOperation {
+  operation_id: string;
+  scope: BackgroundScanScope;
+  project_id: number | null;
+  started_at: string;
+  recovered_at: string;
+  reason: 'legacy_unowned' | 'malformed' | 'owner_not_live' | 'deadline_expired';
 }
 
 export interface AiPromptSettings {
@@ -829,6 +846,7 @@ function defaultBackgroundScan(): BackgroundScanSettings {
     next_due_at: null,
     running_operations: [],
     last_completed_operation: null,
+    last_recovered_operation: null,
   };
 }
 
@@ -839,15 +857,30 @@ function normalizeBackgroundOperation(raw: unknown, label: string, completed = f
   const project_id = raw.project_id === null ? null : Number.isSafeInteger(raw.project_id) && Number(raw.project_id) > 0 ? Number(raw.project_id) : fail(`${label}.project_id is invalid`);
   const started_at = normalizeOptionalIso(raw.started_at, `${label}.started_at`);
   if (!started_at) fail(`${label}.started_at is required`);
-  if (!completed) return { operation_id, scope, project_id, started_at };
+  const owner_instance_id = typeof raw.owner_instance_id === 'string' && UUID_PATTERN.test(raw.owner_instance_id) ? raw.owner_instance_id : fail(`${label}.owner_instance_id is invalid`);
+  const owner_pid = Number.isSafeInteger(raw.owner_pid) && Number(raw.owner_pid) > 0 ? Number(raw.owner_pid) : fail(`${label}.owner_pid is invalid`);
+  const heartbeat_at = normalizeOptionalIso(raw.heartbeat_at, `${label}.heartbeat_at`);
+  const deadline_at = normalizeOptionalIso(raw.deadline_at, `${label}.deadline_at`);
+  if (!heartbeat_at || !deadline_at) fail(`${label} ownership timestamps are required`);
+  if (!completed) return { operation_id, scope, project_id, started_at, owner_instance_id, owner_pid, heartbeat_at, deadline_at };
   const completed_at = normalizeOptionalIso(raw.completed_at, `${label}.completed_at`);
   if (!completed_at) fail(`${label}.completed_at is required`);
-  return { operation_id, scope, project_id, started_at, completed_at };
+  return { operation_id, scope, project_id, started_at, owner_instance_id, owner_pid, heartbeat_at, deadline_at, completed_at };
+}
+
+function recovered(raw: unknown, reason: BackgroundRecoveredOperation['reason']): BackgroundRecoveredOperation | null {
+  if (!isRecord(raw) || typeof raw.operation_id !== 'string' || !['global', 'project', 'background'].includes(String(raw.scope))) return null;
+  return { operation_id: raw.operation_id, scope: raw.scope as BackgroundScanScope, project_id: Number.isSafeInteger(raw.project_id) && Number(raw.project_id) > 0 ? Number(raw.project_id) : null, started_at: typeof raw.started_at === 'string' ? raw.started_at : new Date().toISOString(), recovered_at: new Date().toISOString(), reason };
+}
+
+function pidIsLive(pid: number): boolean {
+  try { process.kill(pid, 0); return true; } catch { return false; }
 }
 
 function normalizeBackgroundScan(raw: unknown, current: BackgroundScanSettings): BackgroundScanSettings {
   if (!isRecord(raw)) fail('background_scan must be an object');
   const out = { ...current };
+  let recoveredDuringNormalization = false;
   for (const [key, value] of Object.entries(raw)) {
     if (key === 'last_started_at' || key === 'last_completed_at' || key === 'next_due_at') out[key] = normalizeOptionalIso(value, `background_scan.${key}`);
     else if (key === 'last_status') {
@@ -864,9 +897,36 @@ function normalizeBackgroundScan(raw: unknown, current: BackgroundScanSettings):
       out.next_interval_ms = value === null ? null : Number(value);
     } else if (key === 'running_operations') {
       if (!Array.isArray(value)) fail('background_scan.running_operations must be an array');
-      out.running_operations = value.map((item, index) => normalizeBackgroundOperation(item, `background_scan.running_operations[${index}]`) as BackgroundScanOperation);
+      const live: BackgroundScanOperation[] = [];
+      for (const [index, item] of value.entries()) {
+        try {
+          const operation = normalizeBackgroundOperation(item, `background_scan.running_operations[${index}]`) as BackgroundScanOperation;
+          const expired = Date.parse(operation.deadline_at) <= Date.now();
+          if (expired || !pidIsLive(operation.owner_pid)) {
+            out.last_recovered_operation = recovered(item, expired ? 'deadline_expired' : 'owner_not_live');
+            recoveredDuringNormalization = true;
+          } else live.push(operation);
+        } catch {
+          out.last_recovered_operation = recovered(item, isRecord(item) && ('owner_pid' in item || 'owner_instance_id' in item) ? 'malformed' : 'legacy_unowned');
+          recoveredDuringNormalization = true;
+        }
+      }
+      out.running_operations = live;
     } else if (key === 'last_completed_operation') {
-      out.last_completed_operation = value === null ? null : normalizeBackgroundOperation(value, 'background_scan.last_completed_operation', true) as BackgroundCompletedOperation;
+      if (value === null) out.last_completed_operation = null;
+      else {
+        try {
+          out.last_completed_operation = normalizeBackgroundOperation(value, 'background_scan.last_completed_operation', true) as BackgroundCompletedOperation;
+        } catch {
+          // Historical terminal records may predate ownership metadata. They
+          // are not active work and must not prevent Core from starting.
+          out.last_completed_operation = null;
+        }
+      }
+    } else if (key === 'last_recovered_operation') {
+      if (!recoveredDuringNormalization) {
+        out.last_recovered_operation = value === null ? null : recovered(value, (value as { reason?: BackgroundRecoveredOperation['reason'] }).reason ?? 'malformed');
+      }
     } else fail(`unknown background_scan setting: ${key}`);
   }
   return out;
@@ -964,6 +1024,22 @@ function persistedToSnapshot(stored: Partial<PersistedSettings>, updatedAt: stri
   }
 
   return settings;
+}
+
+function needsBackgroundRecoveryPersistence(stored: Partial<PersistedSettings>, settings: AppSettings): boolean {
+  const rawBackground = stored.background_scan;
+  if (!isRecord(rawBackground) || !Array.isArray(rawBackground.running_operations)) return false;
+  const rawOperations = rawBackground.running_operations;
+  const normalizedOperations = settings.background_scan.running_operations;
+  if (rawOperations.length !== normalizedOperations.length) return true;
+  if (rawBackground.last_completed_operation != null && settings.background_scan.last_completed_operation === null) return true;
+  return rawOperations.some((raw, index) => {
+    const normalized = normalizedOperations[index];
+    return !isRecord(raw)
+      || !normalized
+      || raw.operation_id !== normalized.operation_id
+      || raw.owner_instance_id !== normalized.owner_instance_id;
+  });
 }
 
 function toPersisted(settings: AppSettings): PersistedSettings {
@@ -1064,7 +1140,11 @@ function applyPatch(current: AppSettings, patch: SettingsPatch): AppSettings {
 
 export function getSettings(db: DB, runtime: SettingsRuntimeDefaults): AppSettings {
   const stored = readStored(db);
-  return persistedToSnapshot(stored.value, stored.updated_at, runtime);
+  const settings = persistedToSnapshot(stored.value, stored.updated_at, runtime);
+  // Recovery is not only a read-time illusion: stale or malformed running
+  // operations must be written back so the next process sees the same owner
+  // state and recovery receipt.
+  return needsBackgroundRecoveryPersistence(stored.value, settings) ? writeSettings(db, settings) : settings;
 }
 
 export function updateSettings(db: DB, patch: SettingsPatch, runtime: SettingsRuntimeDefaults): AppSettings {
@@ -1144,7 +1224,7 @@ export function recordScanOperation(
   db: DB,
   runtime: SettingsRuntimeDefaults,
   event: {
-    phase: 'start' | 'finish';
+    phase: 'start' | 'heartbeat' | 'finish';
     operation?: BackgroundScanOperation;
     scope?: BackgroundScanScope;
     project_id?: number | null;
@@ -1161,15 +1241,27 @@ export function recordScanOperation(
     scope: event.scope ?? 'global',
     project_id: event.project_id ?? null,
     started_at: event.started_at ?? new Date().toISOString(),
+    owner_instance_id: SCAN_OWNER_INSTANCE_ID,
+    owner_pid: process.pid,
+    heartbeat_at: event.started_at ?? new Date().toISOString(),
+    deadline_at: new Date(Date.parse(event.started_at ?? new Date().toISOString()) + 10 * 60_000).toISOString(),
   };
   let returned: AppSettings | null = null;
   const apply = () => mutateSettings(db, runtime, (current) => {
     const scan = current.background_scan;
     const running = scan.running_operations.filter((item) => item.operation_id !== operation.operation_id);
-    if (event.phase === 'start') {
+    if (event.phase === 'start' || event.phase === 'heartbeat') {
+      const heartbeatAt = event.phase === 'heartbeat' ? (event.started_at ?? new Date().toISOString()) : operation.heartbeat_at;
+      const activeOperation = event.phase === 'heartbeat'
+        ? {
+            ...operation,
+            heartbeat_at: heartbeatAt,
+            deadline_at: new Date(Date.parse(heartbeatAt) + 10 * 60_000).toISOString(),
+          }
+        : operation;
       returned = {
         ...current,
-        background_scan: { ...scan, last_started_at: operation.started_at, running_operations: [...running, operation] },
+        background_scan: { ...scan, last_started_at: operation.started_at, running_operations: [...running, activeOperation] },
       };
       return returned;
     }
@@ -1216,6 +1308,26 @@ export function recordScanOperation(
   }
   if (!settings) throw new BackgroundScanStateBusyError();
   return { settings: returned ?? settings, operation };
+}
+
+export function startScanOperationHeartbeat(
+  db: DB,
+  runtime: SettingsRuntimeDefaults,
+  operation: BackgroundScanOperation,
+): () => void {
+  const timer = setInterval(() => {
+    try {
+      recordScanOperation(db, runtime, {
+        phase: 'heartbeat',
+        operation,
+        started_at: new Date().toISOString(),
+      });
+    } catch {
+      // A later state read reconciles an operation whose heartbeat could not be persisted.
+    }
+  }, 30_000);
+  timer.unref();
+  return () => clearInterval(timer);
 }
 
 export function updateCanonicalAgentSources(

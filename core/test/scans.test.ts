@@ -113,6 +113,21 @@ describe('Scan Now / project rescan', () => {
       expect(diaryAfterSecond).toBe(diaryAfterFirst);
     });
 
+    it('scan-derived summary 不會改寫 scheduler 專屬的 global daily_logs projection', () => {
+      const before = db
+        .prepare(`SELECT global_summary_ai, global_summary_user, per_project_summary, fallback_report, summary_status FROM daily_logs WHERE date = ?`)
+        .get(TODAY);
+
+      const result = runManualScan(db, { scope: 'global', today: TODAY, provider: mockScanProvider() });
+
+      const after = db
+        .prepare(`SELECT global_summary_ai, global_summary_user, per_project_summary, fallback_report, summary_status FROM daily_logs WHERE date = ?`)
+        .get(TODAY);
+      expect(result.status).toBe('success');
+      expect(result.updated_daily_logs).toBe(0);
+      expect(after).toEqual(before);
+    });
+
     it('project rescan 只影響 selected project', () => {
       const p1Before = counts(db, 1);
       const p2Before = counts(db, 2);

@@ -195,6 +195,10 @@ describe('Projects Workspace write paths', () => {
 
     it('daily diary save 寫入指定日期 per_project_summary，並由該日 diary block 顯示', () => {
       const markdown = '## 2026-06-28 手動日記\n- 完成單日修正。';
+      const before = db.prepare(`SELECT per_project_summary, summary_status FROM daily_logs WHERE date = ?`).get(TODAY) as {
+        per_project_summary: string | null;
+        summary_status: string;
+      };
       const detail = saveProjectDiaryEntry(db, 1, TODAY, { markdown }, TODAY, {
         range: 'custom',
         customStart: TODAY,
@@ -205,11 +209,14 @@ describe('Projects Workspace write paths', () => {
       expect(detail.diary[0]!.date).toBe(TODAY);
       expect(detail.diary[0]!.markdown).toBe(markdown);
       const row = db.prepare(`SELECT per_project_summary, summary_status FROM daily_logs WHERE date = ?`).get(TODAY) as {
-        per_project_summary: string;
+        per_project_summary: string | null;
         summary_status: string;
       };
-      expect(JSON.parse(row.per_project_summary)['1']).toContain('手動日記');
-      expect(row.summary_status).toBe('confirmed');
+      // Project diary confirmation is independent from the global daily highlight projection.
+      expect(row).toEqual(before);
+      expect(db.prepare(`SELECT status FROM project_daily_diaries WHERE project_id = 1 AND date = ?`).get(TODAY)).toEqual({
+        status: 'confirmed',
+      });
     });
 
     it('daily diary save 後讀回內容不會重複包日期標題或本日 session 統計', () => {
@@ -241,6 +248,54 @@ describe('Projects Workspace write paths', () => {
       expect(detail.summary_markdown).toBe('## 專案摘要保留');
       expect(detail.summary_source).toBe('user');
       expect(detail.diary[0]!.markdown).toContain('只整理這一天');
+    });
+
+    it('daily diary provider fallback 會保存 fallback_report，供 UI 與匯出辨識', async () => {
+      await regenerateProjectDiaryEntryWithAgent(
+        db,
+        1,
+        TODAY,
+        TODAY,
+        { range: 'custom', customStart: TODAY, customEnd: TODAY },
+        async () => {
+          throw new Error('provider failure');
+        },
+      );
+
+      const row = db.prepare(
+        `SELECT status, fallback_report FROM project_daily_diaries WHERE project_id = 1 AND date = ?`,
+      ).get(TODAY) as { status: string; fallback_report: string | null };
+      expect(row.status).toBe('ai_generated');
+      expect(row.fallback_report).toBe('AI Diary Agent 產生日記失敗，已改用 deterministic fallback。');
+    });
+
+    it('daily diary provider await 期間的 confirmed save wins over the later AI result', async () => {
+      let release!: () => void;
+      const providerWaiting = new Promise<void>((resolve) => { release = resolve; });
+      let providerStarted!: () => void;
+      const started = new Promise<void>((resolve) => { providerStarted = resolve; });
+
+      const regeneration = regenerateProjectDiaryEntryWithAgent(
+        db,
+        1,
+        TODAY,
+        TODAY,
+        { range: 'custom', customStart: TODAY, customEnd: TODAY },
+        async () => {
+          providerStarted();
+          await providerWaiting;
+          return { markdown: '## stale AI result', agent_id: 'fallback', fallback_report: null };
+        },
+      );
+      await started;
+      saveProjectDiaryEntry(db, 1, TODAY, { markdown: '## confirmed during provider await' }, TODAY);
+      release();
+      await regeneration;
+
+      const row = db.prepare(
+        `SELECT markdown, status FROM project_daily_diaries WHERE project_id = 1 AND date = ?`,
+      ).get(TODAY) as { markdown: string; status: string };
+      expect(row).toEqual({ markdown: '## confirmed during provider await', status: 'confirmed' });
     });
 
     it('daily diary regenerate 建立給 agent 的 snapshot 時使用選定日期，不使用 server today', async () => {

@@ -6,6 +6,7 @@ import test from 'node:test';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appSource = readFileSync(join(here, '..', 'App.jsx'), 'utf8');
+const autoScanPolicySource = readFileSync(join(here, 'autoScanPolicy.js'), 'utf8');
 const cssSource = readFileSync(join(here, '..', 'index.css'), 'utf8');
 const trendChartSource = readFileSync(join(here, '..', 'components', 'TrendChart.jsx'), 'utf8');
 const tauriConfig = JSON.parse(readFileSync(resolve(here, '..', '..', 'src-tauri', 'tauri.conf.json'), 'utf8'));
@@ -130,10 +131,25 @@ test('agent activity roots use per-row controls and distinguish derived scan loc
 test('background scan status and comment drafts do not overwrite editable input during polling', () => {
   assert.match(appSource, /background_scan/);
   assert.match(appSource, /backgroundScanRunning \? 5_000 : 60_000/);
+  assert.match(appSource, /scanActivityPresentation/);
+  assert.match(autoScanPolicySource, /正在掃描/);
+  assert.doesNotMatch(autoScanPolicySource, /正在同步 AI 建議/);
   assert.match(appSource, /refreshReadOnlySnapshots\(\)/);
   assert.match(appSource, /未儲存的表單內容已保留/);
   assert.match(appSource, /readCommentDraft/);
   assert.match(appSource, /clearCommentDraft/);
+});
+
+test('global scan clears its spinner before refreshing returned Dashboard and Project snapshots', () => {
+  const dashboardScan = appSource.indexOf('const runDashboardScan = async');
+  const scanResponse = appSource.indexOf('const body = await runGlobalScan', dashboardScan);
+  const scanFinished = appSource.indexOf('setIsScanRunning(false);', scanResponse);
+  const followUpRead = appSource.indexOf('await fetchDashboard("24h")', scanResponse);
+  assert.ok(scanResponse >= 0, 'global scan awaits the Core response');
+  assert.ok(scanFinished > scanResponse, 'scan state clears after Core plus inline AI response');
+  assert.ok(followUpRead > scanFinished, 'follow-up reads occur after spinner state clears');
+  assert.match(appSource, /const \[isScanRefreshing, setIsScanRefreshing\] = useState\(false\);/);
+  assert.match(appSource, /const isAnyScanRunning = isScanRunning \|\| isScanRefreshing \|\| scanningProjectId !== null \|\| kanbanAiSyncing;/);
 });
 
 test('CLI card keeps executable metadata in its dedicated section and docs support path groups/search', () => {

@@ -95,6 +95,27 @@ CREATE TABLE IF NOT EXISTS daily_logs (
   summary_status      TEXT NOT NULL DEFAULT 'pending'
 );
 
+CREATE TABLE IF NOT EXISTS project_daily_diaries (
+  project_id      INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  date            TEXT NOT NULL,
+  markdown        TEXT NOT NULL,
+  status          TEXT NOT NULL CHECK (status IN ('ai_generated','confirmed')),
+  fallback_report TEXT,
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL,
+  PRIMARY KEY (project_id, date)
+);
+
+CREATE TABLE IF NOT EXISTS daily_scheduler_runs (
+  date              TEXT PRIMARY KEY,
+  owner_instance_id TEXT NOT NULL,
+  lease_expires_at  TEXT NOT NULL,
+  status            TEXT NOT NULL CHECK (status IN ('running','success','failed')),
+  started_at        TEXT NOT NULL,
+  completed_at      TEXT,
+  error             TEXT
+);
+
 CREATE TABLE IF NOT EXISTS comments (
   id         INTEGER PRIMARY KEY,
   project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
@@ -136,4 +157,4 @@ CREATE TABLE IF NOT EXISTS log_file_scan_cache (
 );
 `;
 
-export const SCHEMA_VERSION = '5';
+export const SCHEMA_VERSION = '6';

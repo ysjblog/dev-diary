@@ -59,6 +59,26 @@ describe('Daily scheduler', () => {
       expect(getSettings(db, runtime()).daily_scheduler.last_status).toBe('success');
     });
 
+    it('daily scheduler 會統計有明確 fallback_report 的 project diary', async () => {
+      const db = freshDb();
+      const scheduler = new DailySchedulerRuntime(db, runtime, {
+        projectSummaryAgent: async () => {
+          throw new Error('provider unavailable');
+        },
+        globalSummaryAgent: null,
+        kanbanAiGenerator: null,
+      });
+
+      const result = await scheduler.runNow({ force: true, now: new Date('2026-06-30T12:00:00.000Z') });
+
+      expect(result.status).toBe('success');
+      expect(result.daily_diaries_fallback).toBe(result.project_count);
+      const fallback = db.prepare(
+        `SELECT fallback_report FROM project_daily_diaries WHERE project_id = 1 AND date = ?`,
+      ).get(TODAY) as { fallback_report: string | null };
+      expect(fallback.fallback_report).toContain('deterministic fallback');
+    });
+
     it('automatic tick 只在 enabled / 到達時間 / 今日未跑時執行', async () => {
       const db = freshDb();
       const scheduler = new DailySchedulerRuntime(db, runtime, {
@@ -152,9 +172,179 @@ describe('Daily scheduler', () => {
         summary_status: string;
       };
       const perProject = JSON.parse(log.per_project_summary) as Record<string, string>;
-      expect(perProject['1']).toBe(manual);
+      expect(perProject['1']).toContain(`在 ${TODAY}`);
+      expect(perProject['1']).not.toContain('使用者已修正這天的內容');
       expect(perProject['2']).toContain(`在 ${TODAY}`);
-      expect(log.summary_status).toBe('confirmed');
+      // A confirmed project diary must remain independent from the global daily highlight.
+      expect(log.summary_status).toBe('ai_generated');
+      expect(db.prepare(`SELECT status FROM project_daily_diaries WHERE project_id = 1 AND date = ?`).get(TODAY)).toEqual({
+        status: 'confirmed',
+      });
+      expect(
+        db.prepare(`SELECT markdown FROM project_daily_diaries WHERE project_id = 1 AND date = ?`).get(TODAY),
+      ).toEqual({ markdown: manual });
+    });
+
+    it('daily scheduler global projection does not read confirmed project diary markdown', async () => {
+      const db = freshDb();
+      saveProjectDiaryEntry(db, 1, TODAY, { markdown: '## confirmed private diary' }, TODAY);
+      const originalPrepare = db.prepare.bind(db);
+      db.prepare = ((source: string) => {
+        if (/SELECT[\s\S]*markdown[\s\S]*FROM\s+project_daily_diaries/i.test(source)) {
+          throw new Error('scheduler must not read project diary markdown');
+        }
+        return originalPrepare(source);
+      }) as typeof db.prepare;
+      try {
+        const scheduler = new DailySchedulerRuntime(db, runtime, {
+          projectSummaryAgent: null,
+          globalSummaryAgent: null,
+          kanbanAiGenerator: null,
+        });
+        await expect(scheduler.runNow({ force: true, now: new Date('2026-06-30T12:00:00.000Z') })).resolves.toMatchObject({ status: 'success' });
+      } finally {
+        db.prepare = originalPrepare as typeof db.prepare;
+      }
+    });
+
+    it('scheduler uses a Taipei calendar date and reports separate output counters', async () => {
+      const db = freshDb();
+      const scheduler = new DailySchedulerRuntime(db, runtime, {
+        projectSummaryAgent: async (_snapshot, date) => ({
+          markdown: `## generated for ${date}`,
+          agent_id: 'fallback',
+          fallback_report: null,
+        }),
+        globalSummaryAgent: null,
+        kanbanAiGenerator: null,
+      });
+
+      const result = await scheduler.runNow({
+        force: true,
+        now: new Date('2026-06-30T17:30:00.000Z'),
+      });
+
+      expect(result.status).toBe('success');
+      expect(result.date).toBe('2026-07-01');
+      expect(result.project_summaries_updated).toBe(result.project_count);
+      expect(result.daily_diaries_updated).toBe(result.project_count);
+      expect(result.daily_diaries_preserved).toBe(0);
+      expect(result.daily_highlight_updated).toBe(1);
+      expect(db.prepare(`SELECT COUNT(*) AS c FROM project_daily_diaries WHERE date = ?`).get('2026-07-01')).toEqual({
+        c: result.project_count,
+      });
+    });
+
+    it('scheduler respects a live lease, recovers an expired lease, and keeps ordinary success idempotent', async () => {
+      const db = freshDb();
+      updateSettings(db, { daily_scheduler: { enabled: true, run_time_local: '00:00' } }, runtime());
+      const scheduler = new DailySchedulerRuntime(db, runtime, {
+        projectSummaryAgent: async () => ({ markdown: '## scheduled', agent_id: 'fallback', fallback_report: null }),
+        globalSummaryAgent: null,
+        kanbanAiGenerator: null,
+      });
+      db.prepare(
+        `INSERT INTO daily_scheduler_runs
+         (date, owner_instance_id, lease_expires_at, status, started_at, completed_at, error)
+         VALUES (?, 'other-live-owner', ?, 'running', ?, NULL, NULL)`,
+      ).run(TODAY, '2026-06-30T12:10:00.000Z', '2026-06-30T12:00:00.000Z');
+
+      expect((await scheduler.runNow({ now: new Date('2026-06-30T12:01:00.000Z') })).status).toBe('skipped');
+      db.prepare(`UPDATE daily_scheduler_runs SET lease_expires_at = ? WHERE date = ?`).run(
+        '2026-06-30T11:59:00.000Z',
+        TODAY,
+      );
+      expect((await scheduler.runNow({ now: new Date('2026-06-30T12:02:00.000Z') })).status).toBe('success');
+      expect((await scheduler.runNow({ now: new Date('2026-06-30T12:03:00.000Z') })).status).toBe('skipped');
+      expect(db.prepare(`SELECT status FROM daily_scheduler_runs WHERE date = ?`).get(TODAY)).toEqual({
+        status: 'success',
+      });
+    });
+
+    it('scheduler refuses to finalize success after another owner takes the lease', async () => {
+      const db = freshDb();
+      let release!: () => void;
+      let started!: () => void;
+      const waiting = new Promise<void>((resolve) => { release = resolve; });
+      const observed = new Promise<void>((resolve) => { started = resolve; });
+      const scheduler = new DailySchedulerRuntime(db, runtime, {
+        projectSummaryAgent: async () => ({ markdown: '## scheduled', agent_id: 'fallback', fallback_report: null }),
+        globalSummaryAgent: async () => {
+          started();
+          await waiting;
+          return { markdown: '## highlight', agent_id: 'fallback', fallback_report: null };
+        },
+        kanbanAiGenerator: null,
+      });
+
+      const running = scheduler.runNow({ force: true, now: new Date('2026-06-30T12:00:00.000Z') });
+      await observed;
+      db.prepare(`UPDATE daily_scheduler_runs SET owner_instance_id = 'other-owner' WHERE date = ?`).run(TODAY);
+      release();
+      const result = await running;
+
+      expect(result.status).toBe('failed');
+      expect(result.message).toContain('lease was lost');
+      expect(result.message).toContain('failure_state_not_persisted');
+      expect(db.prepare(`SELECT status, owner_instance_id FROM daily_scheduler_runs WHERE date = ?`).get(TODAY)).toEqual({
+        status: 'running',
+        owner_instance_id: 'other-owner',
+      });
+    });
+
+    it('scheduler runs all project outputs before Kanban and writes global highlight last', async () => {
+      const db = freshDb();
+      updateSettings(db, { kanban_ai_auto_add: { enabled: true } }, runtime());
+      const calls: string[] = [];
+      const scheduler = new DailySchedulerRuntime(db, runtime, {
+        projectSummaryAgent: async (snapshot) => {
+          calls.push(`project:${snapshot.project.id}`);
+          return { markdown: '## scheduled', agent_id: 'fallback', fallback_report: null };
+        },
+        kanbanAiGenerator: async () => {
+          calls.push('kanban');
+          return { agent_id: 'test-ai', text: JSON.stringify({ cards: [] }) };
+        },
+        globalSummaryAgent: async () => {
+          calls.push('highlight');
+          return {
+            markdown: '## 每日開發重點\n- 達成：測試\n- 阻礙：無\n- 下一步：完成',
+            agent_id: 'fallback',
+            fallback_report: null,
+          };
+        },
+      });
+
+      expect((await scheduler.runNow({ force: true, now: new Date('2026-06-30T12:00:00.000Z') })).status).toBe('success');
+      const firstKanban = calls.findIndex((call) => call === 'kanban');
+      const lastProject = calls.reduce((index, call, current) => call.startsWith('project:') ? current : index, -1);
+      expect(firstKanban).toBeGreaterThan(lastProject);
+      expect(calls.at(-1)).toBe('highlight');
+    });
+
+    it('scheduler final transaction failure rolls back success and reports when failure state cannot persist', async () => {
+      const db = freshDb();
+      db.exec(`
+        CREATE TRIGGER fail_daily_highlight BEFORE INSERT ON daily_logs
+        BEGIN SELECT RAISE(ABORT, 'forced final transaction failure'); END;
+        CREATE TRIGGER fail_scheduler_state BEFORE UPDATE ON daily_scheduler_runs
+        BEGIN SELECT RAISE(ABORT, 'forced terminal state failure'); END;
+      `);
+      const scheduler = new DailySchedulerRuntime(db, runtime, {
+        projectSummaryAgent: async () => ({ markdown: '## scheduled', agent_id: 'fallback', fallback_report: null }),
+        globalSummaryAgent: null,
+        kanbanAiGenerator: null,
+      });
+
+      const result = await scheduler.runNow({ force: true, now: new Date('2026-06-30T12:00:00.000Z') });
+
+      expect(result.status).toBe('failed');
+      expect(result.daily_highlight_updated).toBe(0);
+      expect(result.daily_log_updated).toBe(false);
+      expect(result.message).toContain('failure_state_not_persisted');
+      expect(db.prepare(`SELECT status FROM daily_scheduler_runs WHERE date = ?`).get(TODAY)).toEqual({
+        status: 'running',
+      });
     });
   });
 
