@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "stage": "final",
+  "reviewer_id": "spec-review-sol",
+  "matrix_digest": "f20e04dee6d24672be686fb601b9cc2a4fd451647c25a1c9886119c7ac4a9b30",
+  "review_revision": "b4469854eff716f61f4d0a97078fd9c0b11605ee",
+  "lens_results": {
+    "data-and-facts": "pass",
+    "naming-and-types": "pass",
+    "blast-radius": "pass",
+    "execution-order": "pass",
+    "logic-and-design": "pass"
+  },
+  "finding_ids": [],
+  "summary": "Fresh independent final closer approved the scan terminal-state and table-first/non-diary isolation contracts. Mobile/RWD is not applicable under desktop-only scope.",
+  "finding_details": [],
+  "receipt_digest": "068a4b8ad0f7898aa3baa8e04357b6080bc978325d0180691c2174bd7cfbc25e"
+}

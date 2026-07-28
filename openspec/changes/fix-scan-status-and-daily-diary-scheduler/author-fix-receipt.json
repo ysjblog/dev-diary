@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "matrix_digest": "f20e04dee6d24672be686fb601b9cc2a4fd451647c25a1c9886119c7ac4a9b30",
+  "review_revision": "b4469854eff716f61f4d0a97078fd9c0b11605ee",
+  "reviewed_finding_ids": [
+    "SOL-GATE-001",
+    "SOL-EVID-002"
+  ],
+  "changed_artifact_digest": "2267e5b60877caa8d391500ff63ff70262888147ad3f4016f4975c4e5b87824c",
+  "landing_checks_passed": true,
+  "strict_validation_passed": true,
+  "author_preflight_receipt_digest": "e47dcc6e33c91f02733fd8b77e985efdc3b659d5f667b5321413164cb22fc41c",
+  "concern_tags": [
+    "data-facts",
+    "execution-order",
+    "design-contract"
+  ],
+  "verify_strings": [
+    "--require-receipt",
+    "3cd2f14d116e67dacc168a46c824cf828d5490421cbe8f2eb95367615fd0e6ba",
+    "4.1 Archive this active Change only after the user explicitly authorizes"
+  ],
+  "fix_report": [
+    { "finding_ids": ["SOL-GATE-001"], "what_changed": "Regenerated and required the fresh author-preflight receipt after the final task status reconciliation." },
+    { "finding_ids": ["SOL-EVID-002"], "what_changed": "Retained the complete executable candidate manifest that hashes tracked and untracked source and regression tests, including core/src/services/taipeiDate.ts, and keeps the QA report bound to it." }
+  ],
+  "receipt_digest": "6d62fbc9dc2db5b85ce9114d4f15fa26677c80ee5da765e4772c78d195439b03"
+}

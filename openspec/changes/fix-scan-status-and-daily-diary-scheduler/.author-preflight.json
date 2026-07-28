@@ -1,0 +1,14 @@
+{
+  "schema": "codex.openspec-author-preflight/v1",
+  "change": "fix-scan-status-and-daily-diary-scheduler",
+  "content_sha256": "e47dcc6e33c91f02733fd8b77e985efdc3b659d5f667b5321413164cb22fc41c",
+  "tracked_files": [
+    "openspec/changes/fix-scan-status-and-daily-diary-scheduler/design.md",
+    "openspec/changes/fix-scan-status-and-daily-diary-scheduler/proposal.md",
+    "openspec/changes/fix-scan-status-and-daily-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+    "openspec/changes/fix-scan-status-and-daily-diary-scheduler/tasks.md",
+    "openspec/specs/dev-diary-macos-app/spec.md"
+  ],
+  "checked_at": "2026-07-28T12:46:25.570672+00:00",
+  "status": "pass"
+}

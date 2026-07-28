@@ -18,6 +18,7 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 
 | Change | 狀態 | 摘要 |
 |---|---|---|
+| [`fix-scan-status-and-daily-diary-scheduler`](../../openspec/changes/fix-scan-status-and-daily-diary-scheduler/proposal.md) | Plan-Spec / 待 review 與使用者 acceptance | 修正 stale scan-operation 造成的永久忙碌顯示，並讓每日排程生成 Project summary、Daily diary 與 Daily highlight，同時保護使用者確認內容。 |
 
 舊 Delta 的「後續」段落已由後續 commit 覆蓋，或是明確 deferred/non-goal；它們不會被假裝成 active work。
 
