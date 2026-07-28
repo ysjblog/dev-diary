@@ -14,3 +14,5 @@ certificate-base64.txt
 *.db-wal
 core/dist
 .launchagents
+.playwright-cli/
+output/
