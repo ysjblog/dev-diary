@@ -1,0 +1,14 @@
+{
+  "schema": "codex.openspec-author-preflight/v1",
+  "change": "fix-automatic-daily-diary-input",
+  "content_sha256": "f63b693ca51375e00de89d30437e7084e128d70a2157b235a9d79188a16df24b",
+  "tracked_files": [
+    "openspec/changes/fix-automatic-daily-diary-input/design.md",
+    "openspec/changes/fix-automatic-daily-diary-input/proposal.md",
+    "openspec/changes/fix-automatic-daily-diary-input/specs/dev-diary-macos-app/spec.md",
+    "openspec/changes/fix-automatic-daily-diary-input/tasks.md",
+    "openspec/specs/dev-diary-macos-app/spec.md"
+  ],
+  "checked_at": "2026-08-03T16:50:33.946597+00:00",
+  "status": "pass"
+}

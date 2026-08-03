@@ -11,7 +11,7 @@ import {
 import { redactSensitiveText, synthesizeProjectKanban } from './kanbanSynthesis.js';
 import { createConfiguredKanbanAiGenerator, emptyKanbanAiSync, syncKanbanAiCards, type KanbanAiTextGenerator } from './kanbanAiSuggestions.js';
 import { regenerateProjectDiaryEntryWithAgent, regenerateProjectSummaryWithAgent } from './projectWrites.js';
-import { taipeiDate } from './taipeiDate.js';
+import { previousTaipeiDate } from './taipeiDate.js';
 import { getGitStatusSnapshot } from './gitStatus.js';
 import { randomUUID } from 'node:crypto';
 import { upsertKanbanCandidate } from './scans.js';
@@ -77,12 +77,10 @@ function minutesInTaipei(now: Date): number {
   return Number(value('hour')) * 60 + Number(value('minute'));
 }
 
-// Record date must match the UTC anchor every other endpoint queries by (server.ts
-// todayUTC()); using a Taipei-anchored date here caused Run Now, during the
-// Taipei-midnight-to-8am window, to stamp daily_logs/project drafts with tomorrow's
-// date relative to the dashboard's UTC "today" — the AI Global Summary looked like it
-// never ran even though it had (it was just filed a day ahead of where the UI looked).
-function todayUTC(now: Date): string { return taipeiDate(now); }
+// A daily diary summarizes one completed Taipei calendar day. Both automatic ticks
+// and operator-forced scheduler runs use yesterday as their durable target; explicit
+// per-project diary routes keep using the exact date supplied by the user.
+function schedulerTargetDate(now: Date): string { return previousTaipeiDate(now); }
 
 function runTimeMinutes(value: string): number {
   const [hour, minute] = value.split(':').map(Number);
@@ -285,7 +283,7 @@ export class DailySchedulerRuntime {
   async runNow(input: { force?: boolean; now?: Date; preflight?: SchedulerPreflightResult } = {}): Promise<DailySchedulerRunResult> {
     const now = input.now ?? this.options.now?.() ?? new Date();
     const leaseClock = () => input.now ?? this.options.now?.() ?? new Date();
-    const date = todayUTC(now);
+    const date = schedulerTargetDate(now);
     if (this.running) {
       return {
         status: 'running',
@@ -438,7 +436,7 @@ export class DailySchedulerRuntime {
   async tick(now: Date = this.options.now?.() ?? new Date()): Promise<DailySchedulerRunResult> {
     const runtime = this.runtime();
     const settings = getSettings(this.db, runtime);
-    const date = todayUTC(now);
+    const date = schedulerTargetDate(now);
     if (!settings.daily_scheduler.enabled) return this.skipResult(date, 'Daily scheduler is disabled.');
     if (minutesInTaipei(now) < runTimeMinutes(settings.daily_scheduler.run_time_local)) {
       return this.skipResult(date, 'Daily scheduler run time has not arrived.');

@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "change": "fix-automatic-daily-diary-input",
+  "openspec_level": "o1",
+  "routing_signals": [
+    "durable_shared_contract",
+    "multiple_journeys_roles"
+  ],
+  "review_provider": "codex",
+  "budget_mode": "bounded",
+  "required_lenses": [
+    "owner-self-check"
+  ],
+  "deferred_lenses": [],
+  "why_deferred": "O1 uses the Owner self-check and does not require an independent reviewer.",
+  "escalation_trigger": "Any refuted load-bearing claim, unresolved privacy boundary, or contradictory date/idempotency behavior blocks implementation.",
+  "contract_matrix_path": "openspec/changes/fix-automatic-daily-diary-input/contract-matrix.json",
+  "contract_matrix_root": ".",
+  "contract_matrix_digest": "de301395041531f73938efbe5d6b46c80ad267e13d3c891f3512c67e43e6eee7",
+  "review_revision": "af1a21311eea49787d9beddbaa6d36bb29c22720",
+  "owner_self_check_complete": true,
+  "converged": true,
+  "new_cross_file_findings": 0,
+  "unresolved_inconclusive_lenses": [],
+  "fullCloserCount": 0,
+  "consolidatedAuthorFixes": 0,
+  "review_rounds": [
+    {
+      "kind": "owner_self_check",
+      "trusted": true,
+      "reviewer_id": "root-owner",
+      "finding_count": 1,
+      "finding_ids": [
+        "OWNER-PROMPT-BUDGET-001"
+      ],
+      "verified_facts": [
+        "dailyScheduler.ts resolves one date before lease claim and passes it to the date-scoped writer",
+        "server.ts manual regenerate passes an explicit request date into the same date-scoped writer",
+        "projects.ts already supplies date-filtered sessions and recent Git commits",
+        "diaryAgent.ts discards session command/excerpt and commit titles before the configured prompt and its 1,800-character final limit can truncate valid 5,000-character overrides before structured data",
+        "kanbanSynthesis.ts provides an existing secret/path redaction boundary reusable by the prompt builder"
+      ]
+    }
+  ]
+}

@@ -8,6 +8,7 @@ import { createConfiguredScanProvider } from '../src/services/scans.js';
 import { getSettings, updateSettings } from '../src/services/settings.js';
 
 const TODAY = '2026-06-30';
+const RUN_AT = '2026-06-30T17:00:00.000Z'; // 2026-07-01 01:00 Asia/Taipei; target is TODAY.
 
 function freshDb() {
   const db = openDb(':memory:');
@@ -31,10 +32,10 @@ describe('Background LaunchAgent runner', () => {
   describe('function 邏輯', () => {
     it('enabled cycle 先 scan 再寫 AI diary', async () => {
       const db = freshDb();
-      updateSettings(db, { default_diary_agent: null, daily_scheduler: { enabled: true, run_time_local: '18:00' }, scan_interval_minutes: 5 }, runtime());
+      updateSettings(db, { default_diary_agent: null, daily_scheduler: { enabled: true, run_time_local: '01:00' }, scan_interval_minutes: 5 }, runtime());
 
       const result = await runBackgroundCycle(db, runtime, {
-        now: new Date('2026-06-30T12:00:00.000Z'),
+        now: new Date(RUN_AT),
         scanProvider: mockScanProvider(),
         projectSummaryAgent: async (snapshot) => ({
           markdown: `## ${snapshot.project.name} background draft`,
@@ -91,11 +92,11 @@ describe('Background LaunchAgent runner', () => {
 
     it('同一天已成功寫 diary 後，後續 interval 只 scan 不重跑 AI diary', async () => {
       const db = freshDb();
-      updateSettings(db, { default_diary_agent: null, daily_scheduler: { enabled: true, run_time_local: '18:00' }, scan_interval_minutes: 5 }, runtime());
+      updateSettings(db, { default_diary_agent: null, daily_scheduler: { enabled: true, run_time_local: '01:00' }, scan_interval_minutes: 5 }, runtime());
       let draftCalls = 0;
 
       const first = await runBackgroundCycle(db, runtime, {
-        now: new Date('2026-06-30T12:00:00.000Z'),
+        now: new Date(RUN_AT),
         scanProvider: mockScanProvider(),
         projectSummaryAgent: async () => {
           draftCalls += 1;
@@ -107,7 +108,7 @@ describe('Background LaunchAgent runner', () => {
       const callsAfterFirst = draftCalls;
 
       const second = await runBackgroundCycle(db, runtime, {
-        now: new Date('2026-06-30T13:00:00.000Z'),
+        now: new Date('2026-06-30T18:00:00.000Z'),
         scanProvider: mockScanProvider(),
         projectSummaryAgent: async () => {
           draftCalls += 1;
@@ -287,7 +288,7 @@ describe('Background LaunchAgent runner', () => {
         db,
         {
           default_diary_agent: 'antigravity-cli',
-          daily_scheduler: { enabled: true, run_time_local: '18:00' },
+          daily_scheduler: { enabled: true, run_time_local: '01:00' },
           kanban_ai_auto_add: { enabled: true },
           scan_interval_minutes: 5,
         },
@@ -296,10 +297,10 @@ describe('Background LaunchAgent runner', () => {
 
       // 先把 gate 打進 cooldown(用假 probe,完全不碰 agy);cooldown 內 runBackgroundCycle
       // 不會再送真正的 agy probe,也就不會彈登入視窗。
-      // cooldown 需涵蓋本輪 cycle 時間(11:00 → 12:00 間隔 1 小時),否則 gate 會在
-      // cycle 內送出真正的 agy probe。設 6 小時,確保 12:00 仍在 cooldown 內。
+      // cooldown 需涵蓋本輪 cycle 時間(16:00 → 17:00 UTC 間隔 1 小時),否則 gate 會在
+      // cycle 內送出真正的 agy probe。設 6 小時,確保本輪仍在 cooldown 內。
       const gate = new AntigravitySessionGate({ cooldownMs: 6 * 60 * 60_000, healthyTtlMs: 60_000 });
-      await gate.ensureHealthy(new Date('2026-06-30T11:00:00.000Z').getTime(), async () => ({
+      await gate.ensureHealthy(new Date('2026-06-30T16:00:00.000Z').getTime(), async () => ({
         healthy: false,
         detail: 'primed dead session',
       }));
@@ -307,7 +308,7 @@ describe('Background LaunchAgent runner', () => {
       // 不注入任何 generator:讓 configured(agy)路徑成為唯一來源。session 失效時
       // 這條路徑會被整批 null 掉改用 deterministic fallback,完全不會 spawn agy。
       const result = await runBackgroundCycle(db, runtime, {
-        now: new Date('2026-06-30T12:00:00.000Z'),
+        now: new Date(RUN_AT),
         scanProvider: mockScanProvider(),
         antigravityGate: gate,
       });

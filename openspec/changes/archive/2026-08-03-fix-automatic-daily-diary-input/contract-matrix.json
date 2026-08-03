@@ -1,0 +1,205 @@
+{
+  "schema_version": 2,
+  "generated_revision": "af1a21311eea49787d9beddbaa6d36bb29c22720",
+  "input_manifest_digest": "a373227045ca251e89e0182de1265cae26ec9190d36a77812fc2a4aacaa130d6",
+  "artifact_inventory": [
+    {
+      "path": "openspec/changes/fix-automatic-daily-diary-input/design.md",
+      "sha256": "6370e892e6d202b38cb1ce6513e36d3ed17c4a37c53b365ed8d85bce9b786ad2"
+    },
+    {
+      "path": "openspec/changes/fix-automatic-daily-diary-input/proposal.md",
+      "sha256": "c9326dd1c08488180aad59eaedbc6c97c21f39e3df8c2c0e1b056b1004719577"
+    },
+    {
+      "path": "openspec/changes/fix-automatic-daily-diary-input/specs/dev-diary-macos-app/spec.md",
+      "sha256": "266d387251b50d0d34b0393870c1221a190aa81fad4fd66c0feb6f4aaebf8652"
+    },
+    {
+      "path": "openspec/changes/fix-automatic-daily-diary-input/tasks.md",
+      "sha256": "3657be2ef9edcbd9803f8344cdabf42e8890c9f6f246d5bfc2f5e2553f021627"
+    },
+    {
+      "path": "openspec/specs/dev-diary-macos-app/spec.md",
+      "sha256": "6ef0470e2dbdb03272b2a2b4fd4bcff9e1cb9679b3e3b81a088f7601555a0362"
+    }
+  ],
+  "inventory_scope": {
+    "change": [
+      "openspec/changes/fix-automatic-daily-diary-input/design.md",
+      "openspec/changes/fix-automatic-daily-diary-input/proposal.md",
+      "openspec/changes/fix-automatic-daily-diary-input/specs/dev-diary-macos-app/spec.md",
+      "openspec/changes/fix-automatic-daily-diary-input/tasks.md"
+    ],
+    "baseline": [
+      "openspec/specs/dev-diary-macos-app/spec.md"
+    ]
+  },
+  "invariants": [
+    {
+      "id": "scheduler-target",
+      "value": "previous `Asia/Taipei` calendar day",
+      "search_terms": [
+        "previous `Asia/Taipei` calendar day"
+      ],
+      "writers": [
+        "openspec/changes/fix-automatic-daily-diary-input/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/fix-automatic-daily-diary-input/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/fix-automatic-daily-diary-input/proposal.md",
+          "line": 19
+        },
+        {
+          "file": "openspec/changes/fix-automatic-daily-diary-input/specs/dev-diary-macos-app/spec.md",
+          "line": 42
+        }
+      ]
+    },
+    {
+      "id": "safe-evidence",
+      "value": "bounded, redacted session",
+      "search_terms": [
+        "bounded, redacted session"
+      ],
+      "writers": [
+        "openspec/changes/fix-automatic-daily-diary-input/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/fix-automatic-daily-diary-input/proposal.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/fix-automatic-daily-diary-input/proposal.md",
+          "line": 20
+        },
+        {
+          "file": "openspec/changes/fix-automatic-daily-diary-input/specs/dev-diary-macos-app/spec.md",
+          "line": 23
+        }
+      ]
+    },
+    {
+      "id": "prompt-budget",
+      "value": "5,000-character",
+      "search_terms": [
+        "5,000-character"
+      ],
+      "writers": [
+        "openspec/changes/fix-automatic-daily-diary-input/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/fix-automatic-daily-diary-input/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/fix-automatic-daily-diary-input/design.md",
+          "line": 17
+        },
+        {
+          "file": "openspec/changes/fix-automatic-daily-diary-input/design.md",
+          "line": 40
+        },
+        {
+          "file": "openspec/changes/fix-automatic-daily-diary-input/design.md",
+          "line": 48
+        },
+        {
+          "file": "openspec/changes/fix-automatic-daily-diary-input/proposal.md",
+          "line": 21
+        }
+      ]
+    },
+    {
+      "id": "confirmed-protection",
+      "value": "confirmed",
+      "search_terms": [
+        "confirmed"
+      ],
+      "writers": [
+        "openspec/changes/fix-automatic-daily-diary-input/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/specs/dev-diary-macos-app/spec.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/fix-automatic-daily-diary-input/design.md",
+          "line": 26
+        },
+        {
+          "file": "openspec/changes/fix-automatic-daily-diary-input/design.md",
+          "line": 60
+        },
+        {
+          "file": "openspec/changes/fix-automatic-daily-diary-input/proposal.md",
+          "line": 34
+        },
+        {
+          "file": "openspec/changes/fix-automatic-daily-diary-input/specs/dev-diary-macos-app/spec.md",
+          "line": 23
+        },
+        {
+          "file": "openspec/changes/fix-automatic-daily-diary-input/specs/dev-diary-macos-app/spec.md",
+          "line": 38
+        },
+        {
+          "file": "openspec/changes/fix-automatic-daily-diary-input/specs/dev-diary-macos-app/spec.md",
+          "line": 42
+        },
+        {
+          "file": "openspec/changes/fix-automatic-daily-diary-input/specs/dev-diary-macos-app/spec.md",
+          "line": 51
+        },
+        {
+          "file": "openspec/changes/fix-automatic-daily-diary-input/specs/dev-diary-macos-app/spec.md",
+          "line": 52
+        },
+        {
+          "file": "openspec/specs/dev-diary-macos-app/spec.md",
+          "line": 102
+        },
+        {
+          "file": "openspec/specs/dev-diary-macos-app/spec.md",
+          "line": 104
+        },
+        {
+          "file": "openspec/specs/dev-diary-macos-app/spec.md",
+          "line": 106
+        },
+        {
+          "file": "openspec/specs/dev-diary-macos-app/spec.md",
+          "line": 109
+        },
+        {
+          "file": "openspec/specs/dev-diary-macos-app/spec.md",
+          "line": 111
+        },
+        {
+          "file": "openspec/specs/dev-diary-macos-app/spec.md",
+          "line": 117
+        },
+        {
+          "file": "openspec/specs/dev-diary-macos-app/spec.md",
+          "line": 121
+        },
+        {
+          "file": "openspec/specs/dev-diary-macos-app/spec.md",
+          "line": 130
+        },
+        {
+          "file": "openspec/specs/dev-diary-macos-app/spec.md",
+          "line": 131
+        },
+        {
+          "file": "openspec/specs/dev-diary-macos-app/spec.md",
+          "line": 136
+        }
+      ]
+    }
+  ],
+  "matrix_digest": "de301395041531f73938efbe5d6b46c80ad267e13d3c891f3512c67e43e6eee7"
+}

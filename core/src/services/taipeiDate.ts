@@ -5,3 +5,9 @@ export function taipeiDate(now: Date = new Date()): string {
   const value = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
   return `${value('year')}-${value('month')}-${value('day')}`;
 }
+
+export function previousTaipeiDate(now: Date = new Date()): string {
+  const current = taipeiDate(now);
+  const [year, month, day] = current.split('-').map(Number);
+  return new Date(Date.UTC(year!, month! - 1, day! - 1)).toISOString().slice(0, 10);
+}
