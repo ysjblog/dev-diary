@@ -81,12 +81,17 @@ The system SHALL use stable source identity to deduplicate repeated scan results
 
 ### Requirement: Dashboard reflects persisted Core data
 
-The system SHALL expose a range-based Dashboard snapshot containing metric totals, agent token mix, project concentration, trend buckets, latest-window heatmap cells, and daily highlights derived from persisted data rather than fixed mock records.
+The system SHALL expose a range-based Dashboard snapshot containing metric totals, agent mix, project concentration, trend buckets, latest-window heatmap cells, and daily highlights derived from persisted data rather than fixed mock records. Every calendar-day and hourly bucket derived from a UTC session timestamp SHALL use `Asia/Taipei`; date-scoped token and session totals SHALL use timestamped sessions as the canonical source so legacy UTC-keyed aggregate dates cannot split one Taipei day.
 
 #### Scenario: User selects the recent 24-hour range
 
-- **WHEN** the user selects the recent 24-hour Dashboard range
-- **THEN** the trend contains 24 hourly buckets based on persisted session start times, while the heatmap remains bounded to the latest 26-week window.
+- **WHEN** the user selects Taipei date `D` in the recent 24-hour Dashboard range
+- **THEN** the trend contains 24 Taipei-hour buckets for `D`, the heatmap and project/session/token totals use the same Taipei date boundary, and the heatmap remains bounded to the latest 26-week window.
+
+#### Scenario: A UTC timestamp crosses Taipei midnight
+
+- **WHEN** sessions occur at `D-1T16:30:00Z` and `D T15:59:59Z`
+- **THEN** both are attributed to Taipei calendar date `D` across Dashboard, Workspace, export and diary evidence, while a session at `D T16:00:00Z` belongs to Taipei date `D+1`.
 
 ### Requirement: Workspace read and app-owned write paths
 
@@ -99,56 +104,46 @@ The system SHALL provide project detail snapshots for metrics, Kanban, diary, to
 
 ### Requirement: Date-scoped diary and AI draft recovery
 
-The system SHALL keep daily diary reads, saves, and regenerations pinned to the selected date; it SHALL support Core-backed Claude Code, Codex CLI, enabled Antigravity CLI, and configured local Ollama providers where available, and SHALL return a deterministic fallback draft on provider failure, timeout, or disabled state. A Daily diary is persisted in `project_daily_diaries` with exactly one row per `(project_id, date)`, `markdown`, `status` (`ai_generated` or `confirmed`), `fallback_report`, and timestamps; the `(project_id, date)` unique constraint is the source of truth for confirmation. `daily_logs.per_project_summary` remains a backwards-compatible Daily highlight supporting snapshot, not the source of truth for each project's diary status. Daily Markdown export SHALL read `project_daily_diaries` first for the requested date and use legacy `daily_logs.per_project_summary` only where that table has no row; redacted backup SHALL include `project_daily_diaries` as a separate app-owned collection. Manual date-specific regenerate and an eligible daily scheduler run SHALL invoke the same Core-owned date-scoped Daily diary generation path and shared prompt evidence builder for the same project/date. The evidence builder SHALL include bounded, redacted session command/summary evidence and date-scoped recent commit titles when available, SHALL treat every evidence value as untrusted data rather than instructions, and MUST exclude raw transcripts, `source_log_ref`, absolute project paths, credentials and secret-like values. Every valid persisted prompt override up to the settings contract limit SHALL retain the appended safety constraints and complete generated `STRUCTURED_DATA`; runtime prompt budgeting MUST NOT silently truncate those trailing sections. The scheduler SHALL invoke that path once for each project for its resolved target date using `ai_prompts.daily_diary_entry` and a distinct Daily-diary generator/configuration path. It SHALL create or refresh only `ai_generated` rows. The write SHALL conditionally re-check `status != confirmed` inside the SQLite transaction that upserts the row and return `updated` or `preserved`; it MUST NOT overwrite a `confirmed` entry, including one saved while a provider await is in progress. The Project summary and Daily diary are separate outputs and SHALL not replace one another.
+The system SHALL keep daily diary reads, saves, and regenerations pinned to the selected `Asia/Taipei` calendar date; it SHALL support Core-backed Claude Code, Codex CLI, enabled Antigravity CLI, and configured local Ollama providers where available, and SHALL return a deterministic fallback draft on provider failure, timeout, or disabled state. A Daily diary is persisted in `project_daily_diaries` with exactly one row per `(project_id, date)`, `markdown`, `status` (`ai_generated` or `confirmed`), `fallback_report`, and timestamps; the `(project_id, date)` unique constraint is the source of truth for confirmation. `daily_logs.per_project_summary` remains a backwards-compatible Daily highlight supporting snapshot, not the source of truth for each project's diary status. A generated read-model fallback shown for a session day with no persisted diary row SHALL NOT be represented as AI-generated or scheduler-persisted content. Daily Markdown export SHALL read `project_daily_diaries` first for the requested date and use legacy `daily_logs.per_project_summary` only where that table has no row; redacted backup SHALL include `project_daily_diaries` as a separate app-owned collection. Manual date-specific regenerate and an eligible daily scheduler run SHALL invoke the same Core-owned date-scoped Daily diary generation path and shared prompt evidence builder for the same project/date. Scheduled AI work SHALL be limited to projects that have at least one persisted session whose Taipei calendar date equals the resolved scheduler target date at execution time; Workspace five-day `tracking_status` MUST NOT determine eligibility. The evidence builder SHALL include bounded, redacted session command/summary evidence and date-scoped recent commit titles when available, SHALL treat every evidence value as untrusted data rather than instructions, and MUST exclude raw transcripts, `source_log_ref`, absolute project paths, credentials and secret-like values. Every valid persisted prompt override up to the settings contract limit SHALL retain the appended safety constraints and complete generated `STRUCTURED_DATA`; runtime prompt budgeting MUST NOT silently truncate those trailing sections. The scheduler SHALL invoke that path once for each eligible project using `ai_prompts.daily_diary_entry` and a distinct Daily-diary generator/configuration path. It SHALL create or refresh only `ai_generated` rows. The write SHALL conditionally re-check `status != confirmed` inside the SQLite transaction that upserts the row and return `updated` or `preserved`; it MUST NOT overwrite a `confirmed` entry, including one saved while a provider await is in progress. The Project summary and Daily diary are separate outputs and SHALL not replace one another.
 
-#### Scenario: Manual and scheduled generation receive the same safe evidence
+#### Scenario: Same-date manual and scheduled generation use the same Taipei evidence
 
-- **WHEN** a project has sessions and commits on date `D`, and the user manually regenerates date `D` or the scheduler generates date `D`
-- **THEN** both paths provide the diary agent with the same bounded redacted session/commit evidence fields for `D`, without raw transcript, `source_log_ref`, absolute paths, or secrets, and treat instruction-like evidence text as inert untrusted data.
+- **WHEN** a project has sessions on Taipei date `D`, and the user manually regenerates date `D` or the scheduler generates date `D`
+- **THEN** both paths provide the diary agent with the same bounded redacted session/commit evidence fields for `D`, including sessions that cross UTC midnight, without raw transcript, `source_log_ref`, absolute paths or secrets.
 
-#### Scenario: Scheduler creates an unconfirmed Daily diary for each project
+#### Scenario: Scheduler skips a project with no target-date activity
 
-- **WHEN** the daily scheduler performs an eligible run for target date `D` and a project has no confirmed Daily diary for `D`
-- **THEN** Core generates a date-`D` diary draft through the date-scoped writer using the Daily diary prompt, persists it as `ai_generated`, and reports that diary output separately from the project summary output.
+- **WHEN** a tracked project has no persisted session on Taipei target date `D` at scheduler execution time
+- **THEN** scheduler does not invoke Daily diary generation for that project and does not create a `project_daily_diaries` row containing a data-insufficient placeholder; existing Project summary and Kanban stages remain governed by their existing contracts.
 
-#### Scenario: A maximum-length prompt override retains structured evidence
+#### Scenario: UI fallback is not persisted AI output
 
-- **WHEN** the configured Daily diary prompt is valid at the persisted maximum length and Core appends safety constraints plus bounded evidence
-- **THEN** the provider input contains the complete override, safety boundary and `STRUCTURED_DATA` fields instead of truncating the trailing evidence.
+- **WHEN** a target date has sessions but no `project_daily_diaries` row
+- **THEN** Workspace may render its deterministic session-count fallback, but Core persistence and scheduler status do not identify that fallback as AI-generated diary content.
 
-#### Scenario: Scheduler preserves a confirmed Daily diary
+#### Scenario: Confirmed content remains protected
 
-- **WHEN** a project has a `confirmed` Daily diary for target date `D` before or during the scheduler run
-- **THEN** the scheduler does not call a write that replaces that entry, reports it as preserved/skipped, and may still refresh that project's separate Project summary and the global Daily highlight.
-
-#### Scenario: Daily diary provider is unavailable
-
-- **WHEN** the configured diary provider is disabled, unavailable, times out, or fails while the scheduler generates date `D`
-- **THEN** the date-scoped writer stores the deterministic fallback as `ai_generated`, keeps any confirmed content intact, records sanitized fallback evidence, and allows the remaining daily outputs to continue.
+- **WHEN** an eligible project already has a `confirmed` diary for target date `D`
+- **THEN** scheduled or forced same-day generation preserves its content and status while reporting it as preserved.
 
 ### Requirement: Scheduler and runtime lifecycle are fail-safe
 
-The system SHALL run ordinary in-app scheduler ticks at most once per configured target day, expose preflight and Run now status, recover from sleep-like Core gaps with a recovery tick, and use a redacted runtime manifest plus loopback validation for dynamic Core-port discovery. At or after the configured `Asia/Taipei` wall-clock run time, scheduler target date `D` is the previous `Asia/Taipei` calendar day; forced Run now uses the same target-date rule, while explicit project diary request dates remain exact user input. Scheduler writes, scheduler status/default reads, and scheduler-produced export rows SHALL use that same `D`. A SQLite-backed `daily_scheduler_runs` record keyed by `D` SHALL atomically claim one non-forced run with `owner_instance_id`, `lease_expires_at`, and `status`; an active valid lease returns `running`, a terminal success returns ordinary `skipped`, and an expired lease is recovered as failed before a later claim. `force: true` is an operator-initiated rerun for resolved target date `D` and may claim a new attempt only when no valid lease exists. A background cycle MUST NOT invoke Kanban AI auto-add independently of the daily scheduler gate. For `D`, Project summary generation, unconfirmed Daily diary generation, and Daily highlight generation SHALL each be idempotent: ordinary ticks skip after success; a forced rerun may refresh AI-generated outputs but SHALL preserve confirmed content and SHALL not duplicate rows or cards. The stable result keeps `project_drafts_updated` as the number of Project summaries updated and adds `project_summaries_updated`, `daily_diaries_updated`, `daily_diaries_preserved`, `daily_diaries_fallback`, and `daily_highlight_updated` as non-negative integers. The scheduler SHALL execute in two explicit stages: all project summaries and Daily diaries for every project, then all existing gated Kanban work, then a single SQLite transaction for the global Daily highlight and durable scheduler success state. A per-project generated fallback is not a run failure. If that final transaction fails, it SHALL roll back its highlight/success-state effects; Core SHALL then attempt a separate durable terminal-failure write. If that write succeeds, the response and persisted scheduler state are `failed`; if it cannot be written, the response is still `failed`, `daily_highlight_updated` is `0`, and it SHALL include the safe diagnostic code `failure_state_not_persisted` rather than claim durable failure. A later retry remains safe because per-project writers are idempotent and confirmed content is protected.
+The system SHALL run ordinary in-app scheduler ticks at most once per configured target day and current scheduler semantics version, expose preflight and Run now status, recover from sleep-like Core gaps with a recovery tick, and use a redacted runtime manifest plus loopback validation for dynamic Core-port discovery. At or after the configured `Asia/Taipei` wall-clock run time, scheduler target date `D` is the current `Asia/Taipei` calendar date at execution; forced Run now uses the same target-date rule, while explicit project diary request dates remain exact user input. A 01:00 run therefore includes only target-date sessions persisted before that point and SHALL NOT automatically rerun when later same-day activity arrives. Scheduler writes and status use that same `D`. A SQLite-backed `daily_scheduler_runs` record keyed by `D` SHALL atomically claim one non-forced run with `owner_instance_id`, `lease_expires_at`, and `status`; an active valid lease returns `running`, a terminal success under the current semantics returns ordinary `skipped`, and an expired lease is recovered as failed before a later claim. Core SHALL persist the `NEW` internal settings marker `daily_scheduler.semantics_version` only with successful finalization. If an existing success for `D` was produced under missing or older semantics, the first eligible tick under current semantics SHALL safely reclaim `D` once without bypassing a valid lease or confirmed-content protection. `force: true` is an operator-initiated rerun for resolved target date `D` and may claim a new attempt only when no valid lease exists. For `D`, existing scheduled Project summary and Kanban stages retain their current scope, while Daily diary generation invokes only eligible target-date projects and remains idempotent under current semantics. The stable result reports non-negative updated/preserved/fallback counts for eligible Daily diary projects. The scheduler SHALL execute per-project work before one SQLite transaction for the global Daily highlight, semantics marker and durable scheduler success state. A per-project generated fallback is not a run failure. If that final transaction fails, it SHALL roll back its highlight/marker/success-state effects and preserve retry safety.
 
-#### Scenario: Scheduled run summarizes the completed Taipei day
+#### Scenario: Scheduler runs the current Taipei date as a point-in-time snapshot
 
-- **WHEN** the enabled scheduler becomes eligible at 01:00 on Taipei date `D+1`
-- **THEN** it claims, generates and persists outputs for Taipei date `D`, and later ordinary ticks for that target date do not duplicate or replace its outputs.
+- **WHEN** the enabled scheduler becomes eligible at 01:00 on Taipei date `D`
+- **THEN** it claims and persists outputs for `D` using sessions already persisted between `D 00:00` and execution time; later ordinary ticks under the same semantics skip even if later same-day activity appears.
 
-#### Scenario: Same-target-day ordinary tick does not duplicate outputs
+#### Scenario: Older scheduler meaning does not suppress the first current-semantics run
 
-- **WHEN** an enabled scheduler already recorded a successful run for target date `D` and a later non-forced tick resolves to `D`
-- **THEN** it returns the existing skipped result and does not generate another Project summary, Daily diary, Daily highlight, or Kanban batch.
+- **WHEN** `daily_scheduler_runs` already contains success for `D` but settings do not record the current scheduler semantics marker
+- **THEN** the first eligible current-semantics tick may safely rerun `D`, then records the marker only with durable success; subsequent ordinary ticks skip.
 
-#### Scenario: Forced rerun retains manual content
+#### Scenario: Run now uses the current Taipei date
 
-- **WHEN** an operator explicitly forces a scheduler rerun and one or more Daily diary values for resolved target date `D` are confirmed
-- **THEN** Core may refresh only AI-generated output for `D`, preserves confirmed values, keeps one durable row per project/date and one `daily_logs` row for `D`, and reports preserved versus updated output counts.
-
-#### Scenario: Scheduler-level persistence fails after project work
-
-- **WHEN** the final SQLite transaction for the Daily highlight and success state fails
-- **THEN** that transaction contributes no committed highlight or success state, Core returns `failed` with no claimed highlight update, and it persists a separate terminal `failed` state when possible; when that second write also fails it reports `failure_state_not_persisted` and does not claim durable failure. A later retry remains safe because completed per-project writes are idempotent and confirmed content is protected.
+- **WHEN** an operator invokes Run now at any Taipei wall-clock time on date `D`
+- **THEN** Core targets `D`, processes only projects with target-date sessions present at invocation, and preserves confirmed diary rows.
 
 ### Requirement: Redacted exports and privacy boundary
 

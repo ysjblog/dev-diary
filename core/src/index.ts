@@ -6,6 +6,7 @@ import { DailySchedulerRuntime } from './services/dailyScheduler.js';
 import { AntigravitySessionGate } from './services/antigravitySession.js';
 import { runSchedulerTickWithRecovery } from './services/schedulerRecovery.js';
 import { discoverProjectsFromRoots } from './services/projectDiscovery.js';
+import { taipeiDate } from './services/taipeiDate.js';
 import {
   isRuntimeManifestStale,
   readRuntimeManifest,
@@ -34,7 +35,7 @@ const settingsRuntime = () => ({
 
 // Seed in-memory dev DBs so the API has data without a real scan yet.
 if (runtimeConfig.dbPath === ':memory:') {
-  seedDatabase(db, { today: new Date().toISOString().slice(0, 10) });
+  seedDatabase(db, { today: taipeiDate() });
   if (projectRoots.length > 0) {
     discoverProjectsFromRoots(db, projectRoots);
   }

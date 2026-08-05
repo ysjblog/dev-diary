@@ -1,0 +1,14 @@
+{
+  "schema": "codex.openspec-author-preflight/v1",
+  "change": "use-same-taipei-day-diary-scheduler",
+  "content_sha256": "a39496aa7fb44309208122eeb1fd0b41d75cdd80a67c3648a37d3d874fe3b6e5",
+  "tracked_files": [
+    "openspec/changes/use-same-taipei-day-diary-scheduler/design.md",
+    "openspec/changes/use-same-taipei-day-diary-scheduler/proposal.md",
+    "openspec/changes/use-same-taipei-day-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+    "openspec/changes/use-same-taipei-day-diary-scheduler/tasks.md",
+    "openspec/specs/dev-diary-macos-app/spec.md"
+  ],
+  "checked_at": "2026-08-05T11:36:11.377024+00:00",
+  "status": "pass"
+}

@@ -29,6 +29,7 @@ import {
   updateCanonicalActivityLogSource,
   updateCanonicalExecutableSource,
 } from './api/settings.js';
+import { taipeiDate } from './api/date.js';
 import {
   fetchProjectListWithRetry,
   fetchProjectDetail,
@@ -802,7 +803,7 @@ import TrendChart from './components/TrendChart.jsx';
         setDailyExporting(true);
         setSettingsError(null);
         try {
-          const date = new Date().toISOString().slice(0, 10);
+          const date = taipeiDate();
           const artifact = await fetchDailyMarkdownExport({
             date,
             includeComments: settingsForm.includeCommentsInExports,

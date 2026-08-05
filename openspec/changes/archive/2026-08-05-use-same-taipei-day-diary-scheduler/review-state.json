@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "change": "use-same-taipei-day-diary-scheduler",
+  "openspec_level": "o1",
+  "routing_signals": [
+    "durable_shared_contract",
+    "multiple_journeys_roles"
+  ],
+  "review_provider": "codex",
+  "budget_mode": "bounded",
+  "required_lenses": [
+    "owner-self-check"
+  ],
+  "deferred_lenses": [],
+  "why_deferred": "O1 uses one Owner self-check and does not require an independent spec reviewer.",
+  "escalation_trigger": "Any missing timestamp-derived reader, failed-success marker ordering, lease bypass, or mismatch between requested diary-only filtering and broader scheduler stages blocks implementation.",
+  "contract_matrix_path": "openspec/changes/use-same-taipei-day-diary-scheduler/contract-matrix.json",
+  "contract_matrix_root": ".",
+  "contract_matrix_digest": "47646898a2eb935a5a70a6b6991d7402a6833b25e29a3b0f21b197e8970f581c",
+  "review_revision": "2bfab2f77f3521343ca10dcecdd315d9554d4b79",
+  "owner_self_check_complete": true,
+  "converged": true,
+  "new_cross_file_findings": 0,
+  "unresolved_inconclusive_lenses": [],
+  "fullCloserCount": 0,
+  "consolidatedAuthorFixes": 1,
+  "review_rounds": [
+    {
+      "kind": "owner_self_check",
+      "trusted": true,
+      "reviewer_id": "root-owner",
+      "finding_count": 1,
+      "finding_ids": [
+        "OWNER-DIARY-SCOPE-001"
+      ],
+      "verified_facts": [
+        "sessions.start_time is stored as UTC Z timestamps and multiple Core readers currently derive dates with substr(start_time,1,10)",
+        "backgroundRunner executes scan before DailySchedulerRuntime.tick",
+        "manual diary regenerate and scheduler diary generation call regenerateProjectDiaryEntryWithAgent",
+        "buildDiary renders a deterministic session-count fallback when sessions exist without a persisted project_daily_diaries row",
+        "the scheduler final transaction is the durable success-state boundary and confirmed diary writes remain transactionally protected",
+        "token_usage is derived from sessions and can remain compatibility storage while date-scoped readers use timestamped sessions"
+      ],
+      "resolved_findings": [
+        {
+          "id": "OWNER-DIARY-SCOPE-001",
+          "severity": "medium",
+          "finding": "The first draft broadened target-date eligibility to Project summary and Kanban although the accepted user decision covered Daily diary generation only.",
+          "resolution": "Proposal, Design, Delta and test case now limit the new eligibility filter to scheduled Daily diary generation and preserve existing Project summary/Kanban scope."
+        }
+      ]
+    }
+  ]
+}

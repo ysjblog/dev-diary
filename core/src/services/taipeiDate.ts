@@ -6,8 +6,12 @@ export function taipeiDate(now: Date = new Date()): string {
   return `${value('year')}-${value('month')}-${value('day')}`;
 }
 
-export function previousTaipeiDate(now: Date = new Date()): string {
-  const current = taipeiDate(now);
-  const [year, month, day] = current.split('-').map(Number);
-  return new Date(Date.UTC(year!, month! - 1, day! - 1)).toISOString().slice(0, 10);
+/** SQLite expression for assigning an ISO timestamp to its Asia/Taipei calendar day. */
+export function sqliteTaipeiDate(column: string): string {
+  return `date(${column}, '+8 hours')`;
+}
+
+/** SQLite expression for assigning an ISO timestamp to its Asia/Taipei wall-clock hour. */
+export function sqliteTaipeiHour(column: string): string {
+  return `strftime('%H', ${column}, '+8 hours')`;
 }

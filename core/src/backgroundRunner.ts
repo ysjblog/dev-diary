@@ -8,6 +8,7 @@ import { backgroundStartupDelayMs, formatBackgroundCycleLog, runBackgroundCycle 
 import { AntigravitySessionGate } from './services/antigravitySession.js';
 import { getSettings, updateSettings, type SettingsRuntimeDefaults } from './services/settings.js';
 import type { DB } from './db/index.js';
+import { taipeiDate } from './services/taipeiDate.js';
 
 type Mode = 'run' | 'once';
 
@@ -108,7 +109,7 @@ async function main(): Promise<void> {
     if (options.seedIfEmpty) {
       const projectCount = (db.prepare(`SELECT COUNT(*) AS c FROM projects`).get() as { c: number }).c;
       if (projectCount === 0) {
-        seedDatabase(db, { today: new Date().toISOString().slice(0, 10) });
+        seedDatabase(db, { today: taipeiDate() });
       }
     }
     if (options.enableForSmoke) {

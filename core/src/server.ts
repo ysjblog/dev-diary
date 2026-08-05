@@ -455,7 +455,7 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
       includeComments,
       redactSensitiveValues: settings.privacy.redact_sensitive_values,
     });
-    const stamp = new Date().toISOString().slice(0, 10);
+    const stamp = taipeiDate();
     res.setHeader('content-type', 'application/json; charset=utf-8');
     res.setHeader('content-disposition', `attachment; filename="devdiary-backup-redacted-${stamp}.json"`);
     return res.json(bundle);

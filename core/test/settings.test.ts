@@ -130,6 +130,7 @@ describe('Settings backend', () => {
         last_status: 'idle',
         last_error: null,
         last_project_count: 0,
+        semantics_version: null,
       });
       expect(settings.kanban_ai_auto_add).toEqual({
         enabled: true,

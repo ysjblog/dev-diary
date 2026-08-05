@@ -33,6 +33,29 @@ describe('Export and backup', () => {
       expect(artifact.content).not.toContain('source_log_ref');
     });
 
+    it('Daily export uses the same Taipei date boundary as Workspace and Dashboard', () => {
+      const db = openDb(':memory:');
+      seedDatabase(db, { today: '2026-08-05' });
+      db.exec(`DELETE FROM sessions; DELETE FROM token_usage;`);
+      const insert = db.prepare(
+        `INSERT INTO sessions (project_id, agent_name, model, start_time, token_total, source_log_ref)
+         VALUES (1, 'codex-cli', 'gpt-5-codex', ?, ?, ?)`,
+      );
+      insert.run('2026-08-04T16:30:00.000Z', 100, 'test://export/taipei/1');
+      insert.run('2026-08-05T15:59:59.000Z', 200, 'test://export/taipei/2');
+      insert.run('2026-08-05T16:00:00.000Z', 300, 'test://export/taipei/3');
+
+      const artifact = buildDailyMarkdownExport(db, {
+        date: '2026-08-05', includeComments: false, redactSensitiveValues: true,
+      });
+
+      expect(artifact.content).toContain('- Total tokens: 300');
+      expect(artifact.content).toContain('- Sessions: 2');
+      expect(artifact.content).toContain('2026-08-04T16:30:00.000Z');
+      expect(artifact.content).toContain('2026-08-05T15:59:59.000Z');
+      expect(artifact.content).not.toContain('2026-08-05T16:00:00.000Z');
+    });
+
     it('Daily export prefers project_daily_diaries and backup includes that collection', () => {
       const db = openDb(':memory:');
       seedDatabase(db, { today: '2026-06-30' });

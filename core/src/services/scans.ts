@@ -6,6 +6,7 @@ import { createCliLogScanProvider, type CliLogParserOptions } from './cliLogPars
 import { createSqliteFileScanCache } from './logFileScanCache.js';
 import { synthesizeProjectKanban } from './kanbanSynthesis.js';
 import { discoverProjectsFromRoots } from './projectDiscovery.js';
+import { taipeiDate } from './taipeiDate.js';
 
 type ScanScope = 'global' | 'project';
 type SkipReason = 'ignored' | 'scan_paused';
@@ -118,7 +119,7 @@ function nowIso(): string {
 }
 
 function dayOf(iso: string): string {
-  return iso.slice(0, 10);
+  return taipeiDate(new Date(iso));
 }
 
 function mockProvider(): ScanProvider {
@@ -134,8 +135,8 @@ function mockProvider(): ScanProvider {
           {
             agent_name: 'codex-cli',
             model: 'gpt-5-codex',
-            start_time: `${today}T20:${String(project.id).padStart(2, '0')}:00Z`,
-            end_time: `${today}T20:${String(project.id + 10).padStart(2, '0')}:00Z`,
+            start_time: `${today}T12:${String(project.id).padStart(2, '0')}:00Z`,
+            end_time: `${today}T12:${String(project.id + 10).padStart(2, '0')}:00Z`,
             token_total: tokenTotal,
             token_input: tokenInput,
             token_cached: tokenCached,

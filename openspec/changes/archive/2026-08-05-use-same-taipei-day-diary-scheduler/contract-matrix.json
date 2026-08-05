@@ -1,0 +1,129 @@
+{
+  "schema_version": 2,
+  "generated_revision": "2bfab2f77f3521343ca10dcecdd315d9554d4b79",
+  "input_manifest_digest": "4b905febcfea02a209218e4900374984c0a429e2ccb19ffc6f23a25686b956fd",
+  "artifact_inventory": [
+    {
+      "path": "openspec/changes/use-same-taipei-day-diary-scheduler/design.md",
+      "sha256": "2b0cdfe0f56f1ba3cf2a19b0690a767a6d183713c3c848b1235acc78d207dab0"
+    },
+    {
+      "path": "openspec/changes/use-same-taipei-day-diary-scheduler/proposal.md",
+      "sha256": "3dc671a1b11932d03d426a3927e2af5a9cac145c38b3e405bbc40577e24a3c94"
+    },
+    {
+      "path": "openspec/changes/use-same-taipei-day-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+      "sha256": "a03aae687fb567c8dfc0e3ba6db193689e4b85905475885fcac61a4487f79855"
+    },
+    {
+      "path": "openspec/changes/use-same-taipei-day-diary-scheduler/tasks.md",
+      "sha256": "186d0fc8b62bb6c7b83eb487823a474be9365a439e37d02178e2128848eb8c4c"
+    },
+    {
+      "path": "openspec/specs/dev-diary-macos-app/spec.md",
+      "sha256": "7c1e7304986ce53317febe80be6f4f842e60eb5d1169158738b555b505731d68"
+    }
+  ],
+  "inventory_scope": {
+    "change": [
+      "openspec/changes/use-same-taipei-day-diary-scheduler/design.md",
+      "openspec/changes/use-same-taipei-day-diary-scheduler/proposal.md",
+      "openspec/changes/use-same-taipei-day-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+      "openspec/changes/use-same-taipei-day-diary-scheduler/tasks.md"
+    ],
+    "baseline": [
+      "openspec/specs/dev-diary-macos-app/spec.md"
+    ]
+  },
+  "invariants": [
+    {
+      "id": "same-day-target",
+      "value": "current `Asia/Taipei` calendar date",
+      "search_terms": [
+        "current `Asia/Taipei` calendar date"
+      ],
+      "writers": [
+        "openspec/changes/use-same-taipei-day-diary-scheduler/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/use-same-taipei-day-diary-scheduler/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/use-same-taipei-day-diary-scheduler/proposal.md",
+          "line": 21
+        },
+        {
+          "file": "openspec/changes/use-same-taipei-day-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 61
+        }
+      ]
+    },
+    {
+      "id": "diary-eligibility",
+      "value": "at least one persisted session",
+      "search_terms": [
+        "at least one persisted session"
+      ],
+      "writers": [
+        "openspec/changes/use-same-taipei-day-diary-scheduler/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/use-same-taipei-day-diary-scheduler/proposal.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/use-same-taipei-day-diary-scheduler/proposal.md",
+          "line": 22
+        },
+        {
+          "file": "openspec/changes/use-same-taipei-day-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 37
+        }
+      ]
+    },
+    {
+      "id": "semantics-marker",
+      "value": "semantics_version",
+      "search_terms": [
+        "semantics_version"
+      ],
+      "writers": [
+        "openspec/changes/use-same-taipei-day-diary-scheduler/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/use-same-taipei-day-diary-scheduler/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/use-same-taipei-day-diary-scheduler/design.md",
+          "line": 50
+        },
+        {
+          "file": "openspec/changes/use-same-taipei-day-diary-scheduler/specs/dev-diary-macos-app/spec.md",
+          "line": 61
+        }
+      ]
+    },
+    {
+      "id": "taipei-bucket",
+      "value": "date(start_time, '+8 hours')",
+      "search_terms": [
+        "date(start_time, '+8 hours')"
+      ],
+      "writers": [
+        "openspec/changes/use-same-taipei-day-diary-scheduler/design.md"
+      ],
+      "readers": [
+        "openspec/changes/use-same-taipei-day-diary-scheduler/specs/dev-diary-macos-app/spec.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/use-same-taipei-day-diary-scheduler/design.md",
+          "line": 32
+        }
+      ]
+    }
+  ],
+  "matrix_digest": "47646898a2eb935a5a70a6b6991d7402a6833b25e29a3b0f21b197e8970f581c"
+}

@@ -1,6 +1,6 @@
 # DevDiary — 專案規格總覽
 
-> Last updated: 2026-08-04
+> Last updated: 2026-08-05
 > Source of truth: `openspec/specs/`；`openspec/changes/` 只放尚未封存的工作。
 > Legacy 文件位於 `docs/specs/legacy/`，僅供 provenance 查閱，不是 active contract。
 
@@ -34,7 +34,7 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 - **掃描與資料**：global/project scan 經 Core endpoint 執行；Claude/Codex JSONL 與 Antigravity glog/transcript metadata parser、stable source identity、SQLite mtime cache、project root discovery 與 scan warnings 已接入。
 - **Dashboard**：range metrics、agent mix、project concentration、24 小時 hourly trend、latest-26-week heatmap、daily highlights 由 Core snapshot 提供。
 - **Projects Workspace**：project detail、active/idle tracking、三欄 Kanban、manual status lock、AI-gated sync、comments、summary/daily diary writes、Project Docs 與 read-only Git Status。
-- **Diary 與排程**：Claude/Codex/Antigravity/local Ollama draft providers、deterministic fallback、date-scoped diary；01:00 自動排程整理前一個完整台北日，手動與自動共用已清理、有長度上限的 session/commit evidence；另有 scheduler preflight/Run now、sleep-like recovery tick 與關閉 app 後的 LaunchAgent background scan/diary gate。
+- **Diary 與排程**：Claude/Codex/Antigravity/local Ollama draft providers、deterministic fallback、date-scoped diary；自動排程整理執行當下的台北日（例如 01:00 僅含當日 00:00 至執行前已掃描資料），只有該日確實有 session 的專案產生 Daily diary，手動與自動共用已清理、有長度上限的 session/commit evidence；另有 scheduler preflight/Run now、sleep-like recovery tick、語意升級防漏跑與關閉 app 後的 LaunchAgent background scan/diary gate。
 - **Export 與 runtime**：Markdown daily export、redacted structured backup、dynamic Core-port manifest、stale manifest reclaim、startup retry 與 packaged Core lifecycle。
 
 ## 資料與 API 契約
@@ -77,7 +77,8 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 
 ## 變更紀錄
 
-- 2026-08-04：封存 `fix-automatic-daily-diary-input`；01:00 自動排程改為整理前一個台北日曆日，並補齊手動／自動共用的安全 session/commit prompt evidence。
+- 2026-08-05：封存 `use-same-taipei-day-diary-scheduler`；所有 session 日期／小時統一使用台北日界線，排程改為整理執行當日截至當下的活動，只替目標日確實有 session 的專案產生 Daily diary，並加入語意版本避免舊 success 阻止首次補跑。
+- 2026-08-04：封存 `fix-automatic-daily-diary-input`；曾將 01:00 自動排程改為整理前一個台北日曆日，並補齊手動／自動共用的安全 session/commit prompt evidence；此日期策略已由 2026-08-05 Change 取代。
 - 2026-07-26：封存 `remove-mobile-rwd-layout`；current Feature Spec 現明確定義 desktop-only presentation boundary，窄於 768 CSS px 的 viewport 不提供 mobile 重排、替代 markup 或提示。
 - 2026-07-28：封存 `fix-scan-status-and-daily-diary-scheduler` 與 `release-v0-1-2-distribution`；current Feature Spec 已同步掃描／每日排程與 macOS Release provenance 契約。
 - 2026-07-23：完成一次性 OpenSpec migration；current truth 轉入 `openspec/specs/`，legacy Feature/Delta/review/MASTER 保存於 `docs/specs/legacy/`。

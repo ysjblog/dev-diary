@@ -80,6 +80,8 @@ export interface DailySchedulerSettings {
   last_status: 'idle' | 'success' | 'failed' | 'skipped';
   last_error: string | null;
   last_project_count: number;
+  /** Internal data-contract marker; null means the persisted success used older date semantics. */
+  semantics_version: string | null;
 }
 
 export interface BackgroundScanSettings {
@@ -775,6 +777,8 @@ function normalizeDailyScheduler(
     } else if (opts.allowRuntimeState && key === 'last_project_count') {
       if (!Number.isInteger(value) || Number(value) < 0) fail('daily_scheduler.last_project_count must be a non-negative integer');
       out.last_project_count = Number(value);
+    } else if (opts.allowRuntimeState && key === 'semantics_version') {
+      out.semantics_version = normalizeOptionalIso(value, 'daily_scheduler.semantics_version');
     } else {
       fail(`unknown daily_scheduler setting: ${key}`);
     }
@@ -964,6 +968,7 @@ function defaultSettings(runtime: SettingsRuntimeDefaults): AppSettings {
       last_status: 'idle',
       last_error: null,
       last_project_count: 0,
+      semantics_version: null,
     },
     background_scan: defaultBackgroundScan(),
     kanban_ai_auto_add: {

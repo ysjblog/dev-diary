@@ -21,7 +21,7 @@ import type {
   WorkspaceTrackingStatus,
 } from '../domain/types.js';
 import { getGitStatusSnapshot } from './gitStatus.js';
-import { taipeiDate } from './taipeiDate.js';
+import { sqliteTaipeiDate, taipeiDate } from './taipeiDate.js';
 
 const AGENT_ORDER: CanonicalAgentId[] = ['claude-code', 'codex-cli', 'antigravity-cli'];
 const ACTIVE_SESSION_WINDOW_DAYS = 5;
@@ -71,13 +71,14 @@ function deriveTrackingStatus(latestSessionDate: string | null, today: string): 
 
 /** Workspace project list (spec §11 left rail). Excludes ignored projects. */
 export function getProjectList(db: DB, today = taipeiDate()): ProjectListItem[] {
+  const sessionDate = sqliteTaipeiDate('s.start_time');
   const rows = db
     .prepare(
       `SELECT p.id, p.name, p.root_path, p.tracking_status, p.last_activity_at,
               p.detected_agents, p.git_branch,
               (SELECT GROUP_CONCAT(DISTINCT s.agent_name) FROM sessions s WHERE s.project_id = p.id) AS session_agents,
-              (SELECT MAX(substr(s.start_time,1,10)) FROM sessions s WHERE s.project_id = p.id) AS latest_session_date,
-              (SELECT COUNT(DISTINCT substr(s.start_time,1,10)) FROM sessions s WHERE s.project_id = p.id) AS logs_count,
+              (SELECT MAX(${sessionDate}) FROM sessions s WHERE s.project_id = p.id) AS latest_session_date,
+              (SELECT COUNT(DISTINCT ${sessionDate}) FROM sessions s WHERE s.project_id = p.id) AS logs_count,
               (SELECT COALESCE(SUM(s.token_total),0) FROM sessions s WHERE s.project_id = p.id) AS token_total
        FROM projects p
        WHERE p.ignored = 0
@@ -97,8 +98,8 @@ export function getProjectList(db: DB, today = taipeiDate()): ProjectListItem[] 
   }));
 }
 
-function projectTokenSince(db: DB, projectId: number, sinceDate: string | null): number {
-  if (sinceDate === null) {
+function projectTokenInDateWindow(db: DB, projectId: number, startDate: string | null, endDate: string | null): number {
+  if (startDate === null || endDate === null) {
     const row = db
       .prepare(`SELECT COALESCE(SUM(token_total),0) AS t FROM sessions WHERE project_id = ?`)
       .get(projectId) as { t: number };
@@ -107,9 +108,9 @@ function projectTokenSince(db: DB, projectId: number, sinceDate: string | null):
   const row = db
     .prepare(
       `SELECT COALESCE(SUM(token_total),0) AS t FROM sessions
-       WHERE project_id = ? AND substr(start_time,1,10) >= ?`,
+       WHERE project_id = ? AND ${sqliteTaipeiDate('start_time')} BETWEEN ? AND ?`,
     )
-    .get(projectId, sinceDate) as { t: number };
+    .get(projectId, startDate, endDate) as { t: number };
   return row.t;
 }
 
@@ -119,7 +120,7 @@ function rangeDateClause(expr: string, resolved: ResolvedRange): { sql: string; 
 }
 
 function projectTokenInRange(db: DB, projectId: number, resolved: ResolvedRange): number {
-  const clause = rangeDateClause('substr(start_time,1,10)', resolved);
+  const clause = rangeDateClause(sqliteTaipeiDate('start_time'), resolved);
   const row = db
     .prepare(`SELECT COALESCE(SUM(token_total),0) AS t FROM sessions WHERE project_id = ?${clause.sql}`)
     .get(projectId, ...clause.params) as { t: number };
@@ -127,7 +128,7 @@ function projectTokenInRange(db: DB, projectId: number, resolved: ResolvedRange)
 }
 
 function projectSessionCountInRange(db: DB, projectId: number, resolved: ResolvedRange): number {
-  const clause = rangeDateClause('substr(start_time,1,10)', resolved);
+  const clause = rangeDateClause(sqliteTaipeiDate('start_time'), resolved);
   const row = db
     .prepare(`SELECT COUNT(*) AS c FROM sessions WHERE project_id = ?${clause.sql}`)
     .get(projectId, ...clause.params) as { c: number };
@@ -143,10 +144,10 @@ function buildMetricStrip(db: DB, projectId: number, today: string, resolved: Re
     .prepare(`SELECT summary_status FROM daily_logs ORDER BY date DESC LIMIT 1`)
     .get() as { summary_status: string } | undefined;
   return {
-    token_today: projectTokenSince(db, projectId, today),
-    token_week: projectTokenSince(db, projectId, addDays(today, -6)),
-    token_month: projectTokenSince(db, projectId, addDays(today, -29)),
-    token_all: projectTokenSince(db, projectId, null),
+    token_today: projectTokenInDateWindow(db, projectId, today, today),
+    token_week: projectTokenInDateWindow(db, projectId, addDays(today, -6), today),
+    token_month: projectTokenInDateWindow(db, projectId, addDays(today, -29), today),
+    token_all: projectTokenInDateWindow(db, projectId, null, null),
     range_token_total: projectTokenInRange(db, projectId, resolved),
     range_session_count: projectSessionCountInRange(db, projectId, resolved),
     session_count: sessionCount,
@@ -179,14 +180,15 @@ function buildKanban(db: DB, projectId: number): KanbanCard[] {
 
 function buildTokenDetail(db: DB, projectId: number, resolved: ResolvedRange): ProjectTokenDetail {
   // One row per (date, agent), summing models. Cost is intentionally absent (v1 Non-Goal).
-  const dateClause = rangeDateClause('date', resolved);
+  const dateExpr = sqliteTaipeiDate('start_time');
+  const dateClause = rangeDateClause(dateExpr, resolved);
   const rows = db
     .prepare(
-      `SELECT date, agent_name,
+      `SELECT ${dateExpr} AS date, agent_name,
               SUM(token_input) AS token_input,
               SUM(token_output) AS token_output,
               SUM(token_total) AS token_total
-       FROM token_usage WHERE project_id = ?
+       FROM sessions WHERE project_id = ?
        ${dateClause.sql}
        GROUP BY date, agent_name
        ORDER BY date DESC, agent_name ASC`,
@@ -222,7 +224,7 @@ function buildTokenDetail(db: DB, projectId: number, resolved: ResolvedRange): P
 
   const modelRows = db
     .prepare(
-      `SELECT model, SUM(token_total) AS token_total FROM token_usage
+      `SELECT model, SUM(token_total) AS token_total FROM sessions
        WHERE project_id = ?${dateClause.sql} GROUP BY model ORDER BY token_total DESC`,
     )
     .all(projectId, ...dateClause.params) as { model: string; token_total: number }[];
@@ -239,10 +241,11 @@ interface DayAgg {
 }
 
 function dayAggregates(db: DB, projectId: number, resolved: ResolvedRange): DayAgg[] {
-  const clause = rangeDateClause('substr(start_time,1,10)', resolved);
+  const dateExpr = sqliteTaipeiDate('start_time');
+  const clause = rangeDateClause(dateExpr, resolved);
   const rows = db
     .prepare(
-      `SELECT substr(start_time,1,10) AS date, agent_name, COUNT(*) AS sessions, SUM(token_total) AS tokens
+      `SELECT ${dateExpr} AS date, agent_name, COUNT(*) AS sessions, SUM(token_total) AS tokens
        FROM sessions WHERE project_id = ?${clause.sql}
        GROUP BY date, agent_name`,
     )
@@ -336,7 +339,7 @@ function buildDiary(
 }
 
 function buildSessions(db: DB, projectId: number, resolved: ResolvedRange): ProjectSessionView[] {
-  const clause = rangeDateClause('substr(start_time,1,10)', resolved);
+  const clause = rangeDateClause(sqliteTaipeiDate('start_time'), resolved);
   const rows = db
     .prepare(
       `SELECT id, command, agent_name, start_time, duration, token_total, status,
@@ -466,7 +469,7 @@ export function getProjectDetail(
   const p = db
     .prepare(
       `SELECT id, name, root_path, tracking_status, detected_agents, last_activity_at, git_branch,
-              (SELECT MAX(substr(s.start_time,1,10)) FROM sessions s WHERE s.project_id = projects.id) AS latest_session_date
+              (SELECT MAX(${sqliteTaipeiDate('s.start_time')}) FROM sessions s WHERE s.project_id = projects.id) AS latest_session_date
        FROM projects WHERE id = ? AND ignored = 0`,
     )
     .get(projectId) as Record<string, unknown> | undefined;

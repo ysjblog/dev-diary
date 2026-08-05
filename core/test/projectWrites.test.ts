@@ -302,7 +302,7 @@ describe('Projects Workspace write paths', () => {
       const selectedDate = '2026-06-27';
       const expectedSelectedDateTokens = (
         db
-          .prepare(`SELECT COALESCE(SUM(token_total),0) AS t FROM sessions WHERE project_id = 1 AND substr(start_time,1,10) = ?`)
+          .prepare(`SELECT COALESCE(SUM(token_total),0) AS t FROM sessions WHERE project_id = 1 AND date(start_time, '+8 hours') = ?`)
           .get(selectedDate) as { t: number }
       ).t;
       let seenTodayArg = '';
@@ -412,7 +412,10 @@ describe('Projects Workspace write paths', () => {
         expect(body.range_key).toBe('custom');
         expect(body.start_date).toBe(TODAY);
         expect(body.end_date).toBe(TODAY);
-        expect(body.sessions.every((s) => s.start_time.startsWith(TODAY))).toBe(true);
+        expect(body.sessions.every((s) => {
+          const instant = new Date(s.start_time);
+          return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' }).format(instant) === TODAY;
+        })).toBe(true);
         expect(body.metric_strip.range_session_count).toBe(body.sessions.length);
 
         const invalidRange = await fetch(`${base}/api/projects/1?range=blocked`);

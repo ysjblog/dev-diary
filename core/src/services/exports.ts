@@ -1,5 +1,6 @@
 import type { DB } from '../db/index.js';
 import { SCHEMA_VERSION } from '../db/schema.js';
+import { sqliteTaipeiDate } from './taipeiDate.js';
 
 export class ExportValidationError extends Error {
   code = 'invalid_export_request';
@@ -127,18 +128,16 @@ export function buildDailyMarkdownExport(db: DB, opts: DailyMarkdownExportOption
   const diaryByProject = new Map(diaryRows.map((item) => [Number(item.project_id), item.markdown]));
   const tokenTotals = row<{ token_total: number; session_count: number }>(
     db,
-    `SELECT COALESCE(SUM(token_total), 0) AS token_total,
-       (SELECT COUNT(*) FROM sessions WHERE substr(start_time, 1, 10) = ?) AS session_count
-     FROM token_usage
-     WHERE date = ?`,
-    opts.date,
+    `SELECT COALESCE(SUM(token_total), 0) AS token_total, COUNT(*) AS session_count
+     FROM sessions
+     WHERE ${sqliteTaipeiDate('start_time')} = ?`,
     opts.date,
   ) ?? { token_total: 0, session_count: 0 };
   const byAgent = rows<{ agent_name: string; token_total: number }>(
     db,
     `SELECT agent_name, SUM(token_total) AS token_total
-     FROM token_usage
-     WHERE date = ?
+     FROM sessions
+     WHERE ${sqliteTaipeiDate('start_time')} = ?
      GROUP BY agent_name
      ORDER BY token_total DESC, agent_name ASC`,
     opts.date,
@@ -153,7 +152,7 @@ export function buildDailyMarkdownExport(db: DB, opts: DailyMarkdownExportOption
     db,
     `SELECT start_time, agent_name, model, token_total, status
      FROM sessions
-     WHERE substr(start_time, 1, 10) = ?
+     WHERE ${sqliteTaipeiDate('start_time')} = ?
      ORDER BY start_time ASC, id ASC`,
     opts.date,
   );
@@ -163,7 +162,7 @@ export function buildDailyMarkdownExport(db: DB, opts: DailyMarkdownExportOption
         `SELECT p.name AS project_name, c.content, c.created_at
          FROM comments c
          JOIN projects p ON p.id = c.project_id
-         WHERE substr(c.created_at, 1, 10) = ?
+         WHERE ${sqliteTaipeiDate('c.created_at')} = ?
          ORDER BY c.created_at ASC, c.id ASC`,
         opts.date,
       )
@@ -250,9 +249,12 @@ export function buildRedactedBackupExport(db: DB, opts: BackupExportOptions): Re
     ),
     token_usage: rows(
       db,
-      `SELECT date, project_id, agent_name, model, token_total, token_input,
-        token_cached, token_output, token_reasoning
-       FROM token_usage
+      `SELECT ${sqliteTaipeiDate('start_time')} AS date, project_id, agent_name, model,
+        SUM(token_total) AS token_total, SUM(token_input) AS token_input,
+        SUM(token_cached) AS token_cached, SUM(token_output) AS token_output,
+        SUM(token_reasoning) AS token_reasoning
+       FROM sessions
+       GROUP BY date, project_id, agent_name, model
        ORDER BY date ASC, project_id ASC, agent_name ASC, model ASC`,
     ),
     daily_logs: rows(

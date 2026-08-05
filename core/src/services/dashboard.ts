@@ -21,6 +21,7 @@ import type {
   SeriesKey,
   IntensityLevel,
 } from '../domain/types.js';
+import { sqliteTaipeiDate, sqliteTaipeiHour } from './taipeiDate.js';
 
 const CANON_ORDER: CanonicalAgentId[] = ['claude-code', 'codex-cli', 'antigravity-cli'];
 type MixKey = CanonicalAgentId | 'other';
@@ -43,7 +44,7 @@ function effectiveBounds(db: DB, resolved: ResolvedRange, today: string): { star
   if (resolved.start_date && resolved.end_date) {
     return { start: resolved.start_date, end: resolved.end_date };
   }
-  const row = db.prepare(`SELECT MIN(date) AS lo, MAX(date) AS hi FROM token_usage`).get() as {
+  const row = db.prepare(`SELECT MIN(${sqliteTaipeiDate('start_time')}) AS lo, MAX(${sqliteTaipeiDate('start_time')}) AS hi FROM sessions`).get() as {
     lo: string | null;
     hi: string | null;
   };
@@ -53,12 +54,8 @@ function effectiveBounds(db: DB, resolved: ResolvedRange, today: string): { star
 function latestActivityBounds(db: DB, today: string): { start: string; end: string } {
   const row = db
     .prepare(
-      `SELECT MIN(date) AS lo, MAX(date) AS hi
-       FROM (
-         SELECT date FROM token_usage
-         UNION ALL
-         SELECT substr(start_time,1,10) AS date FROM sessions
-       )`,
+      `SELECT MIN(${sqliteTaipeiDate('start_time')}) AS lo, MAX(${sqliteTaipeiDate('start_time')}) AS hi
+       FROM sessions`,
     )
     .get() as { lo: string | null; hi: string | null };
   return { start: row.lo ?? today, end: row.hi ?? today };
@@ -71,7 +68,7 @@ function sumTokens(db: DB, start: string, end: string): UsageRow[] {
   return db
     .prepare(
       `SELECT agent_name, SUM(token_total) AS tokens
-       FROM token_usage WHERE date >= ? AND date <= ?
+       FROM sessions WHERE ${sqliteTaipeiDate('start_time')} >= ? AND ${sqliteTaipeiDate('start_time')} <= ?
        GROUP BY agent_name`,
     )
     .all(start, end) as UsageRow[];
@@ -81,7 +78,7 @@ function sessionAgg(db: DB, start: string, end: string): SessionAgg {
   const row = db
     .prepare(
       `SELECT COUNT(*) AS sessions, COUNT(DISTINCT project_id) AS projects
-       FROM sessions WHERE substr(start_time,1,10) >= ? AND substr(start_time,1,10) <= ?`,
+       FROM sessions WHERE ${sqliteTaipeiDate('start_time')} >= ? AND ${sqliteTaipeiDate('start_time')} <= ?`,
     )
     .get(start, end) as { sessions: number; projects: number };
   return { sessions: row.sessions, projects: row.projects };
@@ -118,23 +115,17 @@ function buildProjectConcentration(db: DB, start: string, end: string, total: nu
     .prepare(
       `SELECT p.id AS project_id,
               p.name AS project_name,
-              SUM(t.token_total) AS token_total,
-              (
-                SELECT COUNT(*)
-                FROM sessions s
-                WHERE s.project_id = p.id
-                  AND substr(s.start_time,1,10) >= ?
-                  AND substr(s.start_time,1,10) <= ?
-              ) AS session_count
-       FROM token_usage t
-       JOIN projects p ON p.id = t.project_id
-       WHERE t.date >= ? AND t.date <= ? AND p.ignored = 0
+              SUM(s.token_total) AS token_total,
+              COUNT(*) AS session_count
+       FROM sessions s
+       JOIN projects p ON p.id = s.project_id
+       WHERE ${sqliteTaipeiDate('s.start_time')} >= ? AND ${sqliteTaipeiDate('s.start_time')} <= ? AND p.ignored = 0
        GROUP BY p.id, p.name
        HAVING token_total > 0
        ORDER BY token_total DESC, p.name ASC
        LIMIT 5`,
     )
-    .all(start, end, start, end) as {
+    .all(start, end) as {
       project_id: number;
       project_name: string;
       token_total: number;
@@ -155,17 +146,17 @@ function buildProjectConcentration(db: DB, start: string, end: string, total: nu
 function buildHourlyTrend(db: DB, start: string, end: string): DashboardTrendPoint[] {
   const rows = db
     .prepare(
-      `SELECT substr(start_time,1,10) AS date, substr(start_time,12,2) AS hour,
+      `SELECT ${sqliteTaipeiDate('start_time')} AS date, ${sqliteTaipeiHour('start_time')} AS hour,
               agent_name, SUM(token_total) AS tokens
-       FROM sessions WHERE substr(start_time,1,10) >= ? AND substr(start_time,1,10) <= ?
+       FROM sessions WHERE ${sqliteTaipeiDate('start_time')} >= ? AND ${sqliteTaipeiDate('start_time')} <= ?
        GROUP BY date, hour, agent_name`,
     )
     .all(start, end) as { date: string; hour: string; agent_name: string; tokens: number }[];
   const sessRows = db
     .prepare(
-      `SELECT substr(start_time,1,10) AS date, substr(start_time,12,2) AS hour,
+      `SELECT ${sqliteTaipeiDate('start_time')} AS date, ${sqliteTaipeiHour('start_time')} AS hour,
               agent_name, COUNT(*) AS sessions
-       FROM sessions WHERE substr(start_time,1,10) >= ? AND substr(start_time,1,10) <= ?
+       FROM sessions WHERE ${sqliteTaipeiDate('start_time')} >= ? AND ${sqliteTaipeiDate('start_time')} <= ?
        GROUP BY date, hour, agent_name`,
     )
     .all(start, end) as { date: string; hour: string; agent_name: string; sessions: number }[];
@@ -212,14 +203,14 @@ function buildTrend(db: DB, rangeKey: RangeKey, start: string, end: string): Das
   const bucketDays = span <= 31 ? 1 : 7;
   const rows = db
     .prepare(
-      `SELECT date, agent_name, SUM(token_total) AS tokens, COUNT(*) AS dummy
-       FROM token_usage WHERE date >= ? AND date <= ? GROUP BY date, agent_name`,
+      `SELECT ${sqliteTaipeiDate('start_time')} AS date, agent_name, SUM(token_total) AS tokens
+       FROM sessions WHERE ${sqliteTaipeiDate('start_time')} >= ? AND ${sqliteTaipeiDate('start_time')} <= ? GROUP BY date, agent_name`,
     )
     .all(start, end) as { date: string; agent_name: string; tokens: number }[];
   const sessRows = db
     .prepare(
-      `SELECT substr(start_time,1,10) AS date, agent_name, COUNT(*) AS sessions
-       FROM sessions WHERE substr(start_time,1,10) >= ? AND substr(start_time,1,10) <= ?
+      `SELECT ${sqliteTaipeiDate('start_time')} AS date, agent_name, COUNT(*) AS sessions
+       FROM sessions WHERE ${sqliteTaipeiDate('start_time')} >= ? AND ${sqliteTaipeiDate('start_time')} <= ?
        GROUP BY date, agent_name`,
     )
     .all(start, end) as { date: string; agent_name: string; sessions: number }[];
@@ -261,12 +252,12 @@ function buildTrend(db: DB, rangeKey: RangeKey, start: string, end: string): Das
 function buildHeatmap(db: DB, start: string, end: string): DashboardActivityCell[] {
   const rows = db
     .prepare(
-      `SELECT substr(start_time,1,10) AS date,
+      `SELECT ${sqliteTaipeiDate('start_time')} AS date,
               COUNT(*) AS session_count,
               SUM(token_total) AS token_total,
               SUM(COALESCE(transcript_length,0)) AS transcript_length,
               SUM(COALESCE(task_count,0)) AS task_count
-       FROM sessions WHERE substr(start_time,1,10) >= ? AND substr(start_time,1,10) <= ?
+       FROM sessions WHERE ${sqliteTaipeiDate('start_time')} >= ? AND ${sqliteTaipeiDate('start_time')} <= ?
        GROUP BY date`,
     )
     .all(start, end) as {
@@ -282,7 +273,7 @@ function buildHeatmap(db: DB, start: string, end: string): DashboardActivityCell
   // third (spec §10). Sessions/tasks act only as tie-breakers below the token scale.
   const dominantStmt = db.prepare(
     `SELECT agent_name, SUM(token_total) AS t FROM sessions
-     WHERE substr(start_time,1,10) = ? GROUP BY agent_name ORDER BY t DESC LIMIT 1`,
+     WHERE ${sqliteTaipeiDate('start_time')} = ? GROUP BY agent_name ORDER BY t DESC LIMIT 1`,
   );
 
   const cells: (DashboardActivityCell & { _score: number })[] = expandDates(start, end).map((date) => {

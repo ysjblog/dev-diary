@@ -11,7 +11,7 @@ import {
 import { redactSensitiveText, synthesizeProjectKanban } from './kanbanSynthesis.js';
 import { createConfiguredKanbanAiGenerator, emptyKanbanAiSync, syncKanbanAiCards, type KanbanAiTextGenerator } from './kanbanAiSuggestions.js';
 import { regenerateProjectDiaryEntryWithAgent, regenerateProjectSummaryWithAgent } from './projectWrites.js';
-import { previousTaipeiDate } from './taipeiDate.js';
+import { sqliteTaipeiDate, taipeiDate } from './taipeiDate.js';
 import { getGitStatusSnapshot } from './gitStatus.js';
 import { randomUUID } from 'node:crypto';
 import { upsertKanbanCandidate } from './scans.js';
@@ -77,10 +77,11 @@ function minutesInTaipei(now: Date): number {
   return Number(value('hour')) * 60 + Number(value('minute'));
 }
 
-// A daily diary summarizes one completed Taipei calendar day. Both automatic ticks
-// and operator-forced scheduler runs use yesterday as their durable target; explicit
-// per-project diary routes keep using the exact date supplied by the user.
-function schedulerTargetDate(now: Date): string { return previousTaipeiDate(now); }
+// Automatic and operator-forced runs summarize the current Taipei day as it exists
+// at execution time. Sessions created later that day belong to a future manual run.
+function schedulerTargetDate(now: Date): string { return taipeiDate(now); }
+
+export const DAILY_SCHEDULER_SEMANTICS_VERSION = 'same-taipei-day-v1';
 
 function runTimeMinutes(value: string): number {
   const [hour, minute] = value.split(':').map(Number);
@@ -114,14 +115,15 @@ interface DailyProjectSummaryInput {
 }
 
 function buildDailyProjectInputs(db: DB, date: string): DailyProjectSummaryInput[] {
+  const activityDate = sqliteTaipeiDate('start_time');
   return getProjectList(db, date).map((project) => {
     const activity = db.prepare(
       `SELECT COUNT(*) AS session_count, COALESCE(SUM(token_total), 0) AS token_total
-       FROM sessions WHERE project_id = ? AND substr(start_time, 1, 10) = ?`,
+       FROM sessions WHERE project_id = ? AND ${activityDate} = ?`,
     ).get(project.id, date) as { session_count: number; token_total: number };
     const latest = db.prepare(
       `SELECT command, COALESCE(summary, redacted_log_excerpt) AS excerpt
-       FROM sessions WHERE project_id = ? AND substr(start_time, 1, 10) = ?
+       FROM sessions WHERE project_id = ? AND ${activityDate} = ?
        ORDER BY start_time DESC, id DESC LIMIT 1`,
     ).get(project.id, date) as { command: string | null; excerpt: string | null } | undefined;
     const kanban = db.prepare(
@@ -344,6 +346,10 @@ export class DailySchedulerRuntime {
       for (const project of projects) {
         await regenerateProjectSummaryWithAgent(this.db, project.id, date, query, generator);
         draftCount += 1;
+        const hasTargetDateActivity = this.db.prepare(
+          `SELECT 1 FROM sessions WHERE project_id = ? AND ${sqliteTaipeiDate('start_time')} = ? LIMIT 1`,
+        ).get(project.id, date);
+        if (!hasTargetDateActivity) continue;
         const existingDiary = this.db.prepare(`SELECT status FROM project_daily_diaries WHERE project_id = ? AND date = ?`).get(project.id, date) as { status?: string } | undefined;
         if (existingDiary?.status === 'confirmed') {
           diaryPreserved += 1;
@@ -387,7 +393,14 @@ export class DailySchedulerRuntime {
         upsertDailyLog(this.db, date, summary.markdown, summary.fallbackReport);
         const finalized = this.db.prepare(`UPDATE daily_scheduler_runs SET status = 'success', completed_at = ?, error = NULL WHERE date = ? AND owner_instance_id = ? AND status = 'running'`).run(leaseClock().toISOString(), date, this.ownerInstanceId);
         if (finalized.changes !== 1) throw new SchedulerLeaseLostError();
-        updateDailySchedulerState(this.db, { last_run_date: date, last_run_at: now.toISOString(), last_status: 'success', last_error: null, last_project_count: draftCount }, runtime);
+        updateDailySchedulerState(this.db, {
+          last_run_date: date,
+          last_run_at: now.toISOString(),
+          last_status: 'success',
+          last_error: null,
+          last_project_count: draftCount,
+          semantics_version: DAILY_SCHEDULER_SEMANTICS_VERSION,
+        }, runtime);
       })();
       return {
         status: 'success',
@@ -441,7 +454,8 @@ export class DailySchedulerRuntime {
     if (minutesInTaipei(now) < runTimeMinutes(settings.daily_scheduler.run_time_local)) {
       return this.skipResult(date, 'Daily scheduler run time has not arrived.');
     }
-    return this.runNow({ force: false, now });
+    const semanticsChanged = settings.daily_scheduler.semantics_version !== DAILY_SCHEDULER_SEMANTICS_VERSION;
+    return this.runNow({ force: semanticsChanged, now });
   }
 
   private skipResult(date: string, message: string): DailySchedulerRunResult {

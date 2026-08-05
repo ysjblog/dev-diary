@@ -63,7 +63,7 @@ describe('Projects Workspace', () => {
       const list = getProjectList(db);
       const p1 = list.find((p) => p.id === 1)!;
       const distinct = db
-        .prepare(`SELECT COUNT(DISTINCT substr(start_time,1,10)) AS c FROM sessions WHERE project_id = 1`)
+        .prepare(`SELECT COUNT(DISTINCT date(start_time, '+8 hours')) AS c FROM sessions WHERE project_id = 1`)
         .get() as { c: number };
       expect(p1.logs_count).toBe(distinct.c);
     });
@@ -126,6 +126,35 @@ describe('Projects Workspace', () => {
       expect(ranged.sessions.every((s) => s.start_time.startsWith(TODAY))).toBe(true);
       expect(ranged.diary.every((entry) => entry.date === TODAY)).toBe(true);
       expect(ranged.token_detail.rows.reduce((a, r) => a + r.token_total, 0)).toBe(ranged.metric_strip.range_token_total);
+    });
+
+    it('Workspace date-scoped readers use one Taipei calendar boundary across UTC midnight', () => {
+      db.prepare(`DELETE FROM sessions WHERE project_id = 1`).run();
+      db.prepare(`DELETE FROM token_usage WHERE project_id = 1`).run();
+      const insert = db.prepare(
+        `INSERT INTO sessions (project_id, agent_name, model, start_time, token_total, source_log_ref, command, summary)
+         VALUES (1, 'codex-cli', 'gpt-5-codex', ?, ?, ?, 'timezone task', 'timezone summary')`,
+      );
+      insert.run('2026-08-04T16:30:00.000Z', 100, 'test://taipei/1');
+      insert.run('2026-08-05T15:59:59.000Z', 200, 'test://taipei/2');
+      insert.run('2026-08-05T16:00:00.000Z', 300, 'test://taipei/3');
+
+      const taipeiAug5 = getProjectDetail(db, 1, '2026-08-05', {
+        range: 'custom', customStart: '2026-08-05', customEnd: '2026-08-05',
+      })!;
+
+      expect(taipeiAug5.sessions.map((session) => session.start_time)).toEqual([
+        '2026-08-05T15:59:59.000Z',
+        '2026-08-04T16:30:00.000Z',
+      ]);
+      expect(taipeiAug5.metric_strip.range_session_count).toBe(2);
+      expect(taipeiAug5.metric_strip.range_token_total).toBe(300);
+      expect(taipeiAug5.metric_strip.token_today).toBe(300);
+      expect(taipeiAug5.metric_strip.token_week).toBe(300);
+      expect(taipeiAug5.metric_strip.token_month).toBe(300);
+      expect(taipeiAug5.token_detail.rows.reduce((sum, row) => sum + row.token_total, 0)).toBe(300);
+      expect(taipeiAug5.diary).toEqual(expect.arrayContaining([expect.objectContaining({ date: '2026-08-05' })]));
+      expect(getProjectList(db, '2026-08-05').find((project) => project.id === 1)?.logs_count).toBe(2);
     });
 
     it('Workspace custom range 會 canonicalize reversed dates，empty range 回空 rows 而不是 fallback all-time', () => {

@@ -8,7 +8,8 @@ import { createConfiguredScanProvider } from '../src/services/scans.js';
 import { getSettings, updateSettings } from '../src/services/settings.js';
 
 const TODAY = '2026-06-30';
-const RUN_AT = '2026-06-30T17:00:00.000Z'; // 2026-07-01 01:00 Asia/Taipei; target is TODAY.
+const RUN_AT = '2026-06-30T17:00:00.000Z'; // 2026-07-01 01:00 Asia/Taipei.
+const RUN_DATE = '2026-07-01';
 
 function freshDb() {
   const db = openDb(':memory:');
@@ -43,7 +44,7 @@ describe('Background LaunchAgent runner', () => {
           fallback_report: null,
         }),
         globalSummaryAgent: async () => ({
-          markdown: `## 每日開發重點（${TODAY}）\n- 達成：背景掃描已完成。\n- 阻礙：目前沒有從資料中看到明確阻塞。\n- 下一步：檢查日記。`,
+          markdown: `## 每日開發重點（${RUN_DATE}）\n- 達成：背景掃描已完成。\n- 阻礙：目前沒有從資料中看到明確阻塞。\n- 下一步：檢查日記。`,
           agent_id: 'fallback',
           fallback_report: null,
         }),
@@ -56,7 +57,7 @@ describe('Background LaunchAgent runner', () => {
       expect(result.diary?.status).toBe('success');
       expect(result.diary?.daily_log_updated).toBe(true);
       expect(result.diary?.project_drafts_updated).toBeGreaterThan(0);
-      const log = db.prepare(`SELECT global_summary_ai FROM daily_logs WHERE date = ?`).get(TODAY) as { global_summary_ai: string };
+      const log = db.prepare(`SELECT global_summary_ai FROM daily_logs WHERE date = ?`).get(RUN_DATE) as { global_summary_ai: string };
       expect(log.global_summary_ai).toContain('背景掃描已完成');
       expect(getSettings(db, runtime()).daily_scheduler.last_status).toBe('success');
       expect(getSettings(db, runtime()).background_scan).toMatchObject({
@@ -321,7 +322,7 @@ describe('Background LaunchAgent runner', () => {
       expect(result.scan?.ai_sync?.inserted ?? 0).toBe(0);
       // diary 仍完成,但改用 deterministic fallback(未 spawn 任何 agy)
       expect(result.diary?.status).toBe('success');
-      const log = db.prepare(`SELECT global_summary_ai FROM daily_logs WHERE date = ?`).get(TODAY) as { global_summary_ai: string };
+      const log = db.prepare(`SELECT global_summary_ai FROM daily_logs WHERE date = ?`).get(RUN_DATE) as { global_summary_ai: string };
       expect(log.global_summary_ai).toContain('每日開發重點');
     });
 

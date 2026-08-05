@@ -1,6 +1,7 @@
 import type { DB } from './index.js';
 import { openDb } from './index.js';
 import type { CanonicalAgentId } from '../domain/types.js';
+import { taipeiDate } from '../services/taipeiDate.js';
 
 // Deterministic seed. No Math.random / Date.now in the generator — a seeded LCG
 // plus an explicit `today` anchor makes the dataset reproducible (spec §10/§7.3.3:
@@ -153,7 +154,7 @@ export function seedDatabase(db: DB, opts: SeedOptions): void {
     db.prepare(
       `INSERT INTO token_usage (date, project_id, agent_name, model, token_total,
          token_input, token_cached, token_output, token_reasoning)
-       SELECT substr(start_time, 1, 10) AS date, project_id, agent_name, model,
+       SELECT date(start_time, '+8 hours') AS date, project_id, agent_name, model,
          SUM(token_total), SUM(token_input), SUM(token_cached), SUM(token_output), SUM(token_reasoning)
        FROM sessions
        GROUP BY date, project_id, agent_name, model`,
@@ -275,7 +276,7 @@ export function seedDatabase(db: DB, opts: SeedOptions): void {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const path = process.env.DEVDIARY_DB ?? 'devdiary.db';
   const db = openDb(path);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = taipeiDate();
   seedDatabase(db, { today });
   const n = db.prepare('SELECT COUNT(*) AS c FROM sessions').get() as { c: number };
   process.stdout.write(`Seeded ${path}: ${n.c} sessions (anchor today=${today}).\n`);

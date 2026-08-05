@@ -99,6 +99,26 @@ describe('dashboard snapshot', () => {
     expect(hourlyTotal).toBe(s.metric.token_total);
   });
 
+  it('Dashboard derives date and hour from Asia/Taipei instead of UTC token buckets', () => {
+    db.exec(`DELETE FROM sessions; DELETE FROM token_usage;`);
+    const insert = db.prepare(
+      `INSERT INTO sessions (project_id, agent_name, model, start_time, token_total, source_log_ref)
+       VALUES (1, 'codex-cli', 'gpt-5-codex', ?, ?, ?)`,
+    );
+    insert.run('2026-08-04T16:30:00.000Z', 100, 'test://dashboard/taipei/1');
+    insert.run('2026-08-05T15:59:59.000Z', 200, 'test://dashboard/taipei/2');
+    insert.run('2026-08-05T16:00:00.000Z', 300, 'test://dashboard/taipei/3');
+
+    const snapshot = getDashboardSnapshot(db, { range: '24h', today: '2026-08-05' });
+    const total = snapshot.trend.filter((point) => point.series_key === 'total');
+
+    expect(snapshot.metric.session_count).toBe(2);
+    expect(snapshot.metric.token_total).toBe(300);
+    expect(total.find((point) => point.bucket_start === '2026-08-05T00:00')?.token_total).toBe(100);
+    expect(total.find((point) => point.bucket_start === '2026-08-05T23:00')?.token_total).toBe(200);
+    expect(snapshot.heatmap.find((cell) => cell.date === '2026-08-05')).toMatchObject({ session_count: 2, token_total: 300 });
+  });
+
   it('24h per-hour agent series sum to that hour\'s total series', () => {
     const s = getDashboardSnapshot(db, { range: '24h', today: TODAY });
     const byHour = new Map<string, number>();
