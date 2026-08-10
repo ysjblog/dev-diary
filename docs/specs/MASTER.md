@@ -1,6 +1,6 @@
 # DevDiary — 專案規格總覽
 
-> Last updated: 2026-08-05
+> Last updated: 2026-08-10
 > Source of truth: `openspec/specs/`；`openspec/changes/` 只放尚未封存的工作。
 > Legacy 文件位於 `docs/specs/legacy/`，僅供 provenance 查閱，不是 active contract。
 
@@ -35,7 +35,7 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 - **Dashboard**：range metrics、agent mix、project concentration、24 小時 hourly trend、latest-26-week heatmap、daily highlights 由 Core snapshot 提供。
 - **Projects Workspace**：project detail、active/idle tracking、三欄 Kanban、manual status lock、AI-gated sync、comments、summary/daily diary writes、Project Docs 與 read-only Git Status。
 - **Diary 與排程**：Claude/Codex/Antigravity/local Ollama draft providers、deterministic fallback、date-scoped diary；自動排程整理執行當下的台北日（例如 01:00 僅含當日 00:00 至執行前已掃描資料），只有該日確實有 session 的專案產生 Daily diary，手動與自動共用已清理、有長度上限的 session/commit evidence；另有 scheduler preflight/Run now、sleep-like recovery tick、語意升級防漏跑與關閉 app 後的 LaunchAgent background scan/diary gate。
-- **Export 與 runtime**：Markdown daily export、redacted structured backup、dynamic Core-port manifest、stale manifest reclaim、startup retry 與 packaged Core lifecycle。
+- **Export 與 runtime**：Markdown daily export、redacted structured backup、dynamic Core-port manifest、只信任具有存活 owner PID 的 canonical runtime identity、startup retry，以及將 LaunchAgent 支援檔固定放在使用者 Application Support 的 packaged Core lifecycle。
 
 ## 資料與 API 契約
 
@@ -51,14 +51,15 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 
 ## 測試與驗證
 
-- Core automated tests 位於 `core/test/*.test.ts`，涵蓋 scan/parser/cache/discovery、dashboard/projects/writes/Git、diary、scheduler、runtime、settings、exports、custom agents。
-- UI/API tests 位於 `src/api/*.test.js`，涵蓋 Core target、health retry、dashboard、projects、settings、shell/RWD contract 與 startup scan policy。
-- Migration 本輪 fresh checks：`openspec validate --specs --strict --no-interactive`、`spec_author_preflight.py --all-current`，以及 legacy/current/link/diff-scope inventory。
-- 這次不宣稱重新執行 app runtime、真人 provider、Finder、OAuth 或長時間 soak；這些限制見下節與 migration map。
+- Core automated tests 位於 `core/test/*.test.ts`，涵蓋 scan/parser/cache/discovery、dashboard/projects/writes/Git、diary、scheduler、runtime、settings、exports、custom agents、台北日界線與瀏覽器 Origin 授權。
+- UI/API tests 位於 `src/api/*.test.js`，涵蓋 Core target、manifest owner PID、health retry、dashboard、projects、settings、shell/RWD contract 與 startup scan policy；Rust tests 另涵蓋 manifest 與 LaunchAgent 路徑／ownership。
+- 本輪 fresh checks 包含 `openspec validate --specs --strict --no-interactive`、`spec_author_preflight.py --all-current`、完整 Core/UI/Rust suites、in-memory loopback smoke、desktop-only 1280x820 UI 與獨立黑箱／安全檢查。
+- 這次不宣稱使用私人 runtime DB、真人 provider、實際 launchctl/install、Finder、OAuth 或長時間 packaged soak；這些限制見下節與 migration map。
 
 ## 營運與安全
 
-- Core 僅使用 loopback；runtime manifest 只用於解析合法 loopback target，dead-pid manifest 會被視為 stale/reclaim。
+- Core 僅使用 loopback；所有帶 Origin 的瀏覽器請求在 body parser 與 route 前比對精確可信 Origin，不受信、opaque 或偽裝 Origin 會以穩定 403 且零副作用拒絕。缺 Origin 僅保留給未被 Fetch Metadata 標示為 cross-site 的 native/CLI caller。
+- Runtime manifest 只在 service、loopback host、合法 port、存活正整數 PID 與 optional URL 全部一致時才可信；其他情況使用有界 fallback，不由 consumer 改寫 manifest。
 - Path-like settings 走 allowlist/normalization；symlink escape/cycle、malformed/unreadable inputs 與 provider failures 會 fail-safe。
 - Custom-agent probe 使用 safe argv、bounded execution；Git snapshot 不得執行 mutating command。
 - Export 只輸出 redacted structured data；不輸出 raw SQLite、secret-like value 或不必要的 private path。
@@ -69,6 +70,7 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 - Antigravity metadata 可能缺 token usage，sessions 會保留低信心語意；這不是 token accuracy 的 production claim。
 - Kanban v1 的 agent-authored wording 與 long-running provider soak 仍是 hardening；目前以 deterministic synthesis、Core validation、confidence、redaction、status-lock gate 為準。
 - cost calculation / estimated cost、raw SQLite export、Developer ID/notarization、native sidecar、完整關閉期間 OS catch-up 的長時間 soak 都不是 current acceptance。
+- no-Origin 的本機 native/CLI 相容路徑仍屬同一使用者的信任邊界，不是 production authentication；實際 LaunchAgent 安裝／升級與長時間關閉 App soak 仍需另行授權驗證。
 - 歷史 review-state 有部分只做靜態或局部 runtime evidence；請勿將 legacy review 記錄當成這一輪 fresh runtime proof。
 
 ## 開放問題與延後事項
@@ -77,9 +79,10 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 
 ## 變更紀錄
 
+- 2026-08-10：封存 `harden-local-runtime-boundaries`；Core 加入 pre-parser 精確 Origin 授權與跨站 Fetch Metadata 防護，所有 session 衍生日期標籤使用台北日界線，JS/Rust runtime manifest consumer 統一要求存活 PID，LaunchAgent 支援檔移至使用者 Application Support，並加入 revision-bound smoke／黑箱／安全驗證流程。
 - 2026-08-05：封存 `use-same-taipei-day-diary-scheduler`；所有 session 日期／小時統一使用台北日界線，排程改為整理執行當日截至當下的活動，只替目標日確實有 session 的專案產生 Daily diary，並加入語意版本避免舊 success 阻止首次補跑。
 - 2026-08-04：封存 `fix-automatic-daily-diary-input`；曾將 01:00 自動排程改為整理前一個台北日曆日，並補齊手動／自動共用的安全 session/commit prompt evidence；此日期策略已由 2026-08-05 Change 取代。
 - 2026-07-26：封存 `remove-mobile-rwd-layout`；current Feature Spec 現明確定義 desktop-only presentation boundary，窄於 768 CSS px 的 viewport 不提供 mobile 重排、替代 markup 或提示。
 - 2026-07-28：封存 `fix-scan-status-and-daily-diary-scheduler` 與 `release-v0-1-2-distribution`；current Feature Spec 已同步掃描／每日排程與 macOS Release provenance 契約。
 - 2026-07-23：完成一次性 OpenSpec migration；current truth 轉入 `openspec/specs/`，legacy Feature/Delta/review/MASTER 保存於 `docs/specs/legacy/`。
-- 歷史 archive 尚未有 OpenSpec-native `openspec/changes/archive/YYYY-MM-DD-<change>/` 目錄內容；完整 legacy provenance 與舊 review state 由 [`MIGRATION-MAP.md`](legacy/MIGRATION-MAP.md) 對照。
+- OpenSpec-native archive 從 `openspec/changes/archive/2026-08-10-harden-local-runtime-boundaries/` 起保存；更早的完整 legacy provenance 與舊 review state 由 [`MIGRATION-MAP.md`](legacy/MIGRATION-MAP.md) 對照。

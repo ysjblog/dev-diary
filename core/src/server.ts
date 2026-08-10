@@ -51,22 +51,9 @@ import { RangeValidationError } from './domain/dateRange.js';
 import type { RangeKey } from './domain/types.js';
 import { normalizeAgentId } from './domain/agents.js';
 import { taipeiDate } from './services/taipeiDate.js';
+import { buildTrustedBrowserOrigins, createBrowserOriginMiddleware } from './services/browserOriginPolicy.js';
 
 const VALID_RANGES: RangeKey[] = ['all', '24h', '7d', '1m', 'custom'];
-const ALLOWED_BROWSER_ORIGINS = new Set([
-  'tauri://localhost',
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-]);
-
-function applyLocalCors(req: Request, res: Response): void {
-  const origin = req.get('origin');
-  if (!origin || !ALLOWED_BROWSER_ORIGINS.has(origin)) return;
-  res.setHeader('Access-Control-Allow-Origin', origin);
-  res.setHeader('Vary', 'Origin');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'content-type');
-}
 
 function todayUTC(): string {
   return taipeiDate();
@@ -152,15 +139,13 @@ export interface CreateServerOptions {
   projectRoots?: string[];
   dbPath?: string;
   runtime?: RuntimeHealthOptions;
+  additionalBrowserOrigins?: readonly string[];
 }
 
 export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
+  const trustedBrowserOrigins = buildTrustedBrowserOrigins(opts.additionalBrowserOrigins);
   const app = express();
-  app.use((req, res, next) => {
-    applyLocalCors(req, res);
-    if (req.method === 'OPTIONS') return res.status(204).end();
-    return next();
-  });
+  app.use(createBrowserOriginMiddleware(trustedBrowserOrigins));
   app.use(express.json());
 
   const settingsRuntime = () => ({

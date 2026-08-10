@@ -144,21 +144,51 @@ fn resolve_core_api_origin_from_manifest(manifest_path: &Path, is_alive: impl Fn
   if host != "127.0.0.1" && host != "localhost" {
     return None;
   }
-  let port = runtime.get("port").and_then(|value| value.as_i64())?;
-  if port <= 0 {
+  let port = runtime.get("port").and_then(json_mathematically_integral_i64)?;
+  if !(1..=65_535).contains(&port) {
     return None;
   }
-  if let Some(pid) = runtime.get("pid").and_then(|value| value.as_i64()) {
-    if pid > 0 && !is_alive(pid) {
+  let pid = runtime.get("pid").and_then(json_mathematically_integral_i64)?;
+  if pid <= 0 || !is_alive(pid) {
+    return None;
+  }
+  let origin = format!("http://{host}:{port}");
+  if let Some(url) = manifest.get("url") {
+    if url.as_str() != Some(origin.as_str()) {
       return None;
     }
   }
-  Some(format!("http://{host}:{port}"))
+  Some(origin)
+}
+
+fn json_mathematically_integral_i64(value: &serde_json::Value) -> Option<i64> {
+  if let Some(integer) = value.as_i64() {
+    return Some(integer);
+  }
+  let number = value.as_f64()?;
+  if !number.is_finite()
+    || number.fract() != 0.0
+    || number < i64::MIN as f64
+    || number > i64::MAX as f64
+  {
+    return None;
+  }
+  Some(number as i64)
+}
+
+fn fallback_core_api_origin_from_port(value: Option<&str>) -> String {
+  let port = value
+    .map(str::trim)
+    .filter(|raw| !raw.is_empty() && raw.bytes().all(|byte| byte.is_ascii_digit()))
+    .and_then(|raw| raw.parse::<u16>().ok())
+    .filter(|port| *port > 0)
+    .unwrap_or(4317);
+  format!("http://127.0.0.1:{port}")
 }
 
 fn fallback_core_api_origin() -> String {
-  let port = env::var("DEVDIARY_PORT").unwrap_or_else(|_| "4317".to_string());
-  format!("http://127.0.0.1:{port}")
+  let configured = env::var("DEVDIARY_PORT").ok();
+  fallback_core_api_origin_from_port(configured.as_deref())
 }
 
 #[tauri::command]
@@ -172,12 +202,8 @@ fn launch_agent_storage_dir(app_dir: &Path) -> PathBuf {
   app_dir.join("LaunchAgents")
 }
 
-fn packaged_launch_agent_storage_dir(core_dir: &Path) -> Option<PathBuf> {
-  core_dir
-    .ancestors()
-    .find(|path| path.extension().map(|extension| extension == "app").unwrap_or(false))
-    .and_then(Path::parent)
-    .map(|parent| parent.join(".DevDiaryLaunchAgents"))
+fn resolve_launch_agent_storage_dir(app_dir: &Path, _core_dir: &Path) -> PathBuf {
+  launch_agent_storage_dir(app_dir)
 }
 
 fn open_core_log() -> Option<std::fs::File> {
@@ -260,6 +286,29 @@ fn write_private_file(path: &Path, content: &str) -> Result<(), String> {
   permissions.set_mode(0o600);
   fs::set_permissions(path, permissions).map_err(|err| format!("chmod plist failed: {err}"))?;
   Ok(())
+}
+
+fn prepare_validated_launch_agent_source(
+  source_path: &Path,
+  content: &str,
+  validate: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<(), String> {
+  let file_name = source_path
+    .file_name()
+    .and_then(|value| value.to_str())
+    .ok_or_else(|| "LaunchAgent source path has no valid filename".to_string())?;
+  let candidate_path = source_path.with_file_name(format!("{file_name}.candidate"));
+  let result = (|| {
+    write_private_file(&candidate_path, content)?;
+    validate(&candidate_path)?;
+    fs::rename(&candidate_path, source_path)
+      .map_err(|err| format!("promote validated LaunchAgent plist failed: {err}"))?;
+    Ok(())
+  })();
+  if result.is_err() {
+    let _ = fs::remove_file(&candidate_path);
+  }
+  result
 }
 
 fn background_launcher_script(core_dir: &Path, app_dir: &Path) -> String {
@@ -357,11 +406,55 @@ fn legacy_devdiary_background_label(contents: &str, current_label: &str, app_dir
   if label == current_label || !label.ends_with(".devdiary.background") {
     return None;
   }
+  devdiary_background_plist_has_ownership_markers(contents, app_dir).then_some(label)
+}
+
+fn devdiary_background_plist_has_ownership_markers(contents: &str, app_dir: &Path) -> bool {
   let has_launcher = contents.contains("devdiary-background-launcher.sh");
   let has_run_arg = contents.contains("<string>run</string>");
   let logs_marker = app_dir.join("logs").to_string_lossy().to_string();
   let writes_devdiary_logs = contents.contains(&logs_marker);
-  (has_launcher && has_run_arg && writes_devdiary_logs).then_some(label)
+  has_launcher && has_run_arg && writes_devdiary_logs
+}
+
+fn remove_registration_if_current_attempt(registration: &Path, source: &Path) -> Result<bool, String> {
+  let metadata = match fs::symlink_metadata(registration) {
+    Ok(metadata) => metadata,
+    Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+    Err(err) => return Err(format!("read LaunchAgent registration metadata failed: {err}")),
+  };
+  if !metadata.file_type().is_symlink() {
+    return Ok(false);
+  }
+  let target = fs::read_link(registration).map_err(|err| format!("read LaunchAgent registration link failed: {err}"))?;
+  if target != source {
+    return Ok(false);
+  }
+  fs::remove_file(registration).map_err(|err| format!("remove failed LaunchAgent registration failed: {err}"))?;
+  Ok(true)
+}
+
+fn replace_devdiary_registration_link(registration: &Path, source: &Path, label: &str, app_dir: &Path) -> Result<(), String> {
+  match fs::symlink_metadata(registration) {
+    Ok(metadata) => {
+      let exact_current_link = metadata.file_type().is_symlink()
+        && fs::read_link(registration).map(|target| target == source).unwrap_or(false);
+      let owned_plist = fs::read_to_string(registration)
+        .ok()
+        .map(|contents| {
+          plist_string_value(&contents, "Label").as_deref() == Some(label)
+            && devdiary_background_plist_has_ownership_markers(&contents, app_dir)
+        })
+        .unwrap_or(false);
+      if !exact_current_link && !owned_plist {
+        return Err("existing LaunchAgent registration is not owned by DevDiary".to_string());
+      }
+      fs::remove_file(registration).map_err(|err| format!("remove existing DevDiary LaunchAgent registration failed: {err}"))?;
+    }
+    Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+    Err(err) => return Err(format!("read LaunchAgent registration metadata failed: {err}")),
+  }
+  symlink(source, registration).map_err(|err| format!("symlink LaunchAgent failed: {err}"))
 }
 
 fn cleanup_legacy_background_launch_agents(link_dir: &Path, domain: &str, current_label: &str, app_dir: &Path) -> Result<(), String> {
@@ -404,29 +497,26 @@ fn install_background_launch_agent(core_dir: &Path) -> Result<(), String> {
   let log_dir = app_dir.join("logs");
 
   create_dir_all(&log_dir).map_err(|err| format!("create log dir failed: {err}"))?;
-  cleanup_legacy_background_launch_agents(&link_dir, &domain, label, &app_dir)?;
-  let package_storage_dir = packaged_launch_agent_storage_dir(core_dir);
-  let base_dir = package_storage_dir.clone().unwrap_or_else(|| launch_agent_storage_dir(&app_dir));
+  let base_dir = resolve_launch_agent_storage_dir(&app_dir, core_dir);
   let launcher = base_dir.join("bin").join("devdiary-background-launcher.sh");
   let source_plist_path = base_dir.join(format!("{label}.plist"));
   write_executable_file(&launcher, &background_launcher_script(core_dir, &app_dir))?;
-  create_dir_all(&link_dir).map_err(|err| format!("create LaunchAgents dir failed: {err}"))?;
-  let _ = fs::remove_file(&plist_path);
-  write_private_file(&source_plist_path, &background_launch_agent_plist(label, &launcher, core_dir, &log_dir))?;
-  if package_storage_dir.is_some() {
-    symlink(&source_plist_path, &plist_path).map_err(|err| format!("symlink LaunchAgent failed: {err}"))?;
-  } else {
-    fs::rename(&source_plist_path, &plist_path).map_err(|err| format!("install LaunchAgent plist failed: {err}"))?;
-  }
+  let source_contents = background_launch_agent_plist(label, &launcher, core_dir, &log_dir);
+  prepare_validated_launch_agent_source(&source_plist_path, &source_contents, |candidate_path| {
+    let lint = Command::new("/usr/bin/plutil")
+      .arg("-lint")
+      .arg(candidate_path)
+      .status()
+      .map_err(|err| format!("plutil failed to start: {err}"))?;
+    lint
+      .success()
+      .then_some(())
+      .ok_or_else(|| "LaunchAgent plist failed plutil validation".to_string())
+  })?;
 
-  let lint = Command::new("/usr/bin/plutil")
-    .arg("-lint")
-    .arg(&plist_path)
-    .status()
-    .map_err(|err| format!("plutil failed to start: {err}"))?;
-  if !lint.success() {
-    return Err("LaunchAgent plist failed plutil validation".to_string());
-  }
+  cleanup_legacy_background_launch_agents(&link_dir, &domain, label, &app_dir)?;
+  create_dir_all(&link_dir).map_err(|err| format!("create LaunchAgents dir failed: {err}"))?;
+  replace_devdiary_registration_link(&plist_path, &source_plist_path, label, &app_dir)?;
 
   let _ = Command::new("/bin/launchctl")
     .arg("bootout")
@@ -437,10 +527,17 @@ fn install_background_launch_agent(core_dir: &Path) -> Result<(), String> {
     .arg("bootstrap")
     .arg(&domain)
     .arg(&plist_path)
-    .status()
-    .map_err(|err| format!("launchctl bootstrap failed to start: {err}"))?;
-  if !bootstrap.success() {
-    return Err("launchctl bootstrap failed".to_string());
+    .status();
+  match bootstrap {
+    Ok(status) if status.success() => {}
+    Ok(_) => {
+      remove_registration_if_current_attempt(&plist_path, &source_plist_path)?;
+      return Err("launchctl bootstrap failed".to_string());
+    }
+    Err(err) => {
+      remove_registration_if_current_attempt(&plist_path, &source_plist_path)?;
+      return Err(format!("launchctl bootstrap failed to start: {err}"));
+    }
   }
   let _ = Command::new("/bin/launchctl")
     .arg("enable")
@@ -580,10 +677,14 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
   use super::{
-    first_executable_node, launch_agent_storage_dir, legacy_devdiary_background_label,
-    packaged_launch_agent_storage_dir, resolve_core_api_origin_from_manifest,
+    background_launch_agent_plist, fallback_core_api_origin_from_port, first_executable_node,
+    launch_agent_storage_dir, legacy_devdiary_background_label, remove_registration_if_current_attempt,
+    prepare_validated_launch_agent_source, replace_devdiary_registration_link, resolve_core_api_origin_from_manifest,
+    resolve_launch_agent_storage_dir,
   };
-  use std::{fs, os::unix::fs::PermissionsExt, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
+  use std::{fs, os::unix::fs::{symlink, PermissionsExt}, path::{Path, PathBuf}, sync::atomic::{AtomicU64, Ordering}, time::{SystemTime, UNIX_EPOCH}};
+
+  static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
   fn temporary_executable(name: &str) -> (PathBuf, PathBuf) {
     let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
@@ -605,12 +706,96 @@ mod tests {
   }
 
   #[test]
-  fn packaged_launch_agent_files_stay_beside_the_app_bundle() {
+  fn packaged_and_development_launch_agent_files_use_application_support() {
+    let app_data_dir = Path::new("/Users/tester/Library/Application Support/DevDiary");
     let core_dir = Path::new("/Applications/DevDiary.app/Contents/Resources/core");
     assert_eq!(
-      packaged_launch_agent_storage_dir(core_dir),
-      Some(Path::new("/Applications/.DevDiaryLaunchAgents").to_path_buf())
+      resolve_launch_agent_storage_dir(app_data_dir, core_dir),
+      Path::new("/Users/tester/Library/Application Support/DevDiary/LaunchAgents")
     );
+    assert_eq!(
+      resolve_launch_agent_storage_dir(app_data_dir, Path::new("/tmp/devdiary/core")),
+      Path::new("/Users/tester/Library/Application Support/DevDiary/LaunchAgents")
+    );
+  }
+
+  #[test]
+  fn failed_attempt_cleanup_removes_only_its_exact_registration_link() {
+    let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let directory = std::env::temp_dir().join(format!("devdiary-launch-agent-cleanup-{unique}"));
+    fs::create_dir_all(&directory).unwrap();
+    let source = directory.join("source.plist");
+    let other_source = directory.join("other.plist");
+    let registration = directory.join("registration.plist");
+    fs::write(&source, "source").unwrap();
+    fs::write(&other_source, "other").unwrap();
+
+    symlink(&source, &registration).unwrap();
+    assert_eq!(remove_registration_if_current_attempt(&registration, &source).unwrap(), true);
+    assert!(fs::symlink_metadata(&registration).is_err());
+
+    symlink(&other_source, &registration).unwrap();
+    assert_eq!(remove_registration_if_current_attempt(&registration, &source).unwrap(), false);
+    assert_eq!(fs::read_link(&registration).unwrap(), other_source);
+    fs::remove_dir_all(directory).unwrap();
+  }
+
+  #[test]
+  fn registration_replacement_preserves_unrelated_files_and_accepts_owned_devdiary_plists() {
+    let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let directory = std::env::temp_dir().join(format!("devdiary-registration-ownership-{unique}"));
+    let app_dir = directory.join("Application Support").join("DevDiary");
+    let source = app_dir.join("LaunchAgents").join("com.ysjblog.devdiary.background.plist");
+    let registration = directory.join("Library").join("LaunchAgents").join("com.ysjblog.devdiary.background.plist");
+    fs::create_dir_all(source.parent().unwrap()).unwrap();
+    fs::create_dir_all(registration.parent().unwrap()).unwrap();
+    fs::write(&source, "source").unwrap();
+    fs::write(&registration, "unrelated").unwrap();
+
+    assert!(replace_devdiary_registration_link(
+      &registration, &source, "com.ysjblog.devdiary.background", &app_dir,
+    ).is_err());
+    assert_eq!(fs::read_to_string(&registration).unwrap(), "unrelated");
+
+    let owned = background_launch_agent_plist(
+      "com.ysjblog.devdiary.background",
+      &app_dir.join("LaunchAgents/bin/devdiary-background-launcher.sh"),
+      Path::new("/tmp/devdiary/core"),
+      &app_dir.join("logs"),
+    );
+    fs::write(&registration, owned).unwrap();
+    replace_devdiary_registration_link(
+      &registration, &source, "com.ysjblog.devdiary.background", &app_dir,
+    ).unwrap();
+    assert_eq!(fs::read_link(&registration).unwrap(), source);
+    fs::remove_dir_all(directory).unwrap();
+  }
+
+  #[test]
+  fn source_plist_lint_precedes_registration_replacement() {
+    let source = include_str!("lib.rs");
+    let install = source.split_once("fn install_background_launch_agent").unwrap().1;
+    let lint_source = install.find("prepare_validated_launch_agent_source").unwrap();
+    let replace_registration = install.find("replace_devdiary_registration_link").unwrap();
+    assert!(lint_source < replace_registration);
+  }
+
+  #[test]
+  fn failed_source_validation_preserves_the_live_source_and_removes_the_candidate() {
+    let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let directory = std::env::temp_dir().join(format!("devdiary-source-validation-{unique}"));
+    let source = directory.join("com.ysjblog.devdiary.background.plist");
+    fs::create_dir_all(&directory).unwrap();
+    fs::write(&source, "known-good-live-source").unwrap();
+
+    let result = prepare_validated_launch_agent_source(&source, "invalid-candidate", |_| {
+      Err("synthetic lint failure".to_string())
+    });
+
+    assert!(result.is_err());
+    assert_eq!(fs::read_to_string(&source).unwrap(), "known-good-live-source");
+    assert!(!directory.join("com.ysjblog.devdiary.background.plist.candidate").exists());
+    fs::remove_dir_all(directory).unwrap();
   }
 
   #[test]
@@ -660,7 +845,8 @@ mod tests {
 
   fn temporary_manifest(contents: &str) -> (PathBuf, PathBuf) {
     let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-    let directory = std::env::temp_dir().join(format!("devdiary-manifest-test-{unique}"));
+    let sequence = TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    let directory = std::env::temp_dir().join(format!("devdiary-manifest-test-{unique}-{sequence}"));
     fs::create_dir_all(&directory).unwrap();
     let manifest = directory.join("core-runtime.json");
     fs::write(&manifest, contents).unwrap();
@@ -675,6 +861,22 @@ mod tests {
     let resolved = resolve_core_api_origin_from_manifest(&manifest, |pid| pid == 4242);
     assert_eq!(resolved, Some("http://127.0.0.1:4322".to_string()));
     fs::remove_dir_all(dir).unwrap();
+  }
+
+  #[test]
+  fn core_api_origin_accepts_integral_json_number_encodings_like_the_js_consumer() {
+    for contents in [
+      r#"{"service":"devdiary-core","runtime":{"host":"127.0.0.1","port":4322.0,"pid":4242.0}}"#,
+      r#"{"service":"devdiary-core","runtime":{"host":"127.0.0.1","port":4.322e3,"pid":4.242e3}}"#,
+    ] {
+      let (dir, manifest) = temporary_manifest(contents);
+      assert_eq!(
+        resolve_core_api_origin_from_manifest(&manifest, |pid| pid == 4242),
+        Some("http://127.0.0.1:4322".to_string()),
+        "{contents}",
+      );
+      fs::remove_dir_all(dir).unwrap();
+    }
   }
 
   #[test]
@@ -723,12 +925,46 @@ mod tests {
   }
 
   #[test]
-  fn core_api_origin_trusts_a_manifest_with_no_pid_for_backward_compatibility() {
+  fn core_api_origin_rejects_a_manifest_with_no_pid() {
     let (dir, manifest) = temporary_manifest(
       r#"{"service":"devdiary-core","runtime":{"host":"127.0.0.1","port":4322}}"#,
     );
     let resolved = resolve_core_api_origin_from_manifest(&manifest, |_| false);
-    assert_eq!(resolved, Some("http://127.0.0.1:4322".to_string()));
+    assert_eq!(resolved, None);
     fs::remove_dir_all(dir).unwrap();
+  }
+
+  #[test]
+  fn core_api_origin_requires_positive_numeric_pid_and_bounded_port() {
+    for contents in [
+      r#"{"service":"devdiary-core","runtime":{"host":"127.0.0.1","port":4322,"pid":"4242"}}"#,
+      r#"{"service":"devdiary-core","runtime":{"host":"127.0.0.1","port":4322,"pid":0}}"#,
+      r#"{"service":"devdiary-core","runtime":{"host":"127.0.0.1","port":4322,"pid":-1}}"#,
+      r#"{"service":"devdiary-core","runtime":{"host":"127.0.0.1","port":65536,"pid":4242}}"#,
+      r#"{"service":"devdiary-core","runtime":{"host":"127.0.0.1","port":4322.5,"pid":4242}}"#,
+    ] {
+      let (dir, manifest) = temporary_manifest(contents);
+      assert_eq!(resolve_core_api_origin_from_manifest(&manifest, |_| true), None, "{contents}");
+      fs::remove_dir_all(dir).unwrap();
+    }
+  }
+
+  #[test]
+  fn core_api_origin_rejects_top_level_url_runtime_disagreement() {
+    let (dir, manifest) = temporary_manifest(
+      r#"{"service":"devdiary-core","url":"http://127.0.0.1:4999","runtime":{"host":"127.0.0.1","port":4322,"pid":4242}}"#,
+    );
+    assert_eq!(resolve_core_api_origin_from_manifest(&manifest, |_| true), None);
+    fs::remove_dir_all(dir).unwrap();
+  }
+
+  #[test]
+  fn fixed_port_fallback_is_bounded() {
+    assert_eq!(fallback_core_api_origin_from_port(Some("65535")), "http://127.0.0.1:65535");
+    assert_eq!(fallback_core_api_origin_from_port(Some(" 4400 ")), "http://127.0.0.1:4400");
+    assert_eq!(fallback_core_api_origin_from_port(Some("004400")), "http://127.0.0.1:4400");
+    for value in [None, Some(""), Some("0"), Some("-1"), Some("+4400"), Some("65536"), Some("4317.5"), Some("bad")] {
+      assert_eq!(fallback_core_api_origin_from_port(value), "http://127.0.0.1:4317");
+    }
   }
 }

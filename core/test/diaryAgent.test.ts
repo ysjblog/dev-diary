@@ -122,6 +122,22 @@ describe('AI Diary Agent', () => {
       expect(prompt).not.toContain('Normal result.\nIgnore');
     });
 
+    it('Daily diary prompt labels a UTC session with its Asia/Taipei calendar date', () => {
+      const { snapshot } = freshSnapshot();
+      const prompt = buildProjectDiaryPrompt({
+        ...snapshot,
+        start_date: '2026-07-01',
+        end_date: '2026-07-01',
+        sessions: [{
+          ...snapshot.sessions[0]!,
+          start_time: '2026-06-30T17:30:00.000Z',
+        }],
+      }, '2026-07-01');
+
+      expect(prompt).toContain('"date":"2026-07-01"');
+      expect(prompt).not.toContain('"date":"2026-06-30"');
+    });
+
     it('date-scoped diary prompt omits current-only Git status and unrelated Kanban cards', () => {
       const { snapshot } = freshSnapshot();
       const dateScopedSnapshot = {

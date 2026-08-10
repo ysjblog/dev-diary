@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "stage": "initial",
+  "reviewer_id": "o3-initial-spec-review-sol+owner-landing-bridge",
+  "review_revision": "197bceb18f846c7196d076a4d3d8fb7a09233782",
+  "matrix_digest": "d996b0c2027ebae4929a896b9c6fd8bdef56ef121caddac716fbc52bfd93508c",
+  "lens_results": {
+    "data-and-facts": "findings",
+    "naming-and-types": "findings",
+    "blast-radius": "findings",
+    "execution-order": "findings",
+    "logic-and-design": "findings"
+  },
+  "trigger_lens_results": {
+    "security": "findings",
+    "authorization": "findings"
+  },
+  "finding_ids": [
+    "SOL-ROUTER-001",
+    "SOL-MATRIX-001",
+    "SOL-EVIDENCE-001",
+    "SOL-AUTH-001",
+    "SOL-DATE-001",
+    "SOL-SINK-001",
+    "SOL-SQL-001",
+    "SOL-ORIGIN-001"
+  ],
+  "source_reviewer_receipt_path": "openspec/changes/harden-local-runtime-boundaries/initial-review-receipt.json",
+  "source_reviewer_receipt_digest": "9408293ea07c33e5088dbe6f5c87af3bd69ba59315cfda8c29ac62e5c79a14d9",
+  "source_reviewed_matrix_path": "openspec/changes/harden-local-runtime-boundaries/contract-matrix.json",
+  "source_reviewed_matrix_digest": "e5cd3fd6a784c624256c7f4766f8987ba32581de4c4de02a7b878d8bfaa680d7",
+  "author_fix_receipt_path": "openspec/changes/harden-local-runtime-boundaries/author-fix-receipt.json",
+  "author_fix_receipt_digest": "27755be40e048bebf024c8dd96f114c846c341ec1d1461e9aa8f519ea4fbad6c",
+  "bridge_semantics": "This Owner-authored routing bridge does not claim the initial reviewer reviewed fixed artifacts. It preserves the initial finding set, binds the one consolidated fix to the current matrix, and exists only because the global router requires the initial receipt matrix to equal the post-fix matrix before it can request the mandatory fresh closer.",
+  "inconclusive_lenses": [],
+  "new_cross_file_findings": 8,
+  "summary": "Initial findings remain findings; only a fresh Sol final closer may accept the fixed current matrix.",
+  "receipt_digest": "0b64ed54c16d885c178cf527d214fe943a1fb8dfb4381b9ba8187c521638098d"
+}

@@ -25,8 +25,14 @@ function loopbackUrl(value) {
 
 function runtimeLoopbackUrl(runtime) {
   const host = runtime?.host;
-  const port = Number(runtime?.port);
-  if ((host === '127.0.0.1' || host === 'localhost') && Number.isInteger(port) && port > 0) {
+  const port = runtime?.port;
+  if (
+    (host === '127.0.0.1' || host === 'localhost')
+    && typeof port === 'number'
+    && Number.isInteger(port)
+    && port > 0
+    && port <= 65_535
+  ) {
     return `http://${host}:${port}`;
   }
   return null;
@@ -43,18 +49,20 @@ function isProcessAlive(pid, kill = process.kill) {
   }
 }
 
-// A manifest that names a dead owner pid is stale — skip it so dev clients fall
-// back instead of being stranded on a crashed Core's port. Manifests without a
-// pid stay trusted for backward compatibility.
-function manifestIsStale(manifest, isAlive) {
-  const pid = Number(manifest?.runtime?.pid);
-  if (!Number.isInteger(pid) || pid <= 0) return false;
-  return !isAlive(pid);
+function manifestUrl(manifest, isAlive) {
+  if (manifest?.service !== 'devdiary-core') return null;
+  const runtimeUrl = runtimeLoopbackUrl(manifest.runtime);
+  const pid = manifest?.runtime?.pid;
+  if (!runtimeUrl || typeof pid !== 'number' || !Number.isInteger(pid) || pid <= 0 || !isAlive(pid)) return null;
+  if (Object.hasOwn(manifest, 'url') && manifest.url !== runtimeUrl) return null;
+  return runtimeUrl;
 }
 
-function manifestUrl(manifest) {
-  if (manifest?.service !== 'devdiary-core') return null;
-  return loopbackUrl(manifest.url) || runtimeLoopbackUrl(manifest.runtime);
+function boundedFallbackPort(value) {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (!/^\d+$/.test(raw)) return 4317;
+  const port = Number(raw);
+  return Number.isInteger(port) && port >= 1 && port <= 65_535 ? port : 4317;
 }
 
 export function resolveCoreApiTarget(env = process.env, homeDir = homedir(), options = {}) {
@@ -66,17 +74,14 @@ export function resolveCoreApiTarget(env = process.env, homeDir = homedir(), opt
   if (existsSync(manifestPath)) {
     try {
       const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-      if (!manifestIsStale(manifest, isAlive)) {
-        const resolved = manifestUrl(manifest);
-        if (resolved) return resolved;
-      }
+      const resolved = manifestUrl(manifest, isAlive);
+      if (resolved) return resolved;
     } catch {
       // Ignore malformed stale manifests and fall back to the historical dev port.
     }
   }
 
-  const fallbackPort = Number(env.DEVDIARY_PORT || 4317);
-  return `http://127.0.0.1:${Number.isInteger(fallbackPort) && fallbackPort > 0 ? fallbackPort : 4317}`;
+  return `http://127.0.0.1:${boundedFallbackPort(env.DEVDIARY_PORT)}`;
 }
 
 export function buildCoreProxyUrl(requestUrl, env = process.env, homeDir = homedir(), options = {}) {

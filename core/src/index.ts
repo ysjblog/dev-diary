@@ -7,6 +7,7 @@ import { AntigravitySessionGate } from './services/antigravitySession.js';
 import { runSchedulerTickWithRecovery } from './services/schedulerRecovery.js';
 import { discoverProjectsFromRoots } from './services/projectDiscovery.js';
 import { taipeiDate } from './services/taipeiDate.js';
+import { parseAdditionalBrowserOrigins } from './services/browserOriginPolicy.js';
 import {
   isRuntimeManifestStale,
   readRuntimeManifest,
@@ -21,6 +22,7 @@ const HOST = '127.0.0.1';
 const REQUESTED_PORT = Number(process.env.DEVDIARY_PORT ?? 4317);
 const STARTED_AT = new Date().toISOString();
 const runtimeConfig = resolveRuntimeConfig();
+const additionalBrowserOrigins = parseAdditionalBrowserOrigins(process.env.DEVDIARY_DEV_BROWSER_ORIGINS);
 const db = openDb(runtimeConfig.dbPath);
 const projectRoots = runtimeConfig.projectRoots;
 const runtimeIdentity = {
@@ -49,6 +51,7 @@ const app = createServer(db, {
   projectRoots,
   dailyScheduler,
   runtime: runtimeIdentity,
+  additionalBrowserOrigins,
 });
 
 const SCHEDULER_INTERVAL_MS = 60_000;

@@ -1,0 +1,274 @@
+{
+  "schema_version": 2,
+  "generated_revision": "197bceb18f846c7196d076a4d3d8fb7a09233782",
+  "input_manifest_digest": "e69a96f15db807b631ad3950499fb85644866e96a27b8e1dffcff3749e69b370",
+  "artifact_inventory": [
+    {
+      "path": "openspec/changes/harden-local-runtime-boundaries/design.md",
+      "sha256": "02f6df850384a3179596fdd49f29846c88ea633a1d0f7313d3eb13d39d91a556"
+    },
+    {
+      "path": "openspec/changes/harden-local-runtime-boundaries/proposal.md",
+      "sha256": "072d1b71244533392c96f6c30054a2ef4a66e1137693c9b90e6081632a66418e"
+    },
+    {
+      "path": "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md",
+      "sha256": "3c1a1d1b3d58e7571db5cd4ae5e77ebb0ac67b1c77f125081e73f0d00cc68e75"
+    },
+    {
+      "path": "openspec/changes/harden-local-runtime-boundaries/tasks.md",
+      "sha256": "29188e0426f8c84f731568c6939f352c77835036d0f700e4c8547c16931d8ec0"
+    },
+    {
+      "path": "openspec/specs/dev-diary-macos-app/spec.md",
+      "sha256": "5aec89ce5c3dda05b3286c6e7cfee1641374f22e00a77e2f592cc668906db00b"
+    }
+  ],
+  "inventory_scope": {
+    "change": [
+      "openspec/changes/harden-local-runtime-boundaries/design.md",
+      "openspec/changes/harden-local-runtime-boundaries/proposal.md",
+      "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md",
+      "openspec/changes/harden-local-runtime-boundaries/tasks.md"
+    ],
+    "baseline": [
+      "openspec/specs/dev-diary-macos-app/spec.md"
+    ]
+  },
+  "invariants": [
+    {
+      "id": "origin-denial",
+      "value": "forbidden_origin",
+      "search_terms": [
+        "forbidden_origin"
+      ],
+      "writers": [
+        "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/harden-local-runtime-boundaries/design.md",
+        "openspec/changes/harden-local-runtime-boundaries/proposal.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/design.md",
+          "line": 57
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/proposal.md",
+          "line": 91
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md",
+          "line": 23
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md",
+          "line": 33
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md",
+          "line": 48
+        }
+      ]
+    },
+    {
+      "id": "worktree-origin",
+      "value": "http://localhost:5180",
+      "search_terms": [
+        "http://localhost:5180"
+      ],
+      "writers": [
+        "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/harden-local-runtime-boundaries/design.md",
+        "openspec/changes/harden-local-runtime-boundaries/proposal.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/design.md",
+          "line": 50
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/proposal.md",
+          "line": 107
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md",
+          "line": 37
+        }
+      ]
+    },
+    {
+      "id": "runtime-owner",
+      "value": "runtime.pid",
+      "search_terms": [
+        "runtime.pid"
+      ],
+      "writers": [
+        "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/harden-local-runtime-boundaries/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/design.md",
+          "line": 118
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md",
+          "line": 71
+        }
+      ]
+    },
+    {
+      "id": "bounded-port",
+      "value": "1..65535",
+      "search_terms": [
+        "1..65535"
+      ],
+      "writers": [
+        "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/harden-local-runtime-boundaries/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/design.md",
+          "line": 58
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/design.md",
+          "line": 117
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/design.md",
+          "line": 127
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md",
+          "line": 71
+        }
+      ]
+    },
+    {
+      "id": "app-support-source",
+      "value": "<Application Support>/DevDiary/LaunchAgents",
+      "search_terms": [
+        "<Application Support>/DevDiary/LaunchAgents"
+      ],
+      "writers": [
+        "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/harden-local-runtime-boundaries/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/proposal.md",
+          "line": 63
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md",
+          "line": 95
+        }
+      ]
+    },
+    {
+      "id": "taipei-calendar",
+      "value": "Asia/Taipei",
+      "search_terms": [
+        "Asia/Taipei"
+      ],
+      "writers": [
+        "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md",
+        "openspec/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/harden-local-runtime-boundaries/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/design.md",
+          "line": 134
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/proposal.md",
+          "line": 21
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/proposal.md",
+          "line": 30
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/proposal.md",
+          "line": 64
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md",
+          "line": 11
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md",
+          "line": 50
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md",
+          "line": 52
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/tasks.md",
+          "line": 60
+        },
+        {
+          "file": "openspec/specs/dev-diary-macos-app/spec.md",
+          "line": 84
+        },
+        {
+          "file": "openspec/specs/dev-diary-macos-app/spec.md",
+          "line": 107
+        },
+        {
+          "file": "openspec/specs/dev-diary-macos-app/spec.md",
+          "line": 131
+        }
+      ]
+    },
+    {
+      "id": "revision-evidence",
+      "value": "/tmp/devdiary-reliability-security-hardening/",
+      "search_terms": [
+        "/tmp/devdiary-reliability-security-hardening/"
+      ],
+      "writers": [
+        "openspec/changes/harden-local-runtime-boundaries/tasks.md"
+      ],
+      "readers": [
+        "openspec/changes/harden-local-runtime-boundaries/design.md",
+        "openspec/changes/harden-local-runtime-boundaries/proposal.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/design.md",
+          "line": 170
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/design.md",
+          "line": 171
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/tasks.md",
+          "line": 42
+        },
+        {
+          "file": "openspec/changes/harden-local-runtime-boundaries/tasks.md",
+          "line": 52
+        }
+      ]
+    }
+  ],
+  "matrix_digest": "e5cd3fd6a784c624256c7f4766f8987ba32581de4c4de02a7b878d8bfaa680d7"
+}

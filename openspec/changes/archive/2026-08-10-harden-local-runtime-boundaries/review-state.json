@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "change": "harden-local-runtime-boundaries",
+  "openspec_level": "o3",
+  "routing_signals": [],
+  "routing_reason_signals": [
+    "auth_authorization"
+  ],
+  "review_provider": "codex",
+  "budget_mode": "bounded",
+  "standard_lenses": [
+    "data-and-facts",
+    "naming-and-types",
+    "blast-radius",
+    "execution-order",
+    "logic-and-design"
+  ],
+  "required_lenses": [
+    "data-and-facts",
+    "naming-and-types",
+    "blast-radius",
+    "execution-order",
+    "logic-and-design",
+    "security",
+    "authorization"
+  ],
+  "trigger_mapped_lenses": [
+    "security",
+    "authorization"
+  ],
+  "router_compatibility": "The global router validates the five standard lenses when routing_signals is empty. The same digest-bound receipt must also carry trigger_lens_results for security and authorization; Owner validates those two fields fail-closed before accepting either round. Global skill files are outside this project Change authority.",
+  "deferred_lenses": [],
+  "why_deferred": "O3 auth/authorization hard floor: all five standard lenses and both trigger-mapped lenses run in the initial review and fresh closer.",
+  "escalation_trigger": "Any authorization bypass, parser/effect ordering gap, origin wildcard, manifest identity disagreement, unsafe filesystem cleanup, unexplained reader/writer, unresolved mandatory lens, or cross-file contradiction blocks implementation.",
+  "contract_matrix_path": "openspec/changes/harden-local-runtime-boundaries/contract-matrix-author-fix.json",
+  "contract_matrix_root": ".",
+  "contract_matrix_digest": "d996b0c2027ebae4929a896b9c6fd8bdef56ef121caddac716fbc52bfd93508c",
+  "review_revision": "197bceb18f846c7196d076a4d3d8fb7a09233782",
+  "initial_full_complete": true,
+  "initial_review_receipt_path": "openspec/changes/harden-local-runtime-boundaries/initial-review-router-compat-receipt.json",
+  "initial_review_receipt_digest": "0b64ed54c16d885c178cf527d214fe943a1fb8dfb4381b9ba8187c521638098d",
+  "pending_finding_ids": [
+    "SOL-ROUTER-001",
+    "SOL-MATRIX-001",
+    "SOL-EVIDENCE-001",
+    "SOL-AUTH-001",
+    "SOL-DATE-001",
+    "SOL-SINK-001",
+    "SOL-SQL-001",
+    "SOL-ORIGIN-001"
+  ],
+  "pending_concern_tags": [
+    "design-contract",
+    "readers-writers",
+    "execution-order",
+    "authorization",
+    "field-type"
+  ],
+  "author_fix_complete": true,
+  "author_fix_receipt_path": "openspec/changes/harden-local-runtime-boundaries/author-fix-receipt.json",
+  "author_fix_receipt_digest": "27755be40e048bebf024c8dd96f114c846c341ec1d1461e9aa8f519ea4fbad6c",
+  "changed_artifact_digest": "856a9795e77bbe81d1b3228a089700ad18a5e51ea87d80384d9d069739caa412",
+  "final_full_used": true,
+  "final_review_receipt_path": "openspec/changes/harden-local-runtime-boundaries/final-review-receipt.json",
+  "final_review_receipt_digest": "15f6166ee562583eb7b8948de94dc10138d3cd059db975e03eea102d2251669c",
+  "converged": true,
+  "new_cross_file_findings": 0,
+  "unresolved_inconclusive_lenses": [],
+  "fullCloserCount": 1,
+  "consolidatedAuthorFixes": 1,
+  "review_rounds": [
+    {
+      "kind": "initial_full_review",
+      "trusted": true,
+      "reviewer_id": "o3-initial-spec-review-sol",
+      "standard_lenses": [
+        "data-and-facts",
+        "naming-and-types",
+        "blast-radius",
+        "execution-order",
+        "logic-and-design"
+      ],
+      "trigger_lenses": [
+        "security",
+        "authorization"
+      ],
+      "finding_count": 8,
+      "finding_ids": [
+        "SOL-ROUTER-001",
+        "SOL-MATRIX-001",
+        "SOL-EVIDENCE-001",
+        "SOL-AUTH-001",
+        "SOL-DATE-001",
+        "SOL-SINK-001",
+        "SOL-SQL-001",
+        "SOL-ORIGIN-001"
+      ]
+    },
+    {
+      "kind": "consolidated_owner_fix",
+      "trusted": true,
+      "receipt_digest": "27755be40e048bebf024c8dd96f114c846c341ec1d1461e9aa8f519ea4fbad6c",
+      "reviewed_finding_count": 8,
+      "strict_validation_passed": true,
+      "author_preflight_passed": true,
+      "landing_checks_passed": true
+    },
+    {
+      "kind": "final_full_closer",
+      "trusted": true,
+      "reviewer_id": "o3-final-spec-closer-sol",
+      "standard_lenses": [
+        "data-and-facts",
+        "naming-and-types",
+        "blast-radius",
+        "execution-order",
+        "logic-and-design"
+      ],
+      "trigger_lenses": [
+        "security",
+        "authorization"
+      ],
+      "finding_count": 0,
+      "new_cross_file_findings": 0,
+      "converged": true
+    }
+  ]
+}

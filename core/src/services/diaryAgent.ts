@@ -11,6 +11,7 @@ import {
   type CustomAgentSettings,
 } from './settings.js';
 import { redactSensitiveText } from './kanbanSynthesis.js';
+import { taipeiDate } from './taipeiDate.js';
 
 const DEFAULT_ANTIGRAVITY_MODEL = 'Gemini 3.5 Flash (Medium)';
 const DEFAULT_PRINT_TIMEOUT = '90s';
@@ -373,7 +374,7 @@ export function buildProjectDiaryPrompt(snapshot: ProjectDetailSnapshot, today: 
   const sessionEvidence = snapshot.sessions
     .slice(0, 5)
     .map((session) => ({
-      date: session.start_time.slice(0, 10),
+      date: taipeiDate(new Date(session.start_time)),
       agent: session.agent_name,
       status: session.status,
       tokens: session.token_total,

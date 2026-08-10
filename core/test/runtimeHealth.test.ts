@@ -84,7 +84,7 @@ describe('Runtime health', () => {
       }
     });
 
-    it('does not grant browser read access to untrusted web origins', async () => {
+    it('rejects untrusted web origins instead of merely hiding the response with CORS', async () => {
       const db = openDb(':memory:');
       const app = createServer(db, { dbPath: ':memory:' });
       const server = app.listen(0);
@@ -96,8 +96,12 @@ describe('Runtime health', () => {
           headers: { origin: 'https://example.com' },
         });
 
-        expect(response.status).toBe(200);
+        expect(response.status).toBe(403);
         expect(response.headers.get('access-control-allow-origin')).toBeNull();
+        expect(await response.json()).toEqual({
+          error: 'forbidden_origin',
+          message: 'Browser origin is not trusted for this local service.',
+        });
       } finally {
         await new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
       }

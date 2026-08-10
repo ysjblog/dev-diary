@@ -6,6 +6,7 @@ import { redactSensitiveText } from './kanbanSynthesis.js';
 import { upsertKanbanCandidate } from './scans.js';
 import { DEFAULT_KANBAN_CARDS_PROMPT, type AppSettings } from './settings.js';
 import { createConfiguredDailySummaryAgent } from './diaryAgent.js';
+import { taipeiDate } from './taipeiDate.js';
 
 export interface KanbanAiGeneratedText {
   text: string;
@@ -102,7 +103,7 @@ export function buildKanbanAiPrompt(snapshot: ProjectDetailSnapshot, systemPromp
       source: cardSource(card.source_ref),
     })),
     recent_sessions: snapshot.sessions.slice(0, 8).map((session) => ({
-      date: session.start_time.slice(0, 10),
+      date: taipeiDate(new Date(session.start_time)),
       agent_name: session.agent_name,
       status: safeText(session.status, 40),
       summary: safeText(session.excerpt ?? session.command ?? 'no summary', 180),

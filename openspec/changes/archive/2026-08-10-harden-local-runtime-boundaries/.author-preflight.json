@@ -1,0 +1,14 @@
+{
+  "schema": "codex.openspec-author-preflight/v1",
+  "change": "harden-local-runtime-boundaries",
+  "content_sha256": "50e9d2ffaa382243077f6498bc09fe5124260455939fa758eaae8f76873c86dd",
+  "tracked_files": [
+    "openspec/changes/harden-local-runtime-boundaries/design.md",
+    "openspec/changes/harden-local-runtime-boundaries/proposal.md",
+    "openspec/changes/harden-local-runtime-boundaries/specs/dev-diary-macos-app/spec.md",
+    "openspec/changes/harden-local-runtime-boundaries/tasks.md",
+    "openspec/specs/dev-diary-macos-app/spec.md"
+  ],
+  "checked_at": "2026-08-10T01:59:56.761303+00:00",
+  "status": "pass"
+}

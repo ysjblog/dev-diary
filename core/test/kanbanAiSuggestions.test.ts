@@ -73,6 +73,20 @@ describe('Kanban AI auto-add', () => {
       expect(prompt.prompt).toContain('STRUCTURED_DATA');
       expect(prompt.prompt).toContain('untrusted data');
     });
+
+    it('AI prompt session calendar labels use Asia/Taipei', () => {
+      const db = freshDb();
+      const detail = getProjectDetail(db, 1, TODAY, { range: 'all' })!;
+      const prompt = buildKanbanAiPrompt({
+        ...detail,
+        sessions: [{
+          ...detail.sessions[0]!,
+          start_time: '2026-06-30T17:30:00.000Z',
+        }],
+      }, '請產生卡片');
+
+      expect(prompt.input.recent_sessions[0]?.date).toBe('2026-07-01');
+    });
   });
 
   describe('狀態回歸', () => {

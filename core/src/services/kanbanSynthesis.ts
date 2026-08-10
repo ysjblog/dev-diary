@@ -3,6 +3,7 @@ import { normalizeAgentId } from '../domain/agents.js';
 import type { CanonicalAgentId, GitRecentCommit, ProjectDetailSnapshot, ProjectSessionView } from '../domain/types.js';
 import { getProjectDetail, type ProjectDetailQuery } from './projects.js';
 import type { ScanKanbanCandidate } from './scans.js';
+import { taipeiDate } from './taipeiDate.js';
 
 const MAX_CARDS = 6;
 const MAX_TITLE = 72;
@@ -76,7 +77,7 @@ function todoCard(snapshot: ProjectDetailSnapshot): ScanKanbanCandidate | null {
     title: safeTitle('待辦：', basis),
     description: safeDescription(
       [
-        `Recent session ${session.start_time.slice(0, 10)} 出現明確待辦訊號，請確認是否需要排入下一步。`,
+        `Recent session ${taipeiDate(new Date(session.start_time))} 出現明確待辦訊號，請確認是否需要排入下一步。`,
         session.excerpt ? `摘要：${session.excerpt}` : '',
       ].filter(Boolean).join(' '),
     ),
@@ -95,7 +96,7 @@ function sessionCard(snapshot: ProjectDetailSnapshot): ScanKanbanCandidate | nul
     title: safeTitle('整理：', basis),
     description: safeDescription(
       [
-        `Recent session ${session.start_time.slice(0, 10)} 顯示這個切片仍需要整理成可交付狀態。`,
+        `Recent session ${taipeiDate(new Date(session.start_time))} 顯示這個切片仍需要整理成可交付狀態。`,
         session.excerpt ? `摘要：${session.excerpt}` : '',
       ].filter(Boolean).join(' '),
     ),

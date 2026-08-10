@@ -52,6 +52,28 @@ describe('Kanban auto synthesis', () => {
       expect(todo?.description).not.toMatch(/raw transcript/i);
     });
 
+    it('session calendar labels use Asia/Taipei around UTC midnight', () => {
+      const db = freshDb();
+      const snapshot = getProjectDetail(db, 1, TODAY, { range: 'all' })!;
+      const baseSession = snapshot.sessions[0]!;
+      const cards = buildKanbanSynthesisCandidates({
+        ...snapshot,
+        sessions: [{
+          ...baseSession,
+          start_time: '2026-06-30T17:30:00.000Z',
+          command: 'TODO finish timezone regression',
+          excerpt: 'blocker remains',
+          status: 'completed',
+        }],
+      });
+
+      expect(cards.filter((card) => card.source_ref.includes('/todo/') || card.source_ref.includes('/session/')))
+        .toEqual(expect.arrayContaining([
+          expect.objectContaining({ description: expect.stringContaining('Recent session 2026-07-01') }),
+        ]));
+      expect(cards.map((card) => card.description).join('\n')).not.toContain('Recent session 2026-06-30');
+    });
+
     it('dirty working tree alone does not create generic cleanup todo cards', () => {
       const db = freshDb();
       const snapshot = getProjectDetail(db, 1, TODAY, { range: '24h' })!;

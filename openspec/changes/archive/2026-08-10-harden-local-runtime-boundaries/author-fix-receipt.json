@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "matrix_digest": "d996b0c2027ebae4929a896b9c6fd8bdef56ef121caddac716fbc52bfd93508c",
+  "review_revision": "197bceb18f846c7196d076a4d3d8fb7a09233782",
+  "source_initial_matrix_digest": "e5cd3fd6a784c624256c7f4766f8987ba32581de4c4de02a7b878d8bfaa680d7",
+  "source_initial_receipt_digest": "9408293ea07c33e5088dbe6f5c87af3bd69ba59315cfda8c29ac62e5c79a14d9",
+  "reviewed_finding_ids": [
+    "SOL-ROUTER-001",
+    "SOL-MATRIX-001",
+    "SOL-EVIDENCE-001",
+    "SOL-AUTH-001",
+    "SOL-DATE-001",
+    "SOL-SINK-001",
+    "SOL-SQL-001",
+    "SOL-ORIGIN-001"
+  ],
+  "changed_artifact_digest": "856a9795e77bbe81d1b3228a089700ad18a5e51ea87d80384d9d069739caa412",
+  "landing_checks_passed": true,
+  "strict_validation_passed": true,
+  "author_preflight_receipt_digest": "bb7678d40ec5961d2596b5efe9d1fcb05ff186861c8f2afbe3fa4dbfc690dfbd",
+  "concern_tags": [
+    "design-contract",
+    "readers-writers",
+    "execution-order",
+    "authorization",
+    "field-type"
+  ],
+  "verify_strings": [
+    "same canonical receipt to carry `trigger_lens_results`",
+    "doc/test/reliability-security-hardening.md",
+    "Complete all delivery-file reconciliation before freezing the candidate digest.",
+    "Untrusted Origin GET and OPTIONS both return forbidden_origin before dispatch",
+    "Complete ISO session timestamps shown as audit facts MAY remain UTC",
+    "The authorization test seam observes next, parser, provider, and database counters independently.",
+    "^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*$",
+    "Duplicates include collisions with built-in trusted origins."
+  ],
+  "fix_report": [
+    {
+      "finding_ids": ["SOL-ROUTER-001"],
+      "what_changed": "Kept global skills out of project scope; official routing gates all five standard results while the same canonical receipt carries and separately fail-closes security/authorization trigger results."
+    },
+    {
+      "finding_ids": ["SOL-MATRIX-001"],
+      "what_changed": "Added the load-bearing doc/test worksheet to the new complete Contract Matrix inventory while retaining every authority case in Tasks/Delta covered by Author Preflight."
+    },
+    {
+      "finding_ids": ["SOL-EVIDENCE-001"],
+      "what_changed": "Added provisional discovery, moved every spec/task/MASTER delivery reconciliation before candidate freeze, and made any later edit discard/rerun all candidate evidence."
+    },
+    {
+      "finding_ids": ["SOL-AUTH-001", "SOL-SINK-001"],
+      "what_changed": "Added hostile GET/OPTIONS, trusted OPTIONS, no-Origin CLI method matrix, a direct middleware next seam, malformed JSON, provider spy, DB before/after and all-route enumeration."
+    },
+    {
+      "finding_ids": ["SOL-DATE-001"],
+      "what_changed": "Narrowed Taipei conversion to calendar labels/buckets and explicitly preserved complete Z-suffixed export timestamps as UTC audit facts with Taipei selection/grouping tests."
+    },
+    {
+      "finding_ids": ["SOL-SQL-001", "SOL-ORIGIN-001"],
+      "what_changed": "Specified the exact qualified-identifier regex plus dot/leading-digit cases and the split/trim/parse/collision order, including built-in origin collisions."
+    }
+  ],
+  "receipt_digest": "27755be40e048bebf024c8dd96f114c846c341ec1d1461e9aa8f519ea4fbad6c"
+}

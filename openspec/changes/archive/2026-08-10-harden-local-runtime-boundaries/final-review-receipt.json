@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "stage": "final",
+  "reviewer_id": "o3-final-spec-closer-sol",
+  "review_revision": "197bceb18f846c7196d076a4d3d8fb7a09233782",
+  "matrix_digest": "d996b0c2027ebae4929a896b9c6fd8bdef56ef121caddac716fbc52bfd93508c",
+  "lens_results": {
+    "data-and-facts": "pass",
+    "naming-and-types": "pass",
+    "blast-radius": "pass",
+    "execution-order": "pass",
+    "logic-and-design": "pass"
+  },
+  "trigger_lens_results": {
+    "security": "pass",
+    "authorization": "pass"
+  },
+  "required_lenses": [
+    "data-and-facts",
+    "naming-and-types",
+    "blast-radius",
+    "execution-order",
+    "logic-and-design",
+    "security",
+    "authorization"
+  ],
+  "finding_ids": [],
+  "findings": [],
+  "inconclusive_lenses": [],
+  "new_cross_file_findings": 0,
+  "full_closer_count": 1,
+  "converged": true,
+  "summary": "Fresh Sol closer accepted the fixed contract across all five standard lenses plus security and authorization. Residual no-Origin same-user-process trust and separately authorized installed LaunchAgent lifecycle proof remain explicit limitations.",
+  "receipt_digest": "15f6166ee562583eb7b8948de94dc10138d3cd059db975e03eea102d2251669c"
+}

@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "stage": "initial",
+  "reviewer_id": "o3-initial-spec-review-sol",
+  "review_revision": "197bceb18f846c7196d076a4d3d8fb7a09233782",
+  "matrix_digest": "e5cd3fd6a784c624256c7f4766f8987ba32581de4c4de02a7b878d8bfaa680d7",
+  "lens_results": {
+    "data-and-facts": "findings",
+    "naming-and-types": "findings",
+    "blast-radius": "findings",
+    "execution-order": "findings",
+    "logic-and-design": "findings"
+  },
+  "trigger_lens_results": {
+    "security": "findings",
+    "authorization": "findings"
+  },
+  "required_lenses": [
+    "data-and-facts",
+    "naming-and-types",
+    "blast-radius",
+    "execution-order",
+    "logic-and-design",
+    "security",
+    "authorization"
+  ],
+  "finding_ids": [
+    "SOL-ROUTER-001",
+    "SOL-MATRIX-001",
+    "SOL-EVIDENCE-001",
+    "SOL-AUTH-001",
+    "SOL-DATE-001",
+    "SOL-SINK-001",
+    "SOL-SQL-001",
+    "SOL-ORIGIN-001"
+  ],
+  "findings": [
+    {
+      "id": "SOL-ROUTER-001",
+      "severity": "critical",
+      "lens": "execution-order",
+      "title": "Global router does not union standard and trigger-mapped lenses",
+      "resolution_required": "Use the official five-lens router gate plus fail-closed security/authorization fields in the same digest-bound receipt without modifying out-of-scope global skills."
+    },
+    {
+      "id": "SOL-MATRIX-001",
+      "severity": "high",
+      "lens": "blast-radius",
+      "title": "Load-bearing test plan is outside the Contract Matrix",
+      "resolution_required": "Add the test plan to complete matrix inventory and keep authoritative cases in tracked Tasks/Delta."
+    },
+    {
+      "id": "SOL-EVIDENCE-001",
+      "severity": "high",
+      "lens": "execution-order",
+      "title": "Delivery reconciliation invalidates frozen candidate evidence",
+      "resolution_required": "Complete all delivery-file reconciliation before the final candidate freeze and rerun every candidate gate afterward."
+    },
+    {
+      "id": "SOL-AUTH-001",
+      "severity": "high",
+      "lens": "authorization",
+      "title": "Hostile-Origin GET and OPTIONS matrix is incomplete",
+      "resolution_required": "Add hostile GET/OPTIONS, trusted OPTIONS and no-Origin CLI GET/mutation/OPTIONS with headers and next/effect assertions."
+    },
+    {
+      "id": "SOL-DATE-001",
+      "severity": "medium",
+      "lens": "data-and-facts",
+      "title": "Broad date wording ambiguously includes UTC audit timestamps",
+      "resolution_required": "Narrow projection to calendar labels/buckets and explicitly preserve full UTC ISO audit timestamps."
+    },
+    {
+      "id": "SOL-SINK-001",
+      "severity": "medium",
+      "lens": "logic-and-design",
+      "title": "Parser, route, provider and DB zero-effect seam is underspecified",
+      "resolution_required": "Extract/test middleware next independently and combine malformed JSON, provider spy, DB before/after and all-route enumeration."
+    },
+    {
+      "id": "SOL-SQL-001",
+      "severity": "medium",
+      "lens": "naming-and-types",
+      "title": "Qualified SQL identifier grammar is not exact",
+      "resolution_required": "Specify and test the exact component regex including leading/consecutive/trailing-dot rejection."
+    },
+    {
+      "id": "SOL-ORIGIN-001",
+      "severity": "medium",
+      "lens": "naming-and-types",
+      "title": "Duplicate additional-origin collision semantics are ambiguous",
+      "resolution_required": "Define trim/parse/canonical comparison order and reject duplicates including built-in collisions."
+    }
+  ],
+  "inconclusive_lenses": [],
+  "new_cross_file_findings": 8,
+  "summary": "Trusted initial O3 review rejected the first contract. One consolidated Owner artifact fix is required before a fresh seven-lens closer.",
+  "receipt_digest": "9408293ea07c33e5088dbe6f5c87af3bd69ba59315cfda8c29ac62e5c79a14d9"
+}
