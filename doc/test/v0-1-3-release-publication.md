@@ -16,8 +16,8 @@
 - [x] Operation order invariants：先測試與打包驗證，再合併／push；先建立 immutable tag，再建立新 Release，不覆寫舊版。
 - [x] Production-like dirty data：不得選到舊 DMG 或把 ignored build artifacts commit 進 Git。
 - [x] Security bypass mixed with normal input：公開 tracked text 不得含這台機器的 checkout、volume 或使用者 home 路徑。
-- [ ] State/history/retry/refresh behavior：remote readback 必須與 local main、tag、asset SHA-256 一致。
-- [ ] Externally observable result, not only implementation detail：從 fresh DMG 複製出的 App 可用隔離 HOME／DB 啟動 Core 並回應 health。
+- [x] State/history/retry/refresh behavior：remote readback 必須與 local main、tag、asset SHA-256 一致。
+- [x] Externally observable result, not only implementation detail：從 fresh DMG 複製出的 App 可用隔離 HOME／DB 啟動 Core 並回應 health。
 
 不適用：搜尋排序、分頁、權限角色與多帳號狀態，本輪沒有這些行為。
 
@@ -37,15 +37,15 @@
 **範例輸入**：package、lockfile、Tauri、Cargo、README。
 **期待輸出**：npm lock 的 top-level 與 `packages[""]`、Cargo lock 的 `app` entry 也全部為 `0.1.3`，DMG 名稱為 `DevDiary_0.1.3_aarch64.dmg`。
 
-## [ ] 【整合流程】fresh DMG 與 App 通過 mounted verifier
+## [x] 【整合流程】fresh DMG 與 App 通過 mounted verifier
 **範例輸入**：`npm run package:mac` 產生的本輪 DMG。
 **期待輸出**：App／Applications symlink／Finder background 完整，nested Mach-O 與 outer bundle ad-hoc seal 通過，DMG integrity 通過。
 
-## [ ] 【runtime smoke】隔離安裝的 App 可啟動自己的 Core
+## [x] 【runtime smoke】隔離安裝的 App 可啟動自己的 Core
 **範例輸入**：從 DMG 複製到暫存資料夾的 `DevDiary.app`，隔離 HOME／manifest／DB。
 **期待輸出**：Core 回應 health，App bundle 啟動前後簽章保持有效，不接觸私人 runtime 資料。
 
-## [ ] 【發布 readback】本機與遠端 main、tag、Release asset 一致
+## [x] 【發布 readback】本機與遠端 main、tag、Release asset 一致
 **範例輸入**：local main、`origin/main`、`v0.1.3`、GitHub Release 與下載回讀 DMG。
 **期待輸出**：commit SHA 一致，tag 指向 main，Release asset digest 與本機 DMG SHA-256 一致。
 

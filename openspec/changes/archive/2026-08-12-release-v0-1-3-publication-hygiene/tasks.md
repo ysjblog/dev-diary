@@ -28,26 +28,26 @@ reasons: external_writes, production_contract_changes, credentials_secrets
 - [x] 2.1 Add failing regression assertions for v0.1.3 metadata alignment, current public-source private-path hygiene and verification-only GitHub workflow.
 - [x] 2.2 Synchronize version declarations/README and remove machine-specific production/demo paths while preserving legacy provenance, platform candidates and anonymous fixtures.
 - [x] 2.3 Run focused release, seed/UI, security and path-hygiene checks, including cached/untracked candidate files and a clean/hostile release-body fixture; update the Level-4 test checklist only after matching evidence passes.
-- [ ] 2.4 Prepare the current Feature Spec and Traditional-Chinese MASTER changes without archiving; keep the Change active until remote readback and all required completion evidence pass.
+- [x] 2.4 Prepare the current Feature Spec and Traditional-Chinese MASTER changes without archiving; keep the Change active until remote readback and all required completion evidence pass.
 
 ## 3. Exact Candidate and Package Verification
 
-- [ ] 3.1 Run fresh Core/UI/Rust tests, typecheck, production build, security/diff scans and candidate smoke; commit only the verified tracked allowlist.
-- [ ] 3.2 Re-run revision-bound gates on clean HEAD and build a fresh `DevDiary_0.1.3_aarch64.dmg` from that exact commit.
-- [ ] 3.3 Verify DMG integrity, App/Info.plist version, Finder layout, nested/outer signatures and isolated bundled-Core health; create basename-only `SHA256SUMS.txt`.
-- [ ] 3.4 Complete independent black-box QA and fresh security closer against the same HEAD and artifact SHA-256; any drift returns to 3.1.
+- [x] 3.1 Run fresh Core/UI/Rust tests, typecheck, production build, security/diff scans and candidate smoke; commit only the verified tracked allowlist.
+- [x] 3.2 Re-run revision-bound gates on clean HEAD and build a fresh `DevDiary_0.1.3_aarch64.dmg` from that exact commit.
+- [x] 3.3 Verify DMG integrity, App/Info.plist version, Finder layout, nested/outer signatures and isolated bundled-Core health; create basename-only `SHA256SUMS.txt`.
+- [x] 3.4 Complete independent black-box QA and fresh security closer against the same HEAD and artifact SHA-256; any drift returns to 3.1.
 
 ## 4. Merge, Push, Release and Readback
 
-- [ ] 4.1 Fast-forward local `main` to the candidate and push `origin/main` without force; assert local/remote equality.
-- [ ] 4.2 Create annotated `v0.1.3` at the same commit and push only that new tag after remote absence preflight.
-- [ ] 4.3 Create the new GitHub Release and upload only DMG/checksum without overwrite or clobber.
-- [ ] 4.4 Download both assets into a fresh temp directory, run checksum validation, compare remote/local digests and confirm main/tag/release identity plus clean worktrees.
+- [x] 4.1 Fast-forward local `main` to the candidate and push `origin/main` without force; assert local/remote equality.
+- [x] 4.2 Create annotated `v0.1.3` at the same commit and push only that new tag after remote absence preflight.
+- [x] 4.3 Create the new GitHub Release and upload only DMG/checksum without overwrite or clobber.
+- [x] 4.4 Download both assets into a fresh temp directory, run checksum validation, compare remote/local digests and confirm main/tag/release identity plus clean worktrees.
 
 ## 5. Successful Publication Closeout
 
-- [ ] 5.1 Archive this Change only after step 4.4 remote readback and all required completion evidence pass.
-- [ ] 5.2 Reconcile current Feature Spec/MASTER, run strict all-current validation/preflight, commit only documentation evidence, push `main` without force and confirm local `main == origin/main`; do not move `v0.1.3`.
+- [x] 5.1 Archive this Change only after step 4.4 remote readback and all required completion evidence pass.
+- [x] 5.2 Reconcile current Feature Spec/MASTER, run strict all-current validation/preflight, commit only documentation evidence, push `main` without force and confirm local `main == origin/main`; do not move `v0.1.3`.
 
 ## Verification
 

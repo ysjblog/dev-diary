@@ -1,6 +1,6 @@
 # DevDiary — 專案規格總覽
 
-> Last updated: 2026-08-10
+> Last updated: 2026-08-12
 > Source of truth: `openspec/specs/`；`openspec/changes/` 只放尚未封存的工作。
 > Legacy 文件位於 `docs/specs/legacy/`，僅供 provenance 查閱，不是 active contract。
 
@@ -26,7 +26,7 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 - Core ↔ UI：loopback-only Local HTTP API，`/api/health` 提供 contract version、capabilities、runtime identity 與 stale/unreachable 狀態。
 - System of record：本機 app-owned SQLite 與 app data folder；React 不直接讀 SQLite、project folder 或 agent logs。
 - Project access：只掃描明確設定的 roots、agent source paths 與 docs allowlist；project folder 與 Git 操作對 app 而言是 read-only。
-- Packaging：macOS Tauri app、bundled Node 22、manual-approval/ad-hoc-seal DMG、Applications drag-install metadata，以及 packaged startup 管理的 LaunchAgent runner。
+- Packaging：macOS Tauri app、bundled Node 22、manual-approval/ad-hoc-seal DMG、Applications drag-install metadata，以及 packaged startup 管理的 LaunchAgent runner；公開發布前會檢查現行 source／release notes 不含維護者機器專屬路徑。
 
 ## 現行功能
 
@@ -53,7 +53,8 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 
 - Core automated tests 位於 `core/test/*.test.ts`，涵蓋 scan/parser/cache/discovery、dashboard/projects/writes/Git、diary、scheduler、runtime、settings、exports、custom agents、台北日界線與瀏覽器 Origin 授權。
 - UI/API tests 位於 `src/api/*.test.js`，涵蓋 Core target、manifest owner PID、health retry、dashboard、projects、settings、shell/RWD contract 與 startup scan policy；Rust tests 另涵蓋 manifest 與 LaunchAgent 路徑／ownership。
-- 本輪 fresh checks 包含 `openspec validate --specs --strict --no-interactive`、`spec_author_preflight.py --all-current`、完整 Core/UI/Rust suites、in-memory loopback smoke、desktop-only 1280x820 UI 與獨立黑箱／安全檢查。
+- 本輪 fresh checks 包含 `openspec validate --specs --strict --no-interactive`、`spec_author_preflight.py --all-current`、完整 Core/UI/Rust suites、in-memory loopback smoke、desktop-only 1280x820 UI、v0.1.3 mounted DMG／隔離 bundled-Core 驗證，以及綁定同一 commit 與 artifact digest 的獨立黑箱／安全檢查。
+- v0.1.3 已完成 local／remote `main`、immutable tag、GitHub Release 與 fresh-downloaded asset checksum readback；發布後只有純文件 closeout 可前進 `main`，不得移動已測試的 tag。
 - 這次不宣稱使用私人 runtime DB、真人 provider、實際 launchctl/install、Finder、OAuth 或長時間 packaged soak；這些限制見下節與 migration map。
 
 ## 營運與安全
@@ -63,6 +64,7 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 - Path-like settings 走 allowlist/normalization；symlink escape/cycle、malformed/unreadable inputs 與 provider failures 會 fail-safe。
 - Custom-agent probe 使用 safe argv、bounded execution；Git snapshot 不得執行 mutating command。
 - Export 只輸出 redacted structured data；不輸出 raw SQLite、secret-like value 或不必要的 private path。
+- 現行公開 source、active specs 與 release notes 不得包含維護者 checkout、私人 volume／home 識別或 production demo root；immutable legacy provenance、匿名 fixture 與必要的 macOS platform candidate 保留。
 - 本專案目前不具 production authentication、cloud sync、remote deletion 或 multi-user authorization 契約。
 
 ## 已知限制
@@ -79,6 +81,7 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 
 ## 變更紀錄
 
+- 2026-08-12：發布 v0.1.3 並封存 `release-v0-1-3-publication-hygiene`；版本 metadata、fresh App／DMG、immutable tag、GitHub Release 與下載 checksum 已對帳，現行公開 source 加入機器專屬路徑衛生邊界，舊版 release 維持不變。
 - 2026-08-10：封存 `harden-local-runtime-boundaries`；Core 加入 pre-parser 精確 Origin 授權與跨站 Fetch Metadata 防護，所有 session 衍生日期標籤使用台北日界線，JS/Rust runtime manifest consumer 統一要求存活 PID，LaunchAgent 支援檔移至使用者 Application Support，並加入 revision-bound smoke／黑箱／安全驗證流程。
 - 2026-08-05：封存 `use-same-taipei-day-diary-scheduler`；所有 session 日期／小時統一使用台北日界線，排程改為整理執行當日截至當下的活動，只替目標日確實有 session 的專案產生 Daily diary，並加入語意版本避免舊 success 阻止首次補跑。
 - 2026-08-04：封存 `fix-automatic-daily-diary-input`；曾將 01:00 自動排程改為整理前一個台北日曆日，並補齊手動／自動共用的安全 session/commit prompt evidence；此日期策略已由 2026-08-05 Change 取代。

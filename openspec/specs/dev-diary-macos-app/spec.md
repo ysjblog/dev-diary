@@ -156,7 +156,7 @@ The system SHALL provide a Markdown daily export and a redacted structured backu
 
 ### Requirement: Packaging and desktop startup boundary
 
-The system SHALL start the Core through the Tauri desktop shell, clean up the child process on quit, and package the macOS release with the documented manual-approval/ad-hoc-seal flow, bundled Node runtime, Applications drag-install metadata, and background-runner installation behavior. Each public DMG release MUST use one new semantic version consistently across root npm metadata, npm lockfile root metadata, Tauri metadata, Cargo metadata, artifact filename, immutable Git tag, GitHub Release, and SHA-256 checksum. The release workflow MUST be manually dispatched, verify the mounted artifact before upload, and fail before publication if its requested tag, release, or expected asset already exists. The single authorized publisher MUST preflight the remote target and MUST NOT overwrite, delete, retarget, or replace an existing tag or release asset. A partial upload MUST be resumed only after readback verifies the tag/release target and every existing asset digest.
+The system SHALL start the Core through the Tauri desktop shell, clean up the child process on quit, and package the macOS release with the documented manual-approval/ad-hoc-seal flow, bundled Node runtime, Applications drag-install metadata, and background-runner installation behavior. Each public DMG release MUST use one new semantic version consistently across root npm metadata, npm lockfile root metadata, Tauri metadata, Cargo metadata, artifact filename, immutable Git tag, GitHub Release, and SHA-256 checksum. Before publication, the exact clean candidate commit MUST pass current-source privacy checks, automated source gates, mounted DMG verification, isolated bundled-Core health, independent black-box QA and a fresh security closer; the resulting App and DMG identity and digest MUST remain bound to that revision. The single authorized publisher MUST preflight the remote target and MUST NOT force-push, overwrite, delete, retarget or replace an existing tag, release or asset. A partial upload MUST be resumed only after readback verifies the tag/release target and every existing asset digest.
 
 #### Scenario: User launches the packaged app on a fresh machine
 
@@ -165,13 +165,18 @@ The system SHALL start the Core through the Tauri desktop shell, clean up the ch
 
 #### Scenario: Maintainer publishes a new DMG version
 
-- **WHEN** a maintainer has explicit authorization to publish a verified new release
-- **THEN** the version declarations, artifact filename, immutable Git tag, GitHub Release asset, and published SHA-256 value all identify the same version and commit, while earlier release assets remain unchanged.
+- **WHEN** a maintainer has explicit authorization and all revision-bound source, package, security and independent QA evidence passes
+- **THEN** publication-time local `main`, remote `main`, version declarations, artifact filename, immutable Git tag, GitHub Release asset and downloaded SHA-256 value identify the same release commit, while earlier release assets remain unchanged.
 
-#### Scenario: Upload cannot complete
+#### Scenario: Successful release is closed out in current documentation
 
-- **WHEN** tag push or GitHub asset creation fails after local artifact verification
-- **THEN** the workflow stops without overwriting an existing release asset and reports the exact recoverable remote state before any later retry.
+- **WHEN** remote asset readback and every required completion gate have passed
+- **THEN** the Change is archived and a documentation-only commit may advance local and remote `main` together while `v0.1.3` remains immutable on the tested release commit.
+
+#### Scenario: Candidate or upload drifts
+
+- **WHEN** the source revision, artifact digest, remote target or an existing asset differs from the reviewed candidate
+- **THEN** publication stops without force-pushing, overwriting, deleting or retargeting remote state and reports the exact recoverable state before any later retry.
 
 ### Requirement: Desktop-only presentation boundary
 
@@ -302,6 +307,20 @@ The macOS shell SHALL generate the background launcher and source plist below `<
 
 - **WHEN** link creation or bootstrap fails and the registration path no longer points to the exact source from the current attempt
 - **THEN** cleanup leaves that path untouched and reports the incomplete installation.
+
+### Requirement: Public release source privacy boundary
+
+The system MUST keep current tracked production source, active specifications, release documentation and newly generated public release notes free from maintainer-specific checkout paths, private volume/user-home identifiers and literal production demo roots of the form `/Users/<name>/...`. It MUST preserve immutable legacy provenance under `docs/specs/legacy/`, anonymous test fixtures and standard operating-system executable/application candidates when they are needed to explain history or verify behavior. Runtime seed paths MUST derive from a non-identifying OS-owned temporary boundary, while UI placeholder or fallback data MUST use a non-filesystem example or the current Core detection state. The privacy scanner MUST derive the current checkout/account identity without embedding the maintainer identity literal in tracked scanner source, and MUST check the release body both before creation and after remote readback.
+
+#### Scenario: Maintainer prepares current source for publication
+
+- **WHEN** the exact candidate's tracked current text and production source are scanned before commit and again before publication
+- **THEN** no real maintainer checkout/home/volume identifier or literal production `/Users/<name>/...` demo root is present outside the documented legacy/fixture/platform-candidate exceptions.
+
+#### Scenario: Required historical and platform paths are evaluated
+
+- **WHEN** a legacy provenance record, anonymous test fixture or standard macOS executable/application candidate contains an absolute path
+- **THEN** it remains unchanged when it does not identify the maintainer and is still required by history or functional verification.
 
 ## Data Contracts
 
