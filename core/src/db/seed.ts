@@ -1,5 +1,7 @@
 import type { DB } from './index.js';
 import { openDb } from './index.js';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { CanonicalAgentId } from '../domain/types.js';
 import { taipeiDate } from '../services/taipeiDate.js';
 
@@ -43,9 +45,9 @@ interface SeedProject {
 }
 
 const SEED_PROJECTS: SeedProject[] = [
-  { id: 1, name: 'Example Workspace', root_path: '/Users/demo/Developer/example-workspace', tracking_status: 'active', activity: 1.0, detected_agents: ['claude-code', 'antigravity-cli'] },
-  { id: 2, name: 'Example Agent Lab', root_path: '/Users/demo/Developer/projects/example-agent-lab', tracking_status: 'idle', activity: 0.55, detected_agents: ['codex-cli', 'claude-code'] },
-  { id: 3, name: 'Example Core', root_path: '/Users/demo/Developer/example-core', tracking_status: 'active', activity: 0.7, detected_agents: ['claude-code', 'codex-cli', 'antigravity-cli'] },
+  { id: 1, name: 'Example Workspace', root_path: join(tmpdir(), 'devdiary-example', 'workspace'), tracking_status: 'active', activity: 1.0, detected_agents: ['claude-code', 'antigravity-cli'] },
+  { id: 2, name: 'Example Agent Lab', root_path: join(tmpdir(), 'devdiary-example', 'agent-lab'), tracking_status: 'idle', activity: 0.55, detected_agents: ['codex-cli', 'claude-code'] },
+  { id: 3, name: 'Example Core', root_path: join(tmpdir(), 'devdiary-example', 'core'), tracking_status: 'active', activity: 0.7, detected_agents: ['claude-code', 'codex-cli', 'antigravity-cli'] },
 ];
 
 export interface SeedOptions {

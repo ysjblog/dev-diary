@@ -28,7 +28,7 @@ DevDiary 是一個 local-first 的 macOS 開發日記 App。它會整理你用 C
 請下載檔名類似下面的 macOS DMG：
 
 ```text
-DevDiary_0.1.2_aarch64.dmg
+DevDiary_0.1.3_aarch64.dmg
 ```
 
 下載後：
@@ -148,12 +148,12 @@ DEVDIARY_PROJECT_ROOTS="/path/to/projects:/path/to/another-project" npm start
 npm run package:mac
 ```
 
-Tauri 會先完成 DMG 的所有 resources，再在 staging image 對完整 app 做一次 ad-hoc seal。GitHub Actions 只會在 mounted verifier 通過後上傳 DMG 與 SHA-256 checksum；不需要 Apple certificate 或 notarization credentials。
+Tauri 會先完成 DMG 的所有 resources，再在 staging image 對完整 app 做一次 ad-hoc seal。GitHub Actions only builds and verifies the DMG; it does not publish release assets. 經明確授權的 maintainer 只會在所有本機與獨立驗證通過後建立新 GitHub Release；不需要 Apple certificate 或 notarization credentials。
 
 成功後會產生：
 
 ```text
-src-tauri/target/release/bundle/dmg/DevDiary_0.1.2_aarch64.dmg
+src-tauri/target/release/bundle/dmg/DevDiary_0.1.3_aarch64.dmg
 ```
 
 這個 package 目前需要本機有 Homebrew `node@22`，因為 Core 會使用 bundled `core/node_modules` 裡的 native module。

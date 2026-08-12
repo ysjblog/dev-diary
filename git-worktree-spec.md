@@ -5,7 +5,7 @@
 - Source baseline: `main` at `af1a21311eea49787d9beddbaa6d36bb29c22720`
 - Integrated predecessor: `codex/fix-daily-diary-input` at `197bceb18f846c7196d076a4d3d8fb7a09233782`
 - Working branch: `codex/reliability-security-hardening`
-- Worktree: `~/Projects/dev-diary-reliability-hardening`
+- Worktree: a dedicated local checkout for `codex/reliability-security-hardening` (machine-specific path intentionally omitted)
 
 ## Goal
 

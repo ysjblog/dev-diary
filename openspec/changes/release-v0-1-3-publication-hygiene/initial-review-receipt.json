@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "stage": "initial",
+  "reviewer_id": "/root/v013_initial_spec_review",
+  "matrix_digest": "4ae8b2bb446c2f001cd3ed5000b91c36650035ad91bc89507999c43bc539bde3",
+  "review_revision": "e66c93bba9d88a06c259327ccd3c0831cadc98cd+9f3b1a6a8b21df719c07c8424d18771729688039c5703def714744fc1e3f8e1b",
+  "lens_results": {
+    "compatibility": "findings",
+    "failure_recovery": "findings",
+    "integration_authority": "pass",
+    "rollout": "findings",
+    "secret_handling": "pass",
+    "security": "findings"
+  },
+  "finding_ids": [
+    "RPH-I-001",
+    "RPH-I-002",
+    "RPH-I-003",
+    "RPH-I-004",
+    "RPH-I-005"
+  ],
+  "verdict": "REJECT",
+  "receipt_digest": "c71e9ac1bd61f497b2d113a46b3497beac46e4f815a3214cb368e9af964cf756"
+}

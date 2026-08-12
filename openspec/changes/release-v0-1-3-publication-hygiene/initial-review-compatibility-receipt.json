@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "stage": "initial",
+  "reviewer_id": "owner-compatibility-bridge:not-independent",
+  "matrix_digest": "3c625220e34bb8a8dac7e1cb599becd1e62f651b05f350fc361b23bf74aa2055",
+  "review_revision": "e66c93bba9d88a06c259327ccd3c0831cadc98cd+45085f681c719f1ac74d599f42d59a6b23d5c97055bcd41fab66f799bf58b187",
+  "lens_results": {
+    "compatibility": "findings",
+    "failure_recovery": "findings",
+    "integration_authority": "pass",
+    "rollout": "findings",
+    "secret_handling": "pass",
+    "security": "findings"
+  },
+  "finding_ids": [
+    "RPH-I-001",
+    "RPH-I-002",
+    "RPH-I-003",
+    "RPH-I-004",
+    "RPH-I-005"
+  ],
+  "source_initial_receipt_digest": "c71e9ac1bd61f497b2d113a46b3497beac46e4f815a3214cb368e9af964cf756",
+  "provenance_note": "Compatibility bridge only: carries the independent initial findings onto the consolidated-fix matrix; it does not claim the initial reviewer approved or reviewed modified artifacts.",
+  "receipt_digest": "811f7f6ddba88c570062a7dcc9da5326724ed0673cc34267c915fcf44710a2ad"
+}

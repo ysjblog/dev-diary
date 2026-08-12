@@ -50,7 +50,7 @@
 
 ## [x] 【狀態回歸】App startup 不得改寫 bundle sealed resources
 **範例輸入**：安裝後首次冷啟動，再檢查 app signature 與 LaunchAgent 檔案位置。
-**期待輸出**：`codesign --verify --deep --strict` 仍通過；launcher／source plist 位於 `/Applications/.DevDiaryLaunchAgents`、`~/Library/LaunchAgents` symlink 能 bootstrap，不會建立 `.app/Contents/Resources/.launchagents`。
+**期待輸出**：`codesign --verify --deep --strict` 仍通過；launcher／source plist 位於 `~/Library/Application Support/DevDiary/LaunchAgents`、`~/Library/LaunchAgents` symlink 能 bootstrap，不會在 `/Applications` 旁或 app bundle 內建立支援檔。
 
 ## [x] 【狀態回歸】新裝置不再依賴固定 Homebrew Node 路徑
 **範例輸入**：沒有 `/opt/homebrew/opt/node@22/bin/node`、但 PATH 有可執行 Node 的 macOS App 環境。

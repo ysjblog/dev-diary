@@ -1,0 +1,40 @@
+{
+  "openspec_level": "o3",
+  "routing_signals": [
+    "external_write",
+    "production_contract",
+    "credentials_secrets"
+  ],
+  "review_provider": "codex",
+  "contract_matrix_path": "openspec/changes/release-v0-1-3-publication-hygiene/contract-matrix.json",
+  "contract_matrix_digest": "3c625220e34bb8a8dac7e1cb599becd1e62f651b05f350fc361b23bf74aa2055",
+  "contract_matrix_root": ".",
+  "review_revision": "e66c93bba9d88a06c259327ccd3c0831cadc98cd+45085f681c719f1ac74d599f42d59a6b23d5c97055bcd41fab66f799bf58b187",
+  "initial_full_complete": true,
+  "initial_review_receipt_path": "openspec/changes/release-v0-1-3-publication-hygiene/initial-review-compatibility-receipt.json",
+  "initial_review_receipt_digest": "811f7f6ddba88c570062a7dcc9da5326724ed0673cc34267c915fcf44710a2ad",
+  "pending_concern_tags": [
+    "data-facts",
+    "readers-writers",
+    "field-type",
+    "execution-order",
+    "design-contract"
+  ],
+  "pending_finding_ids": [
+    "RPH-I-001",
+    "RPH-I-002",
+    "RPH-I-003",
+    "RPH-I-004",
+    "RPH-I-005"
+  ],
+  "author_fix_complete": true,
+  "author_fix_receipt_path": "openspec/changes/release-v0-1-3-publication-hygiene/author-fix-receipt.json",
+  "author_fix_receipt_digest": "f89556a8ef518fc2bf9b918134e21fe6fbf8aa85932d47d2c720ea981c92b081",
+  "changed_artifact_digest": "45085f681c719f1ac74d599f42d59a6b23d5c97055bcd41fab66f799bf58b187",
+  "unresolved_inconclusive_lenses": [],
+  "final_full_used": true,
+  "final_review_receipt_path": "openspec/changes/release-v0-1-3-publication-hygiene/final-review-receipt.json",
+  "final_review_receipt_digest": "e942b4c459b0f0f57adc35c2d4cbec276f373006b460e8bf5bc6be422fbeb6b8",
+  "converged": true,
+  "new_cross_file_findings": 0
+}

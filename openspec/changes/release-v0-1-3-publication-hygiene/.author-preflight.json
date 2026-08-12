@@ -1,0 +1,14 @@
+{
+  "schema": "codex.openspec-author-preflight/v1",
+  "change": "release-v0-1-3-publication-hygiene",
+  "content_sha256": "cf17d397d55397e3a351fa0fa8b2a9bebc423b038fb9beb954112bcbdbcb597a",
+  "tracked_files": [
+    "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+    "openspec/changes/release-v0-1-3-publication-hygiene/proposal.md",
+    "openspec/changes/release-v0-1-3-publication-hygiene/specs/dev-diary-macos-app/spec.md",
+    "openspec/changes/release-v0-1-3-publication-hygiene/tasks.md",
+    "openspec/specs/dev-diary-macos-app/spec.md"
+  ],
+  "checked_at": "2026-08-12T10:51:30.883757+00:00",
+  "status": "pass"
+}

@@ -1,0 +1,545 @@
+{
+  "schema_version": 2,
+  "generated_revision": "e66c93bba9d88a06c259327ccd3c0831cadc98cd+45085f681c719f1ac74d599f42d59a6b23d5c97055bcd41fab66f799bf58b187",
+  "input_manifest_digest": "0ec044e2ee33e655126bee33a412193b396332c2c4d3662a0b3661beb752f3ea",
+  "artifact_inventory": [
+    {
+      "path": ".github/workflows/macos-release.yml",
+      "sha256": "ce897a929541255bc817af47aa6f2d27fd3e3264fe6ca051b157a15e8fde473f"
+    },
+    {
+      "path": "README.md",
+      "sha256": "8af3db839bfcfd77d4ad4cd2c289b51789d27abf0d3a1b0ce4458af375ffeb15"
+    },
+    {
+      "path": "core/src/db/seed.ts",
+      "sha256": "ccadc3fb01f6aaa27e55c54b83c893f84abb94aebd8a537f910d8756318577d7"
+    },
+    {
+      "path": "doc/test/v0-1-3-release-publication.md",
+      "sha256": "04fcdf3b079c7dd4082ba82926d07a0e86073bbb6a3f569838806fd56e94d3ce"
+    },
+    {
+      "path": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+      "sha256": "14303bc679a7b2c384222d320dbff3ac5a13335c1b0f9422a5ddf034ef07a217"
+    },
+    {
+      "path": "openspec/changes/release-v0-1-3-publication-hygiene/proposal.md",
+      "sha256": "45a201646ea013a78045921d2023fce179357974d6fa2f4187d3e9eb94094433"
+    },
+    {
+      "path": "openspec/changes/release-v0-1-3-publication-hygiene/specs/dev-diary-macos-app/spec.md",
+      "sha256": "d8a73e0e6774252a78b122313ca8bba67109a9ffe6a2a4e992ed7a397d1c1859"
+    },
+    {
+      "path": "openspec/changes/release-v0-1-3-publication-hygiene/tasks.md",
+      "sha256": "02becba8cf4d49814a41236718333929527f03e150bb661c325eb343d24dd28f"
+    },
+    {
+      "path": "openspec/specs/dev-diary-macos-app/spec.md",
+      "sha256": "ef1934f8cf45d4a3a0262876ccde44b9e380994716a8c12585afe93a2f395d9b"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "c4e30092cd129b13f1fc3cc7552ad19c942ed46f4fffc6c7f53778d9a0c10700"
+    },
+    {
+      "path": "package.json",
+      "sha256": "debc2385ce1221b499d0d04247e89788ba7d08ac6c5dc25045dd3fc44922bb9c"
+    },
+    {
+      "path": "scripts/check-public-release-hygiene.mjs",
+      "sha256": "10f113032fa7443102f9dd1cc1271fce2ac8df4e062fc55ac55cad801c85f283"
+    },
+    {
+      "path": "scripts/package-mac-release.sh",
+      "sha256": "4b9e202c299e881b6a21ffc167a8675837ec2e52ba714b9a219d3c9559132dbd"
+    },
+    {
+      "path": "scripts/verify-macos-release.sh",
+      "sha256": "2d7d602cd523f69240e5289df19fe318a07d5b6b0718849dfd6ab0662d96cc22"
+    },
+    {
+      "path": "src/App.jsx",
+      "sha256": "aa92710f80cb783b27c6a661453928234f7926ed6a06dfb1ce7e3a3ef4632519"
+    },
+    {
+      "path": "src/api/releaseDistribution.test.js",
+      "sha256": "5a8298337e3c24811e340fd50eeb6eb3f320357a8de108d8f3727e648fcd9ee5"
+    },
+    {
+      "path": "src-tauri/Cargo.lock",
+      "sha256": "7d8a0fde4480082869182f1c285d0dd3baa237d5ef53076c9673286404079bdb"
+    },
+    {
+      "path": "src-tauri/Cargo.toml",
+      "sha256": "da62be5513a7e8a9218cabbd9ba9132ab641735c34c6c95a4a92d6df83e6277c"
+    },
+    {
+      "path": "src-tauri/tauri.conf.json",
+      "sha256": "cf45bd8b7c41cada028d2893bbe24a5ee61be4b6a4e11ea94ff37f135bff0b24"
+    }
+  ],
+  "inventory_scope": {
+    "change": [
+      ".github/workflows/macos-release.yml",
+      "README.md",
+      "core/src/db/seed.ts",
+      "doc/test/v0-1-3-release-publication.md",
+      "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+      "openspec/changes/release-v0-1-3-publication-hygiene/proposal.md",
+      "openspec/changes/release-v0-1-3-publication-hygiene/specs/dev-diary-macos-app/spec.md",
+      "openspec/changes/release-v0-1-3-publication-hygiene/tasks.md",
+      "package-lock.json",
+      "package.json",
+      "scripts/check-public-release-hygiene.mjs",
+      "scripts/package-mac-release.sh",
+      "scripts/verify-macos-release.sh",
+      "src-tauri/Cargo.lock",
+      "src-tauri/Cargo.toml",
+      "src-tauri/tauri.conf.json",
+      "src/App.jsx",
+      "src/api/releaseDistribution.test.js"
+    ],
+    "baseline": [
+      "openspec/specs/dev-diary-macos-app/spec.md"
+    ]
+  },
+  "invariants": [
+    {
+      "id": "hygiene",
+      "value": "maintainer-specific checkout paths",
+      "search_terms": [
+        "maintainer-specific checkout paths"
+      ],
+      "writers": [
+        "core/src/db/seed.ts",
+        "scripts/check-public-release-hygiene.mjs",
+        "src/App.jsx"
+      ],
+      "readers": [
+        "openspec/changes/release-v0-1-3-publication-hygiene/specs/dev-diary-macos-app/spec.md",
+        "src/api/releaseDistribution.test.js"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/specs/dev-diary-macos-app/spec.md",
+          "line": 21
+        }
+      ]
+    },
+    {
+      "id": "release-note-hygiene",
+      "value": "Release notes MUST pass the same privacy scanner before creation and after remote readback.",
+      "search_terms": [
+        "Release notes MUST pass the same privacy scanner before creation and after remote readback."
+      ],
+      "writers": [
+        "scripts/check-public-release-hygiene.mjs"
+      ],
+      "readers": [
+        "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+        "openspec/changes/release-v0-1-3-publication-hygiene/tasks.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 84
+        }
+      ]
+    },
+    {
+      "id": "version",
+      "value": "0.1.3",
+      "search_terms": [
+        "0.1.3"
+      ],
+      "writers": [
+        "package-lock.json",
+        "package.json",
+        "src-tauri/Cargo.lock",
+        "src-tauri/Cargo.toml",
+        "src-tauri/tauri.conf.json"
+      ],
+      "readers": [
+        "scripts/package-mac-release.sh",
+        "scripts/verify-macos-release.sh",
+        "src/api/releaseDistribution.test.js"
+      ],
+      "occurrences": [
+        {
+          "file": "README.md",
+          "line": 31
+        },
+        {
+          "file": "README.md",
+          "line": 156
+        },
+        {
+          "file": "doc/test/v0-1-3-release-publication.md",
+          "line": 1
+        },
+        {
+          "file": "doc/test/v0-1-3-release-publication.md",
+          "line": 28
+        },
+        {
+          "file": "doc/test/v0-1-3-release-publication.md",
+          "line": 36
+        },
+        {
+          "file": "doc/test/v0-1-3-release-publication.md",
+          "line": 38
+        },
+        {
+          "file": "doc/test/v0-1-3-release-publication.md",
+          "line": 49
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 11
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 16
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 22
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 30
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 35
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 41
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 53
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 54
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 58
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 64
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 89
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 91
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 102
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/proposal.md",
+          "line": 11
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/proposal.md",
+          "line": 19
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/proposal.md",
+          "line": 21
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/proposal.md",
+          "line": 22
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/proposal.md",
+          "line": 44
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/proposal.md",
+          "line": 59
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/specs/dev-diary-macos-app/spec.md",
+          "line": 52
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/specs/dev-diary-macos-app/spec.md",
+          "line": 66
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/tasks.md",
+          "line": 17
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/tasks.md",
+          "line": 28
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/tasks.md",
+          "line": 36
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/tasks.md",
+          "line": 43
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/tasks.md",
+          "line": 50
+        },
+        {
+          "file": "package-lock.json",
+          "line": 3
+        },
+        {
+          "file": "package-lock.json",
+          "line": 9
+        },
+        {
+          "file": "package.json",
+          "line": 4
+        },
+        {
+          "file": "src/api/releaseDistribution.test.js",
+          "line": 28
+        },
+        {
+          "file": "src/api/releaseDistribution.test.js",
+          "line": 59
+        },
+        {
+          "file": "src-tauri/Cargo.lock",
+          "line": 80
+        },
+        {
+          "file": "src-tauri/Cargo.lock",
+          "line": 1385
+        },
+        {
+          "file": "src-tauri/Cargo.lock",
+          "line": 3236
+        },
+        {
+          "file": "src-tauri/Cargo.lock",
+          "line": 3862
+        },
+        {
+          "file": "src-tauri/Cargo.lock",
+          "line": 4047
+        },
+        {
+          "file": "src-tauri/Cargo.lock",
+          "line": 4314
+        },
+        {
+          "file": "src-tauri/Cargo.lock",
+          "line": 4335
+        },
+        {
+          "file": "src-tauri/Cargo.lock",
+          "line": 4360
+        },
+        {
+          "file": "src-tauri/Cargo.lock",
+          "line": 4388
+        },
+        {
+          "file": "src-tauri/Cargo.lock",
+          "line": 4405
+        },
+        {
+          "file": "src-tauri/Cargo.lock",
+          "line": 4414
+        },
+        {
+          "file": "src-tauri/Cargo.lock",
+          "line": 4432
+        },
+        {
+          "file": "src-tauri/Cargo.lock",
+          "line": 4534
+        },
+        {
+          "file": "src-tauri/Cargo.toml",
+          "line": 3
+        },
+        {
+          "file": "src-tauri/tauri.conf.json",
+          "line": 4
+        }
+      ]
+    },
+    {
+      "id": "locks",
+      "value": "the `app` package entry in `src-tauri/Cargo.lock`",
+      "search_terms": [
+        "the `app` package entry in `src-tauri/Cargo.lock`"
+      ],
+      "writers": [
+        "package-lock.json",
+        "src-tauri/Cargo.lock"
+      ],
+      "readers": [
+        "src/api/releaseDistribution.test.js"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 49
+        }
+      ]
+    },
+    {
+      "id": "artifact",
+      "value": "DevDiary_0.1.3_aarch64.dmg",
+      "search_terms": [
+        "DevDiary_0.1.3_aarch64.dmg"
+      ],
+      "writers": [
+        "scripts/package-mac-release.sh"
+      ],
+      "readers": [
+        "README.md",
+        "scripts/verify-macos-release.sh"
+      ],
+      "occurrences": [
+        {
+          "file": "README.md",
+          "line": 31
+        },
+        {
+          "file": "README.md",
+          "line": 156
+        },
+        {
+          "file": "doc/test/v0-1-3-release-publication.md",
+          "line": 38
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 53
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/proposal.md",
+          "line": 21
+        },
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/tasks.md",
+          "line": 36
+        }
+      ]
+    },
+    {
+      "id": "remote-identity",
+      "value": "Remote identity at publication",
+      "search_terms": [
+        "Remote identity at publication"
+      ],
+      "writers": [
+        "openspec/changes/release-v0-1-3-publication-hygiene/design.md"
+      ],
+      "readers": [
+        "openspec/changes/release-v0-1-3-publication-hygiene/tasks.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 54
+        }
+      ]
+    },
+    {
+      "id": "immutable",
+      "value": "MUST NOT force-push, overwrite, delete, retarget or replace",
+      "search_terms": [
+        "MUST NOT force-push, overwrite, delete, retarget or replace"
+      ],
+      "writers": [
+        "openspec/changes/release-v0-1-3-publication-hygiene/specs/dev-diary-macos-app/spec.md"
+      ],
+      "readers": [
+        "openspec/changes/release-v0-1-3-publication-hygiene/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/specs/dev-diary-macos-app/spec.md",
+          "line": 37
+        }
+      ]
+    },
+    {
+      "id": "partial-recovery",
+      "value": "exactly one expected asset exists",
+      "search_terms": [
+        "exactly one expected asset exists"
+      ],
+      "writers": [
+        "openspec/changes/release-v0-1-3-publication-hygiene/design.md"
+      ],
+      "readers": [
+        "openspec/changes/release-v0-1-3-publication-hygiene/tasks.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/design.md",
+          "line": 76
+        }
+      ]
+    },
+    {
+      "id": "workflow-authority",
+      "value": "contents: read",
+      "search_terms": [
+        "contents: read"
+      ],
+      "writers": [
+        ".github/workflows/macos-release.yml"
+      ],
+      "readers": [
+        "src/api/releaseDistribution.test.js"
+      ],
+      "occurrences": [
+        {
+          "file": ".github/workflows/macos-release.yml",
+          "line": 12
+        },
+        {
+          "file": "src/api/releaseDistribution.test.js",
+          "line": 82
+        }
+      ]
+    },
+    {
+      "id": "archive-order",
+      "value": "Archive this Change only after step 4.4 remote readback and all required completion evidence pass.",
+      "search_terms": [
+        "Archive this Change only after step 4.4 remote readback and all required completion evidence pass."
+      ],
+      "writers": [
+        "openspec/changes/release-v0-1-3-publication-hygiene/tasks.md"
+      ],
+      "readers": [
+        "openspec/changes/release-v0-1-3-publication-hygiene/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/release-v0-1-3-publication-hygiene/tasks.md",
+          "line": 49
+        }
+      ]
+    }
+  ],
+  "matrix_digest": "3c625220e34bb8a8dac7e1cb599becd1e62f651b05f350fc361b23bf74aa2055"
+}

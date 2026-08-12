@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "matrix_digest": "3c625220e34bb8a8dac7e1cb599becd1e62f651b05f350fc361b23bf74aa2055",
+  "review_revision": "e66c93bba9d88a06c259327ccd3c0831cadc98cd+45085f681c719f1ac74d599f42d59a6b23d5c97055bcd41fab66f799bf58b187",
+  "reviewed_finding_ids": [
+    "RPH-I-001",
+    "RPH-I-002",
+    "RPH-I-003",
+    "RPH-I-004",
+    "RPH-I-005"
+  ],
+  "changed_artifact_digest": "45085f681c719f1ac74d599f42d59a6b23d5c97055bcd41fab66f799bf58b187",
+  "landing_checks_passed": true,
+  "strict_validation_passed": true,
+  "author_preflight_receipt_digest": "343227c3684328913a4afb7c7abbb81f428d227c8d1ceb54e2a8428c811b2c40",
+  "receipt_digest": "f89556a8ef518fc2bf9b918134e21fe6fbf8aa85932d47d2c720ea981c92b081"
+}

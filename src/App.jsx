@@ -64,7 +64,7 @@ import TrendChart from './components/TrendChart.jsx';
         id: 1,
         name: "Example Workspace UI",
         status: "active",
-        path: "/Users/demo/Developer/example-workspace-ui",
+        path: "example://workspace-ui",
         agents: ["antigravity-cli", "claude-code"],
         logsCount: 12,
         tokensCount: "24.5k",
@@ -101,7 +101,7 @@ import TrendChart from './components/TrendChart.jsx';
         id: 2,
         name: "Open Design CLI",
         status: "idle",
-        path: "/Users/demo/Developer/projects/od-cli",
+        path: "example://open-design-cli",
         agents: ["antigravity-cli"],
         logsCount: 8,
         tokensCount: "12.8k",
@@ -130,7 +130,7 @@ import TrendChart from './components/TrendChart.jsx';
         id: 3,
         name: "SQLite Auth Service",
         status: "idle",
-        path: "/Users/demo/Developer/projects/sqlite-auth",
+        path: "example://sqlite-auth",
         agents: ["claude-code"],
         logsCount: 5,
         tokensCount: "5.2k",
@@ -151,8 +151,8 @@ import TrendChart from './components/TrendChart.jsx';
     ];
 
     const INITIAL_AGENTS = [
-      { id: "antigravity-cli", name: "Antigravity CLI", version: "v2.0.4", status: "connected", active: true, path: "/opt/homebrew/bin/agy" },
-      { id: "claude-code", name: "Claude Code Core", version: "v0.1.2", status: "connected", active: true, path: "/usr/local/bin/claude" },
+      { id: "antigravity-cli", name: "Antigravity CLI", version: "Settings", status: "connected", active: true, path: "等待 Core 偵測" },
+      { id: "claude-code", name: "Claude Code Core", version: "Settings", status: "connected", active: true, path: "等待 Core 偵測" },
       { id: "codex", name: "Codex CLI Engine", version: "v1.1.0", status: "disconnected", active: false, path: "未偵測到預設執行路徑" }
     ];
 
@@ -1609,7 +1609,7 @@ import TrendChart from './components/TrendChart.jsx';
                       rows={5}
                       value={onboardingRootsText}
                       onChange={(e) => setOnboardingRootsText(e.target.value)}
-                      placeholder="/Users/demo/Developer/projects"
+                      placeholder="/path/to/projects"
                     />
                     <label>預設 AI Diary Agent</label>
                     <select className="wizard-input" value={onboardingAgent} onChange={(e) => setOnboardingAgent(e.target.value)}>
