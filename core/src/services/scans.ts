@@ -5,11 +5,11 @@ import type { KanbanAiSyncResult } from '../domain/types.js';
 import { createCliLogScanProvider, type CliLogParserOptions } from './cliLogParser.js';
 import { createSqliteFileScanCache } from './logFileScanCache.js';
 import { synthesizeProjectKanban } from './kanbanSynthesis.js';
-import { discoverProjectsFromRoots } from './projectDiscovery.js';
+import { discoverProjectsFromRoots, reconcileMissingProjects } from './projectDiscovery.js';
 import { taipeiDate } from './taipeiDate.js';
 
 type ScanScope = 'global' | 'project';
-type SkipReason = 'ignored' | 'scan_paused';
+type SkipReason = 'ignored' | 'scan_paused' | 'missing';
 
 export interface ScannableProject {
   id: number;
@@ -17,6 +17,7 @@ export interface ScannableProject {
   root_path: string;
   ignored: boolean;
   scan_paused: boolean;
+  presence_status?: 'present' | 'missing';
 }
 
 export interface ScanSessionCandidate {
@@ -204,12 +205,12 @@ function defaultProvider(): ScanProvider {
 function projectRows(db: DB, scope: ScanScope, projectId?: number): ScannableProject[] {
   if (scope === 'project') {
     const row = db
-      .prepare(`SELECT id, name, root_path, ignored, scan_paused FROM projects WHERE id = ?`)
+      .prepare(`SELECT id, name, root_path, ignored, scan_paused, presence_status FROM projects WHERE id = ?`)
       .get(projectId ?? -1) as Record<string, unknown> | undefined;
     if (!row) throw new ScanNotFoundError(`project ${projectId} not found`);
     return [toProject(row)];
   }
-  return (db.prepare(`SELECT id, name, root_path, ignored, scan_paused FROM projects ORDER BY id`).all() as Record<string, unknown>[]).map(
+  return (db.prepare(`SELECT id, name, root_path, ignored, scan_paused, presence_status FROM projects ORDER BY id`).all() as Record<string, unknown>[]).map(
     toProject,
   );
 }
@@ -221,6 +222,7 @@ function toProject(row: Record<string, unknown>): ScannableProject {
     root_path: String(row.root_path),
     ignored: Boolean(row.ignored),
     scan_paused: Boolean(row.scan_paused),
+    presence_status: row.presence_status === 'missing' ? 'missing' : 'present',
   };
 }
 
@@ -228,7 +230,9 @@ function splitEligible(projects: ScannableProject[]): { eligible: ScannableProje
   const eligible: ScannableProject[] = [];
   const skipped: SkippedProject[] = [];
   for (const p of projects) {
-    if (p.ignored) {
+    if (p.presence_status === 'missing') {
+      skipped.push({ project_id: p.id, reason: 'missing' });
+    } else if (p.ignored) {
       skipped.push({ project_id: p.id, reason: 'ignored' });
     } else if (p.scan_paused) {
       skipped.push({ project_id: p.id, reason: 'scan_paused' });
@@ -447,44 +451,52 @@ export function upsertKanbanCandidate(
   projectId: number,
   card: ScanKanbanCandidate,
   timestamp: string,
+  assertWriteAllowed?: () => void,
 ): { inserted: boolean; updated: boolean } {
-  const existing = db
-    .prepare(`SELECT id, status_locked_by_user FROM kanban_cards WHERE project_id = ? AND source_ref = ?`)
-    .get(projectId, card.source_ref) as { id: number; status_locked_by_user: number } | undefined;
+  const upsert = db.transaction((): { inserted: boolean; updated: boolean } => {
+    // BEGIN IMMEDIATE is acquired before the fence is checked. A competing
+    // scheduler owner therefore cannot change the generation between this
+    // assertion and the following SELECT/INSERT/UPDATE.
+    assertWriteAllowed?.();
+    const existing = db
+      .prepare(`SELECT id, status_locked_by_user FROM kanban_cards WHERE project_id = ? AND source_ref = ?`)
+      .get(projectId, card.source_ref) as { id: number; status_locked_by_user: number } | undefined;
 
-  if (!existing) {
+    if (!existing) {
+      db.prepare(
+        `INSERT INTO kanban_cards (project_id, title, description, status, assignee_agent_id,
+           due_date, source_ref, status_locked_by_user, created_at, updated_at)
+         VALUES (@project_id, @title, @description, @status, @assignee_agent_id,
+           NULL, @source_ref, 0, @created_at, @updated_at)`,
+      ).run({
+        project_id: projectId,
+        ...card,
+        created_at: timestamp,
+        updated_at: timestamp,
+      });
+      return { inserted: true, updated: false };
+    }
+
     db.prepare(
-      `INSERT INTO kanban_cards (project_id, title, description, status, assignee_agent_id,
-         due_date, source_ref, status_locked_by_user, created_at, updated_at)
-       VALUES (@project_id, @title, @description, @status, @assignee_agent_id,
-         NULL, @source_ref, 0, @created_at, @updated_at)`,
+      `UPDATE kanban_cards
+       SET title = @title,
+           description = @description,
+           status = CASE WHEN status_locked_by_user = 1 THEN status ELSE @status END,
+           assignee_agent_id = @assignee_agent_id,
+           updated_at = @updated_at
+       WHERE id = @id AND project_id = @project_id`,
     ).run({
+      id: existing.id,
       project_id: projectId,
-      ...card,
-      created_at: timestamp,
+      title: card.title,
+      description: card.description,
+      status: card.status,
+      assignee_agent_id: card.assignee_agent_id,
       updated_at: timestamp,
     });
-    return { inserted: true, updated: false };
-  }
-
-  db.prepare(
-    `UPDATE kanban_cards
-     SET title = @title,
-         description = @description,
-         status = CASE WHEN status_locked_by_user = 1 THEN status ELSE @status END,
-         assignee_agent_id = @assignee_agent_id,
-         updated_at = @updated_at
-     WHERE id = @id AND project_id = @project_id`,
-  ).run({
-    id: existing.id,
-    project_id: projectId,
-    title: card.title,
-    description: card.description,
-    status: card.status,
-    assignee_agent_id: card.assignee_agent_id,
-    updated_at: timestamp,
+    return { inserted: false, updated: true };
   });
-  return { inserted: false, updated: true };
+  return upsert.immediate();
 }
 
 export function runManualScan(db: DB, opts: ManualScanOptions): ManualScanResult {
@@ -492,6 +504,7 @@ export function runManualScan(db: DB, opts: ManualScanOptions): ManualScanResult
   const provider = opts.provider ?? defaultProvider();
   if (opts.scope === 'global' && opts.projectRoots?.length) {
     discoverProjectsFromRoots(db, opts.projectRoots, { now: startedAt });
+    reconcileMissingProjects(db, opts.projectRoots, { now: startedAt });
   }
   const projects = projectRows(db, opts.scope, opts.projectId);
   const { eligible, skipped } = splitEligible(projects);

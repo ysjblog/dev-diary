@@ -115,7 +115,7 @@ export function buildDailyMarkdownExport(db: DB, opts: DailyMarkdownExportOption
      WHERE date = ?`,
     opts.date,
   );
-  const projects = rows<{ id: number; name: string }>(db, `SELECT id, name FROM projects WHERE ignored = 0 ORDER BY id`);
+  const projects = rows<{ id: number; name: string }>(db, `SELECT id, name FROM projects WHERE ignored = 0 AND presence_status = 'present' ORDER BY id`);
   const projectSummaries = rows<{ project_id: number; markdown_user: string | null; markdown_ai: string | null }>(
     db,
     `SELECT project_id, markdown_user, markdown_ai FROM project_summaries`,

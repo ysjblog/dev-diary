@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "openspec_level": "o3",
+  "protocol_version": 2,
+  "routing_signals": [
+    "external_write",
+    "production_contract"
+  ],
+  "review_provider": "codex",
+  "contract_matrix_path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/contract-matrix.json",
+  "contract_matrix_digest": "68fe9ae27e0773e74a1b3e2036964f2ec10b0ef55157f68f38feff8604461993",
+  "contract_matrix_root": ".",
+  "review_revision": "3dccf669dc4b952818a89378cf1e4754d708248d",
+  "initial_full_complete": true,
+  "initial_review_receipt_path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/initial-review-receipt.json",
+  "initial_review_receipt_digest": "a0d007b96c138c1571b2bcea7c2cc86b1b862adc4806856b7f2f2cf27fd60fb5",
+  "author_fix_complete": true,
+  "author_fix_receipt_path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/author-fix-receipt.json",
+  "author_fix_receipt_digest": "42fcf66d47835418e7ce6164621c971d6171b21918994b8d1d7a43e16fe1d9bd",
+  "final_full_used": true,
+  "final_review_receipt_path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/final-review-receipt.json",
+  "final_review_receipt_digest": "37c6fb4e9baa66d23eb25e0f59f2b8ce648cd32ce309b63ea5f82311557ae6f7",
+  "pending_concern_tags": [
+    "data-facts",
+    "execution-order",
+    "design-contract",
+    "readers-writers"
+  ],
+  "pending_finding_ids": [
+    "COMPAT-001",
+    "RECOVERY-001",
+    "RECOVERY-002",
+    "RECOVERY-003",
+    "AUTH-001",
+    "RECOVERY-004",
+    "AUTH-002",
+    "ROLLOUT-001"
+  ],
+  "changed_artifact_digest": "d59810aaa2bde9e0abb44b0eefe48faa586d9a60a362b4c0e91d70e221f520df",
+  "unresolved_inconclusive_lenses": [],
+  "new_cross_file_findings": 5,
+  "converged": false
+}

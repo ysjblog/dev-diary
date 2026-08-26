@@ -25,7 +25,7 @@ describe('release distribution safeguards', () => {
     ])
     const version = JSON.parse(packageJson).version
 
-    assert.equal(version, '0.1.3')
+    assert.equal(version, '0.1.4')
     const parsedPackageLock = JSON.parse(packageLock)
     assert.equal(parsedPackageLock.version, version)
     assert.equal(parsedPackageLock.packages[''].version, version)
@@ -56,7 +56,7 @@ describe('release distribution safeguards', () => {
       home: '/Users/release-owner',
       worktrees: ['/private/build/devdiary'],
     })
-    assert.equal(findPrivateIdentity('DevDiary v0.1.3 fixes Taipei dates.', matchers), null)
+    assert.equal(findPrivateIdentity('DevDiary v0.1.4 improves local providers.', matchers), null)
     assert.notEqual(findPrivateIdentity('Built from /private/build/devdiary', matchers), null)
     assert.notEqual(findPrivateIdentity('Owner path /Users/release-owner/project', matchers), null)
     assert.notEqual(findPrivateIdentity('Volume /Volumes/Build/release-owner/project', matchers), null)

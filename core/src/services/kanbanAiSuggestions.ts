@@ -5,15 +5,16 @@ import { getProjectDetail, type ProjectDetailQuery } from './projects.js';
 import { redactSensitiveText } from './kanbanSynthesis.js';
 import { upsertKanbanCandidate } from './scans.js';
 import { DEFAULT_KANBAN_CARDS_PROMPT, type AppSettings } from './settings.js';
-import { createConfiguredDailySummaryAgent } from './diaryAgent.js';
+import { createConfiguredDailySummaryAgent, type ProviderRunContext } from './diaryAgent.js';
 import { taipeiDate } from './taipeiDate.js';
 
 export interface KanbanAiGeneratedText {
   text: string;
   agent_id: string;
+  fallback_report?: string | null;
 }
 
-export type KanbanAiTextGenerator = (prompt: string) => Promise<KanbanAiGeneratedText>;
+export type KanbanAiTextGenerator = (prompt: string, context?: ProviderRunContext) => Promise<KanbanAiGeneratedText>;
 
 export interface KanbanAiPromptBuildResult {
   input: KanbanAiPromptInput;
@@ -24,6 +25,8 @@ export interface KanbanAiSyncOptions {
   generator?: KanbanAiTextGenerator | null;
   force?: boolean;
   now?: string;
+  assertWriteAllowed?: () => void;
+  signal?: AbortSignal;
 }
 
 type RawCard = Record<string, unknown>;
@@ -229,17 +232,24 @@ function parseSuggestions(raw: string, projectId: number, snapshot: ProjectDetai
   return { cards, skipped, warnings };
 }
 
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, signal?: AbortSignal): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
+  let abortListener: (() => void) | undefined;
   try {
     return await Promise.race([
       promise,
       new Promise<T>((_, reject) => {
         timer = setTimeout(() => reject(new Error('Kanban AI provider timeout')), timeoutMs);
       }),
+      ...(signal ? [new Promise<T>((_, reject) => {
+        abortListener = () => reject(signal.reason instanceof Error ? signal.reason : new Error('Kanban AI provider aborted'));
+        if (signal.aborted) abortListener();
+        else signal.addEventListener('abort', abortListener, { once: true });
+      })] : []),
     ]);
   } finally {
     if (timer) clearTimeout(timer);
+    if (abortListener) signal?.removeEventListener('abort', abortListener);
   }
 }
 
@@ -259,6 +269,7 @@ export async function syncKanbanAiCards(
     warnings,
     agent_id: agentId,
     enabled,
+    fallback_report: warnings[0] ?? null,
   });
   if (!enabled) return empty(['Kanban AI auto-add disabled.']);
   if (!options.generator) return empty(['Kanban AI provider disabled.']);
@@ -269,15 +280,23 @@ export async function syncKanbanAiCards(
 
   let generated: KanbanAiGeneratedText;
   try {
-    generated = await withTimeout(options.generator(prompt), settings.kanban_ai_auto_add.timeout_ms);
+    options.assertWriteAllowed?.();
+    generated = await withTimeout(options.generator(prompt, { signal: options.signal, assertLease: options.assertWriteAllowed }), settings.kanban_ai_auto_add.timeout_ms, options.signal);
+    options.assertWriteAllowed?.();
   } catch (err) {
+    options.assertWriteAllowed?.();
     return empty([err instanceof Error ? err.message : 'Kanban AI provider failed.']);
   }
 
   const parsed = parseSuggestions(generated.text, projectId, snapshot, settings);
+  if (parsed.cards.length === 0 && parsed.warnings.length > 0) {
+    return empty(parsed.warnings);
+  }
+  options.assertWriteAllowed?.();
   let inserted = 0;
   let updated = 0;
   for (const card of parsed.cards) {
+    options.assertWriteAllowed?.();
     const upsert = upsertKanbanCandidate(
       db,
       projectId,
@@ -289,6 +308,7 @@ export async function syncKanbanAiCards(
         source_ref: card.source_ref,
       },
       options.now ?? new Date().toISOString(),
+      options.assertWriteAllowed,
     );
     if (upsert.inserted) inserted += 1;
     if (upsert.updated) updated += 1;
@@ -300,6 +320,7 @@ export async function syncKanbanAiCards(
     warnings: parsed.warnings,
     agent_id: generated.agent_id,
     enabled,
+    fallback_report: generated.fallback_report ?? null,
   };
 }
 
@@ -311,6 +332,7 @@ export function emptyKanbanAiSync(enabled: boolean, warnings: string[] = []): Ka
     warnings,
     agent_id: null,
     enabled,
+    fallback_report: warnings[0] ?? null,
   };
 }
 
@@ -318,8 +340,8 @@ export function createConfiguredKanbanAiGenerator(settings: AppSettings): Kanban
   if (settings.default_diary_agent === 'claude-code') return null;
   const generator = createConfiguredDailySummaryAgent(settings);
   if (!generator) return null;
-  return async (prompt) => {
-    const draft = await generator(prompt);
+  return async (prompt, context) => {
+    const draft = await generator(prompt, context);
     return {
       text: draft.markdown,
       agent_id: draft.agent_id,

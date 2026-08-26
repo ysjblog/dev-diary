@@ -1,7 +1,7 @@
 {
   "name": "devdiary-ui",
   "private": true,
-  "version": "0.1.3",
+  "version": "0.1.4",
   "type": "module",
   "description": "自動開發日記 (DevDiary) macOS App — React UI（從 Open Design prototype 移植）",
   "scripts": {

@@ -2,13 +2,17 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { symlinkSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { openDb, type DB } from '../src/db/index.js';
 import { seedDatabase } from '../src/db/seed.js';
 import { createServer } from '../src/server.js';
 import { discoverProjectsFromRoots } from '../src/services/projectDiscovery.js';
+import { reconcileMissingProjects } from '../src/services/projectDiscovery.js';
 import { createCliLogScanProvider, escapeClaudeProjectPath } from '../src/services/cliLogParser.js';
 import { createConfiguredScanProvider, runManualScan, type ScanProvider } from '../src/services/scans.js';
+import { getProjectList } from '../src/services/projects.js';
+import { DailySchedulerRuntime } from '../src/services/dailyScheduler.js';
 
 const TODAY = '2026-06-28';
 const roots: string[] = [];
@@ -76,6 +80,106 @@ afterEach(() => {
 });
 
 describe('Project root discovery', () => {
+  it('requires two distinct due observations, preserves all history, excludes work and restores the same id', async () => {
+    const db = freshDb();
+    const root = tempRoot();
+    const repo = initRepo(root, 'Gone Later');
+    discoverProjectsFromRoots(db, [root], { now: '2026-06-01T00:00:00.000Z' });
+    const id = (db.prepare(`SELECT id FROM projects WHERE root_path = ?`).get(repo) as { id: number }).id;
+    db.prepare(`INSERT INTO sessions (project_id, agent_name, model, start_time, source_log_ref) VALUES (?, 'codex-cli', 'test', ?, ?)`).run(id, '2026-06-01T01:00:00.000Z', `history-${id}`);
+    db.prepare(`INSERT INTO project_daily_diaries (project_id, date, markdown, status, created_at, updated_at) VALUES (?, '2026-06-01', 'history', 'confirmed', ?, ?)`).run(id, '2026-06-01T02:00:00.000Z', '2026-06-01T02:00:00.000Z');
+    db.prepare(`INSERT INTO project_summaries (project_id, markdown_user, user_updated_at) VALUES (?, 'history', ?)`).run(id, '2026-06-01T02:00:00.000Z');
+    db.prepare(`INSERT INTO kanban_cards (project_id, title, status, created_at, updated_at) VALUES (?, 'history', 'todo', ?, ?)`).run(id, '2026-06-01T02:00:00.000Z', '2026-06-01T02:00:00.000Z');
+    db.prepare(`INSERT INTO comments (project_id, content, created_at, updated_at) VALUES (?, 'history', ?, ?)`).run(id, '2026-06-01T02:00:00.000Z', '2026-06-01T02:00:00.000Z');
+    db.prepare(`INSERT INTO project_docs (project_id, name, content, updated_at) VALUES (?, 'history.md', 'history', ?)`).run(id, '2026-06-01T02:00:00.000Z');
+    const historyCounts = () => Object.fromEntries(['sessions', 'project_daily_diaries', 'project_summaries', 'kanban_cards', 'comments', 'project_docs'].map((table) => [
+      table,
+      (db.prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE project_id = ?`).get(id) as { count: number }).count,
+    ]));
+    const beforeHistory = historyCounts();
+    rmSync(repo, { recursive: true, force: true });
+
+    expect(reconcileMissingProjects(db, [root], { now: '2026-06-08T00:00:00.000Z' }).marked_missing).toBe(0);
+    expect(reconcileMissingProjects(db, [root], { now: '2026-06-08T00:01:00.000Z' }).skipped).toBe(true);
+    expect(reconcileMissingProjects(db, [root], { now: '2026-06-15T00:00:00.000Z' }).marked_missing).toBe(1);
+    expect(db.prepare(`SELECT presence_status FROM projects WHERE id = ?`).get(id)).toEqual({ presence_status: 'missing' });
+    expect(getProjectList(db, '2026-06-15').some((project) => project.id === id)).toBe(false);
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM projects WHERE id = ?`).get(id)).toEqual({ count: 1 });
+    expect(historyCounts()).toEqual(beforeHistory);
+    const scannedIds: number[] = [];
+    const scan = runManualScan(db, {
+      scope: 'global', today: '2026-06-15',
+      provider: { scanProject(project) { scannedIds.push(project.id); return { sessions: [], kanban_cards: [], daily_summary: null }; } },
+    });
+    expect(scan.skipped_projects).toContainEqual({ project_id: id, reason: 'missing' });
+    expect(scannedIds).not.toContain(id);
+    const generatedIds: number[] = [];
+    const scheduler = new DailySchedulerRuntime(db, () => ({ activeDbPath: ':memory:', projectRoots: [root] }), {
+      projectSummaryAgent: async (snapshot) => {
+        generatedIds.push(snapshot.project.id);
+        return { markdown: '## test', agent_id: 'custom-test', fallback_report: null };
+      },
+      globalSummaryAgent: null,
+      kanbanAiGenerator: null,
+    });
+    expect((await scheduler.runNow({ force: true, now: new Date('2026-06-15T12:00:00.000Z') })).status).toBe('success');
+    expect(generatedIds).not.toContain(id);
+
+    initRepo(root, 'Gone Later');
+    discoverProjectsFromRoots(db, [root], { now: '2026-06-16T00:00:00.000Z' });
+    expect(db.prepare(`SELECT id, presence_status, missing_check_count FROM projects WHERE root_path = ?`).get(repo)).toEqual({ id, presence_status: 'present', missing_check_count: 0 });
+    expect(historyCounts()).toEqual(beforeHistory);
+  });
+
+  it('does not count a miss when configured-root traversal is partial', () => {
+    const db = freshDb();
+    const root = tempRoot();
+    const repo = initRepo(root, 'Temporarily Gone');
+    discoverProjectsFromRoots(db, [root], { now: '2026-06-01T00:00:00.000Z' });
+    rmSync(repo, { recursive: true, force: true });
+    symlinkSync(join(root, 'not-there'), join(root, 'broken-link'));
+
+    expect(reconcileMissingProjects(db, [root], { now: '2026-06-08T00:00:00.000Z' })).toEqual({
+      skipped: true,
+      observed: 0,
+      marked_missing: 0,
+      restored: 0,
+    });
+    expect(db.prepare(`SELECT missing_check_count FROM projects WHERE root_path = ?`).get(repo)).toEqual({ missing_check_count: 0 });
+  });
+
+  it('final cadence check lets only one different-date reconciliation update counters across two DB connections', () => {
+    const root = tempRoot();
+    const dbPath = join(root, 'reconciliation-race.sqlite');
+    const firstDb = openDb(dbPath);
+    const secondDb = openDb(dbPath);
+    const projectsRoot = join(root, 'projects');
+    mkdirSync(projectsRoot);
+    const repo = initRepo(projectsRoot, 'Gone Across Midnight');
+    discoverProjectsFromRoots(firstDb, [projectsRoot], { now: '2026-06-01T00:00:00.000Z' });
+    rmSync(repo, { recursive: true, force: true });
+
+    let secondResult: ReturnType<typeof reconcileMissingProjects> | undefined;
+    const firstResult = reconcileMissingProjects(firstDb, [projectsRoot], {
+      now: '2026-06-08T23:59:59.000Z',
+      beforeFinalize: () => {
+        secondResult = reconcileMissingProjects(secondDb, [projectsRoot], { now: '2026-06-09T00:00:01.000Z' });
+      },
+    });
+
+    expect(secondResult).toEqual({ skipped: false, observed: 1, marked_missing: 0, restored: 0 });
+    expect(firstResult).toEqual({ skipped: true, observed: 0, marked_missing: 0, restored: 0 });
+    expect(firstDb.prepare(`SELECT missing_check_count, presence_status FROM projects WHERE root_path = ?`).get(repo)).toEqual({
+      missing_check_count: 1, presence_status: 'present',
+    });
+    expect(firstDb.prepare(`SELECT period_start, status FROM project_reconciliation_runs ORDER BY period_start`).all()).toEqual([
+      { period_start: '2026-06-08', status: 'failed' },
+      { period_start: '2026-06-09', status: 'success' },
+    ]);
+    secondDb.close();
+    firstDb.close();
+  });
+
   it('從 configured roots upsert git/project folders 並且 repeated discovery 不新增 duplicate', () => {
     const db = freshDb();
     const root = tempRoot();

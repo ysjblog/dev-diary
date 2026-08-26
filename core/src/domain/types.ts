@@ -85,6 +85,7 @@ export interface KanbanAiSyncResult {
   warnings: string[];
   agent_id: string | null;
   enabled: boolean;
+  fallback_report: string | null;
 }
 
 export interface Session {

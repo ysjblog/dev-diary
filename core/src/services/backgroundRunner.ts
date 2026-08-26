@@ -254,6 +254,7 @@ export function formatBackgroundCycleLog(result: BackgroundCycleResult): string 
           daily_log_updated: result.diary.daily_log_updated,
           project_drafts_updated: result.diary.project_drafts_updated,
           kanban_cards_updated: result.diary.kanban_cards_updated,
+          telemetry: result.diary.telemetry,
         }
       : null,
     error_message: result.error_message,

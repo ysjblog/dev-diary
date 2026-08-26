@@ -334,6 +334,40 @@ describe('AI Diary Agent', () => {
       expect(calls[0]!.body.prompt).not.toContain(snapshot.project.root_path);
     });
 
+    it('Ollama request forwards bounded thinking/output options and refuses redirects', async () => {
+      const { snapshot } = freshSnapshot();
+      let captured: RequestInit | undefined;
+      const agent = createOllamaProjectDiaryAgent({
+        endpoint: 'http://127.0.0.1:11434', model: 'qwen3:8b', thinking: false,
+        numPredict: 128, numCtx: 4096, keepAlive: '5m',
+        fetchImpl: async (_url, init) => {
+          captured = init;
+          return { ok: true, status: 200, json: async () => ({ response: '## bounded' }) };
+        },
+      });
+      await agent(snapshot, TODAY);
+      expect(captured?.redirect).toBe('error');
+      expect(JSON.parse(String(captured?.body))).toMatchObject({
+        model: 'qwen3:8b', think: false, keep_alive: '5m', stream: false,
+        options: { num_predict: 128, num_ctx: 4096 },
+      });
+    });
+
+    it('Ollama runner accepts a normalized private LAN host and still rejects a public host', async () => {
+      const { snapshot } = freshSnapshot();
+      let requested = '';
+      const privateAgent = createOllamaProjectDiaryAgent({
+        endpoint: 'http://192.168.1.44:11434',
+        fetchImpl: async (url) => {
+          requested = String(url);
+          return { ok: true, status: 200, json: async () => ({ response: '## private host' }) };
+        },
+      });
+      await privateAgent(snapshot, TODAY);
+      expect(requested).toBe('http://192.168.1.44:11434/api/generate');
+      expect(() => createOllamaProjectDiaryAgent({ endpoint: 'https://example.com' })).toThrow('local or private host');
+    });
+
     it('Claude diary agent uses print mode, a safe env, and never uses a project cwd', async () => {
       const { snapshot } = freshSnapshot();
       const calls: Array<{ file: string; args: string[]; options: Parameters<ExecFileImpl>[2] }> = [];

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "stage": "initial",
+  "reviewer_id": "/root/spec_initial_review",
+  "matrix_digest": "68fe9ae27e0773e74a1b3e2036964f2ec10b0ef55157f68f38feff8604461993",
+  "review_revision": "3dccf669dc4b952818a89378cf1e4754d708248d",
+  "lens_results": {
+    "compatibility": "findings",
+    "failure_recovery": "findings",
+    "integration_authority": "findings",
+    "rollout": "findings"
+  },
+  "finding_ids": [
+    "COMPAT-001",
+    "RECOVERY-001",
+    "RECOVERY-002",
+    "RECOVERY-003",
+    "AUTH-001",
+    "RECOVERY-004",
+    "AUTH-002",
+    "ROLLOUT-001"
+  ],
+  "receipt_digest": "a0d007b96c138c1571b2bcea7c2cc86b1b862adc4806856b7f2f2cf27fd60fb5"
+}

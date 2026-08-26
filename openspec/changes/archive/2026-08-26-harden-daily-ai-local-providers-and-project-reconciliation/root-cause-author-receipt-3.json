@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "continuation": 3,
+  "reviewed_finding_ids": ["CONT-EVIDENCE-002"],
+  "matrix_digest": "6983ac94744415dc475f0cee147c8b53af38ff13ef474ac9f1bd78827fca09e8",
+  "initial_landing_receipt_digest": "52dd16fa748dd9be40cc8298224533f82d3870123975b3046441e3f272a9d122",
+  "preserved_evidence_digest": "c737f26a23fb290d5c178c6379fc1ddd026733b5b383a98e27ff9b4b0f4a196b",
+  "changed_artifact_digest": "3bb77e54b4ab30fe8ae38b51f92d68b2a123088ffb415058441365a0520c65fb",
+  "landing_checks_passed": true,
+  "strict_validation_passed": true,
+  "author_preflight_receipt_digest": "93261120f7d798d408915cc87603ed73d582734c70b3f9f82d60bb98fd7c89f0",
+  "review_revision": "3dccf669dc4b952818a89378cf1e4754d708248d",
+  "receipt_digest": "7fe58fbba8a17e719f4d21c2664c6cbd5822a8c4726fb041ad91c229b229553b"
+}

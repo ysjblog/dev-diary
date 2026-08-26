@@ -28,7 +28,7 @@ DevDiary 是一個 local-first 的 macOS 開發日記 App。它會整理你用 C
 請下載檔名類似下面的 macOS DMG：
 
 ```text
-DevDiary_0.1.3_aarch64.dmg
+DevDiary_0.1.4_aarch64.dmg
 ```
 
 下載後：
@@ -153,7 +153,7 @@ Tauri 會先完成 DMG 的所有 resources，再在 staging image 對完整 app 
 成功後會產生：
 
 ```text
-src-tauri/target/release/bundle/dmg/DevDiary_0.1.3_aarch64.dmg
+src-tauri/target/release/bundle/dmg/DevDiary_0.1.4_aarch64.dmg
 ```
 
 這個 package 目前需要本機有 Homebrew `node@22`，因為 Core 會使用 bundled `core/node_modules` 裡的 native module。

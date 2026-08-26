@@ -1,4 +1,4 @@
-export const CORE_API_CONTRACT_VERSION = 5;
+export const CORE_API_CONTRACT_VERSION = 6;
 
 export const CORE_API_CAPABILITIES = [
   'dashboard.snapshot',
@@ -18,6 +18,9 @@ export const CORE_API_CAPABILITIES = [
   'scheduler.daily.run',
   'exports.daily',
   'exports.backup',
+  'agents.custom.ollama-settings',
+  'scheduler.daily.telemetry-v2',
+  'projects.reconciliation',
 ] as const;
 
 export interface RuntimeHealthOptions {

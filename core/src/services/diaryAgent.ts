@@ -7,6 +7,7 @@ import type { CanonicalAgentId, ProjectDetailSnapshot } from '../domain/types.js
 import {
   DEFAULT_DAILY_DIARY_ENTRY_PROMPT,
   DEFAULT_PROJECT_DIARY_PROMPT,
+  normalizeOllamaEndpoint as normalizeConfiguredOllamaEndpoint,
   type AppSettings,
   type CustomAgentSettings,
 } from './settings.js';
@@ -17,7 +18,7 @@ const DEFAULT_ANTIGRAVITY_MODEL = 'Gemini 3.5 Flash (Medium)';
 const DEFAULT_PRINT_TIMEOUT = '90s';
 const DEFAULT_EXEC_TIMEOUT_MS = 100_000;
 const DEFAULT_OLLAMA_ENDPOINT = 'http://127.0.0.1:11434';
-const DEFAULT_OLLAMA_MODEL = 'qwen3.6:27b';
+const DEFAULT_OLLAMA_MODEL = 'qwen3:8b';
 // Settings accepts a 5,000-character override. Keep enough bounded headroom for
 // safety constraints and generated evidence so valid overrides cannot truncate
 // STRUCTURED_DATA from the tail of the provider prompt.
@@ -32,12 +33,19 @@ export interface DiaryDraftResult {
   fallback_report: string | null;
 }
 
+export interface ProviderRunContext {
+  signal?: AbortSignal;
+  assertLease?: () => void;
+  recordOutcome?: (result: DiaryDraftResult) => void;
+}
+
 export type ProjectSummaryDraftGenerator = (
   snapshot: ProjectDetailSnapshot,
   today: string,
+  context?: ProviderRunContext,
 ) => Promise<DiaryDraftResult>;
 
-export type DailySummaryDraftGenerator = (prompt: string) => Promise<DiaryDraftResult>;
+export type DailySummaryDraftGenerator = (prompt: string, context?: ProviderRunContext) => Promise<DiaryDraftResult>;
 
 export interface ExecFileResult {
   stdout: string;
@@ -53,6 +61,7 @@ export type ExecFileImpl = (
     timeout: number;
     maxBuffer: number;
     shell: false;
+    signal?: AbortSignal;
   },
 ) => Promise<ExecFileResult>;
 
@@ -88,6 +97,20 @@ export interface OllamaDiaryAgentOptions {
   model?: string;
   systemPrompt?: string;
   execTimeoutMs?: number;
+  thinking?: boolean;
+  numCtx?: number;
+  numPredict?: number;
+  temperature?: number;
+  topK?: number;
+  topP?: number;
+  minP?: number;
+  repeatLastN?: number;
+  repeatPenalty?: number;
+  seed?: number | null;
+  numThread?: number | null;
+  numGpu?: number | null;
+  keepAlive?: string;
+  stop?: string[];
   fetchImpl?: (url: string, init: RequestInit) => Promise<{
     ok: boolean;
     status: number;
@@ -169,7 +192,7 @@ function claudeModel(model: string | null | undefined): string | null {
   return null;
 }
 
-export function createClaudePromptRunner(options: ClaudeDiaryAgentOptions = {}): (prompt: string) => Promise<string> {
+export function createClaudePromptRunner(options: ClaudeDiaryAgentOptions = {}): (prompt: string, context?: ProviderRunContext) => Promise<string> {
   const homeDir = options.homeDir ?? homedir();
   const resolution = options.sources
     ? resolveCanonicalAgentExecutable('claude-code', options.sources, { homeDir })
@@ -180,7 +203,8 @@ export function createClaudePromptRunner(options: ClaudeDiaryAgentOptions = {}):
   const runDir = options.runDir ?? join(tmpdir(), 'devdiary-claude-runner');
   const execFileImpl = options.execFileImpl ?? defaultExecFile;
   mkdirSync(runDir, { recursive: true });
-  return async (prompt: string) => {
+  return async (prompt: string, context: ProviderRunContext = {}) => {
+    context.assertLease?.();
     const args = ['-p', truncate(prompt, MAX_PROMPT_CHARS), '--output-format', 'text', '--max-turns', '1'];
     if (model) args.push('--model', model);
     try {
@@ -190,15 +214,18 @@ export function createClaudePromptRunner(options: ClaudeDiaryAgentOptions = {}):
         timeout: execTimeoutMs,
         maxBuffer: 2 * 1024 * 1024,
         shell: false,
+        signal: context.signal,
       });
+      context.assertLease?.();
       return normalizeMarkdown(result.stdout);
     } catch {
+      context.assertLease?.();
       throw new DiaryAgentError('Claude Code CLI exited unsuccessfully');
     }
   };
 }
 
-export function createCodexPromptRunner(options: CodexDiaryAgentOptions = {}): (prompt: string) => Promise<string> {
+export function createCodexPromptRunner(options: CodexDiaryAgentOptions = {}): (prompt: string, context?: ProviderRunContext) => Promise<string> {
   const homeDir = options.homeDir ?? homedir();
   const resolution = options.sources
     ? resolveCanonicalAgentExecutable('codex-cli', options.sources, { homeDir })
@@ -208,7 +235,8 @@ export function createCodexPromptRunner(options: CodexDiaryAgentOptions = {}): (
   const parent = options.runDir ?? join(tmpdir(), 'devdiary-codex-runner');
   const execFileImpl = options.execFileImpl ?? defaultExecFile;
   mkdirSync(parent, { recursive: true, mode: 0o700 });
-  return async (prompt: string) => {
+  return async (prompt: string, context: ProviderRunContext = {}) => {
+    context.assertLease?.();
     if (!cliPath) throw new DiaryAgentError('Codex CLI executable is unavailable');
     const temporaryCwd = mkdtempSync(join(parent, 'run-'));
     try {
@@ -219,9 +247,12 @@ export function createCodexPromptRunner(options: CodexDiaryAgentOptions = {}): (
         timeout: execTimeoutMs,
         maxBuffer: 2 * 1024 * 1024,
         shell: false,
+        signal: context.signal,
       });
+      context.assertLease?.();
       return normalizeMarkdown(result.stdout);
     } catch {
+      context.assertLease?.();
       throw new DiaryAgentError('Codex CLI exited unsuccessfully');
     } finally {
       rmSync(temporaryCwd, { recursive: true, force: true });
@@ -229,7 +260,7 @@ export function createCodexPromptRunner(options: CodexDiaryAgentOptions = {}): (
   };
 }
 
-export function createAntigravityPromptRunner(options: AntigravityDiaryAgentOptions = {}): (prompt: string) => Promise<string> {
+export function createAntigravityPromptRunner(options: AntigravityDiaryAgentOptions = {}): (prompt: string, context?: ProviderRunContext) => Promise<string> {
   const homeDir = options.homeDir ?? homedir();
   const cliPath = options.cliPath ?? process.env.DEVDIARY_ANTIGRAVITY_BIN ?? process.env.AGY_CLI_PATH ?? defaultAgyPath(homeDir);
   const model = isDefaultCliModel(options.model) ? (process.env.DEVDIARY_ANTIGRAVITY_MODEL ?? DEFAULT_ANTIGRAVITY_MODEL) : options.model!.trim();
@@ -239,7 +270,8 @@ export function createAntigravityPromptRunner(options: AntigravityDiaryAgentOpti
   const execFileImpl = options.execFileImpl ?? defaultExecFile;
   mkdirSync(runDir, { recursive: true });
 
-  return async (prompt: string) => {
+  return async (prompt: string, context: ProviderRunContext = {}) => {
+    context.assertLease?.();
     const args = ['--model', model, '--print-timeout', printTimeout, '--print', truncate(prompt, MAX_PROMPT_CHARS)];
     let result: ExecFileResult;
     try {
@@ -249,8 +281,11 @@ export function createAntigravityPromptRunner(options: AntigravityDiaryAgentOpti
         timeout: execTimeoutMs,
         maxBuffer: 2 * 1024 * 1024,
         shell: false,
+        signal: context.signal,
       });
+      context.assertLease?.();
     } catch (err) {
+      context.assertLease?.();
       if (err instanceof DiaryAgentError) throw err;
       throw new DiaryAgentError('Antigravity CLI exited unsuccessfully');
     }
@@ -264,11 +299,11 @@ export function createAntigravityPromptRunner(options: AntigravityDiaryAgentOpti
 }
 
 function normalizeOllamaEndpoint(endpoint: string | undefined): string {
-  const raw = (endpoint || process.env.DEVDIARY_OLLAMA_ENDPOINT || DEFAULT_OLLAMA_ENDPOINT).trim().replace(/\/+$/, '');
-  if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(raw)) {
-    throw new DiaryAgentError('Ollama endpoint must be a local http(s) endpoint');
+  try {
+    return normalizeConfiguredOllamaEndpoint(endpoint || process.env.DEVDIARY_OLLAMA_ENDPOINT || DEFAULT_OLLAMA_ENDPOINT);
+  } catch {
+    throw new DiaryAgentError('Ollama endpoint must use an origin-only local or private host');
   }
-  return raw;
 }
 
 function ollamaModel(model: string | null | undefined): string {
@@ -279,40 +314,63 @@ function ollamaModel(model: string | null | undefined): string {
   return value;
 }
 
-function createOllamaPromptRunner(options: OllamaDiaryAgentOptions = {}): (prompt: string) => Promise<string> {
+function createOllamaPromptRunner(options: OllamaDiaryAgentOptions = {}): (prompt: string, context?: ProviderRunContext) => Promise<string> {
   const endpoint = normalizeOllamaEndpoint(options.endpoint);
   const model = ollamaModel(options.model);
   const execTimeoutMs = options.execTimeoutMs ?? Number(process.env.DEVDIARY_OLLAMA_EXEC_TIMEOUT_MS ?? DEFAULT_EXEC_TIMEOUT_MS);
   const fetchImpl = options.fetchImpl ?? (globalThis.fetch as OllamaDiaryAgentOptions['fetchImpl']);
   if (!fetchImpl) throw new DiaryAgentError('Ollama fetch runtime is unavailable');
 
-  return async (prompt: string) => {
+  return async (prompt: string, context: ProviderRunContext = {}) => {
+    context.assertLease?.();
     const controller = new AbortController();
+    const abortFromParent = () => controller.abort(context.signal?.reason);
+    if (context.signal?.aborted) abortFromParent();
+    else context.signal?.addEventListener('abort', abortFromParent, { once: true });
     const timer = setTimeout(() => controller.abort(), execTimeoutMs);
     try {
       const res = await fetchImpl(`${endpoint}/api/generate`, {
         method: 'POST',
+        redirect: 'error',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           model,
           prompt: truncate(prompt, MAX_PROMPT_CHARS),
           stream: false,
-          options: { temperature: 0.2 },
+          think: options.thinking ?? false,
+          keep_alive: options.keepAlive ?? '5m',
+          options: {
+            temperature: options.temperature ?? 0.2,
+            num_ctx: options.numCtx ?? 4096,
+            num_predict: options.numPredict ?? 1024,
+            top_k: options.topK ?? 40,
+            top_p: options.topP ?? 0.9,
+            min_p: options.minP ?? 0,
+            repeat_last_n: options.repeatLastN ?? 64,
+            repeat_penalty: options.repeatPenalty ?? 1.1,
+            ...(options.seed == null ? {} : { seed: options.seed }),
+            ...(options.numThread == null ? {} : { num_thread: options.numThread }),
+            ...(options.numGpu == null ? {} : { num_gpu: options.numGpu }),
+            ...(options.stop?.length ? { stop: options.stop } : {}),
+          },
         }),
         signal: controller.signal,
       });
       if (!res.ok) throw new DiaryAgentError(`Ollama generate failed with HTTP ${res.status}`);
       const body = await res.json();
+      context.assertLease?.();
       if (!body || typeof body !== 'object' || typeof (body as { response?: unknown }).response !== 'string') {
         throw new DiaryAgentError('Ollama returned an invalid diary draft');
       }
       return normalizeMarkdown((body as { response: string }).response);
     } catch (err) {
+      context.assertLease?.();
       if (err instanceof DiaryAgentError) throw err;
       if (err instanceof Error && err.name === 'AbortError') throw new DiaryAgentError('Ollama generate timeout');
       throw new DiaryAgentError('Ollama generate failed');
     } finally {
       clearTimeout(timer);
+      context.signal?.removeEventListener('abort', abortFromParent);
     }
   };
 }
@@ -429,10 +487,10 @@ export function buildProjectDiaryPrompt(snapshot: ProjectDetailSnapshot, today: 
 export function createAntigravityProjectDiaryAgent(options: AntigravityDiaryAgentOptions = {}): ProjectSummaryDraftGenerator {
   const runPrompt = createAntigravityPromptRunner(options);
 
-  return async (snapshot, today) => {
+  return async (snapshot, today, context) => {
     const prompt = buildProjectDiaryPrompt(snapshot, today, options.systemPrompt ?? DEFAULT_PROJECT_DIARY_PROMPT);
     return {
-      markdown: await runPrompt(prompt),
+      markdown: await runPrompt(prompt, context),
       agent_id: 'antigravity-cli',
       fallback_report: null,
     };
@@ -441,8 +499,8 @@ export function createAntigravityProjectDiaryAgent(options: AntigravityDiaryAgen
 
 export function createClaudeProjectDiaryAgent(options: ClaudeDiaryAgentOptions = {}): ProjectSummaryDraftGenerator {
   const runPrompt = createClaudePromptRunner(options);
-  return async (snapshot, today) => ({
-    markdown: await runPrompt(buildProjectDiaryPrompt(snapshot, today, options.systemPrompt ?? DEFAULT_PROJECT_DIARY_PROMPT)),
+  return async (snapshot, today, context) => ({
+    markdown: await runPrompt(buildProjectDiaryPrompt(snapshot, today, options.systemPrompt ?? DEFAULT_PROJECT_DIARY_PROMPT), context),
     agent_id: 'claude-code',
     fallback_report: null,
   });
@@ -450,8 +508,8 @@ export function createClaudeProjectDiaryAgent(options: ClaudeDiaryAgentOptions =
 
 export function createCodexProjectDiaryAgent(options: CodexDiaryAgentOptions = {}): ProjectSummaryDraftGenerator {
   const runPrompt = createCodexPromptRunner(options);
-  return async (snapshot, today) => ({
-    markdown: await runPrompt(buildProjectDiaryPrompt(snapshot, today, options.systemPrompt ?? DEFAULT_PROJECT_DIARY_PROMPT)),
+  return async (snapshot, today, context) => ({
+    markdown: await runPrompt(buildProjectDiaryPrompt(snapshot, today, options.systemPrompt ?? DEFAULT_PROJECT_DIARY_PROMPT), context),
     agent_id: 'codex-cli',
     fallback_report: null,
   });
@@ -459,8 +517,8 @@ export function createCodexProjectDiaryAgent(options: CodexDiaryAgentOptions = {
 
 export function createAntigravityDailySummaryAgent(options: AntigravityDiaryAgentOptions = {}): DailySummaryDraftGenerator {
   const runPrompt = createAntigravityPromptRunner(options);
-  return async (prompt) => ({
-    markdown: await runPrompt(prompt),
+  return async (prompt, context) => ({
+    markdown: await runPrompt(prompt, context),
     agent_id: 'antigravity-cli',
     fallback_report: null,
   });
@@ -468,22 +526,22 @@ export function createAntigravityDailySummaryAgent(options: AntigravityDiaryAgen
 
 export function createClaudeDailySummaryAgent(options: ClaudeDiaryAgentOptions = {}): DailySummaryDraftGenerator {
   const runPrompt = createClaudePromptRunner(options);
-  return async (prompt) => ({ markdown: await runPrompt(prompt), agent_id: 'claude-code', fallback_report: null });
+  return async (prompt, context) => ({ markdown: await runPrompt(prompt, context), agent_id: 'claude-code', fallback_report: null });
 }
 
 export function createCodexDailySummaryAgent(options: CodexDiaryAgentOptions = {}): DailySummaryDraftGenerator {
   const runPrompt = createCodexPromptRunner(options);
-  return async (prompt) => ({ markdown: await runPrompt(prompt), agent_id: 'codex-cli', fallback_report: null });
+  return async (prompt, context) => ({ markdown: await runPrompt(prompt, context), agent_id: 'codex-cli', fallback_report: null });
 }
 
 export function createOllamaProjectDiaryAgent(options: OllamaDiaryAgentOptions = {}): ProjectSummaryDraftGenerator {
   const runPrompt = createOllamaPromptRunner(options);
   const agentId = options.agentId ?? 'custom-ollama';
 
-  return async (snapshot, today) => {
+  return async (snapshot, today, context) => {
     const prompt = buildProjectDiaryPrompt(snapshot, today, options.systemPrompt ?? DEFAULT_PROJECT_DIARY_PROMPT);
     return {
-      markdown: await runPrompt(prompt),
+      markdown: await runPrompt(prompt, context),
       agent_id: agentId,
       fallback_report: null,
     };
@@ -493,8 +551,8 @@ export function createOllamaProjectDiaryAgent(options: OllamaDiaryAgentOptions =
 export function createOllamaDailySummaryAgent(options: OllamaDiaryAgentOptions = {}): DailySummaryDraftGenerator {
   const runPrompt = createOllamaPromptRunner(options);
   const agentId = options.agentId ?? 'custom-ollama';
-  return async (prompt) => ({
-    markdown: await runPrompt(prompt),
+  return async (prompt, context) => ({
+    markdown: await runPrompt(prompt, context),
     agent_id: agentId,
     fallback_report: null,
   });
@@ -513,10 +571,27 @@ function isOllamaCustomAgent(agent: CustomAgentSettings | undefined): agent is C
 }
 
 function customOllamaOptions(agent: CustomAgentSettings, systemPrompt?: string): OllamaDiaryAgentOptions {
+  const provider = agent.ollama;
   return {
     agentId: agent.id as `custom-${string}`,
-    model: agent.model,
+    endpoint: provider?.endpoint,
+    model: provider?.model ?? agent.model,
     systemPrompt,
+    execTimeoutMs: provider?.timeout_ms,
+    thinking: provider?.thinking,
+    numCtx: provider?.num_ctx,
+    numPredict: provider?.num_predict,
+    temperature: provider?.temperature,
+    topK: provider?.top_k,
+    topP: provider?.top_p,
+    minP: provider?.min_p,
+    repeatLastN: provider?.repeat_last_n,
+    repeatPenalty: provider?.repeat_penalty,
+    seed: provider?.seed,
+    numThread: provider?.num_thread,
+    numGpu: provider?.num_gpu,
+    keepAlive: provider?.keep_alive,
+    stop: provider?.stop,
   };
 }
 
@@ -579,11 +654,16 @@ export async function generateProjectDiaryDraft(
   snapshot: ProjectDetailSnapshot,
   today: string,
   generator: ProjectSummaryDraftGenerator | null | undefined,
+  context: ProviderRunContext = {},
 ): Promise<DiaryDraftResult> {
-  if (!generator) return buildProjectDiaryFallback(snapshot, today);
+  context.assertLease?.();
+  if (!generator) return buildProjectDiaryFallback(snapshot, today, 'AI provider unavailable; deterministic fallback used.');
   try {
-    return await generator(snapshot, today);
+    const result = await generator(snapshot, today, context);
+    context.assertLease?.();
+    return result;
   } catch (err) {
+    context.assertLease?.();
     const reason = summarizeFailure(err);
     return buildProjectDiaryFallback(snapshot, today, reason);
   }
@@ -593,13 +673,18 @@ export async function generateDailySummaryDraft(
   prompt: string,
   fallbackMarkdown: string,
   generator: DailySummaryDraftGenerator | null | undefined,
+  context: ProviderRunContext = {},
 ): Promise<DiaryDraftResult> {
+  context.assertLease?.();
   if (!generator) {
-    return { markdown: fallbackMarkdown, agent_id: 'fallback', fallback_report: null };
+    return { markdown: fallbackMarkdown, agent_id: 'fallback', fallback_report: 'AI provider unavailable; deterministic fallback used.' };
   }
   try {
-    return await generator(prompt);
+    const result = await generator(prompt, context);
+    context.assertLease?.();
+    return result;
   } catch (err) {
+    context.assertLease?.();
     const reason = summarizeFailure(err);
     return {
       markdown: `${fallbackMarkdown}\n\n> ${reason}`,

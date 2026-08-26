@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "openspec_level": "o3",
+  "protocol_version": 2,
+  "root_cause_continuation": 2,
+  "targeted_attempt": 2,
+  "routing_signals": ["external_write", "production_contract"],
+  "review_provider": "codex",
+  "contract_matrix_path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/contract-matrix-continuation-2.json",
+  "contract_matrix_digest": "e334225f024f82f0b5bed9cb4a926d228b5724f71cb30a4e2dcb453f97e07670",
+  "contract_matrix_root": ".",
+  "review_revision": "3dccf669dc4b952818a89378cf1e4754d708248d",
+  "initial_full_complete": false,
+  "author_fix_complete": false,
+  "author_fix_receipt_path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/root-cause-author-receipt-2.json",
+  "author_fix_receipt_digest": "c23da00dec733f7a9a17eb295f93414ffe50d907bc02ffe6743d998ee5690dc3",
+  "final_full_used": false,
+  "pending_concern_tags": [],
+  "pending_finding_ids": [],
+  "unresolved_inconclusive_lenses": [],
+  "new_cross_file_findings": 0,
+  "converged": false
+}

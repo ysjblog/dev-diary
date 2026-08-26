@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "matrix_digest": "68fe9ae27e0773e74a1b3e2036964f2ec10b0ef55157f68f38feff8604461993",
+  "reviewed_finding_ids": [
+    "COMPAT-001",
+    "RECOVERY-001",
+    "RECOVERY-002",
+    "RECOVERY-003",
+    "AUTH-001",
+    "RECOVERY-004",
+    "AUTH-002",
+    "ROLLOUT-001"
+  ],
+  "changed_artifact_digest": "d59810aaa2bde9e0abb44b0eefe48faa586d9a60a362b4c0e91d70e221f520df",
+  "landing_checks_passed": true,
+  "strict_validation_passed": true,
+  "author_preflight_receipt_digest": "7850c835afbd8d74dbc83c6d4a6e145254741f8102fac0c70e590a0c9fc7d5d8",
+  "review_revision": "3dccf669dc4b952818a89378cf1e4754d708248d",
+  "receipt_digest": "42fcf66d47835418e7ce6164621c971d6171b21918994b8d1d7a43e16fe1d9bd"
+}

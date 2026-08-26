@@ -6,7 +6,7 @@ const DEFAULT_AGENT_CARDS = [
   { id: 'antigravity-cli', name: 'Antigravity CLI', version: 'Settings', status: 'connected', active: true, path: '由 Settings backend 管理' },
 ];
 
-export const REQUIRED_CORE_API_CONTRACT_VERSION = 5;
+export const REQUIRED_CORE_API_CONTRACT_VERSION = 6;
 export const REQUIRED_CORE_CAPABILITIES = [
   'kanban.ai-sync',
   'scheduler.daily.preflight',
@@ -16,6 +16,9 @@ export const REQUIRED_CORE_CAPABILITIES = [
   'agents.custom.write',
   'exports.daily',
   'exports.backup',
+  'agents.custom.ollama-settings',
+  'scheduler.daily.telemetry-v2',
+  'projects.reconciliation',
 ];
 
 export const DEFAULT_AGENT_MODEL_OPTIONS = {
@@ -485,7 +488,9 @@ export function settingsAgentsToCardsWithDetection(agents, detectionAgents, cust
     removable: true,
     model: agent.model || 'custom',
     reasoning: agent.reasoning || 'default',
-    diaryCapability: { supported: /ollama/i.test(`${agent.id} ${agent.display_name} ${agent.model} ${agent.executable_path}`), unsupported_reason: '只有 enabled Ollama custom agent 可作為 Diary Agent。' },
+    providerKind: agent.provider_kind || null,
+    ollama: agent.ollama || null,
+    diaryCapability: { supported: agent.provider_kind === 'ollama' || /ollama/i.test(`${agent.id} ${agent.display_name} ${agent.model} ${agent.executable_path}`), unsupported_reason: '只有 enabled Ollama custom agent 可作為 Diary Agent。' },
   }));
   return [...canonicalCards, ...customCards];
 }

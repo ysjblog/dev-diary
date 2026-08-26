@@ -81,7 +81,7 @@ export function getProjectList(db: DB, today = taipeiDate()): ProjectListItem[] 
               (SELECT COUNT(DISTINCT ${sessionDate}) FROM sessions s WHERE s.project_id = p.id) AS logs_count,
               (SELECT COALESCE(SUM(s.token_total),0) FROM sessions s WHERE s.project_id = p.id) AS token_total
        FROM projects p
-       WHERE p.ignored = 0
+       WHERE p.ignored = 0 AND p.presence_status = 'present'
        ORDER BY p.last_activity_at DESC`,
     )
     .all() as Record<string, unknown>[];
@@ -470,7 +470,7 @@ export function getProjectDetail(
     .prepare(
       `SELECT id, name, root_path, tracking_status, detected_agents, last_activity_at, git_branch,
               (SELECT MAX(${sqliteTaipeiDate('s.start_time')}) FROM sessions s WHERE s.project_id = projects.id) AS latest_session_date
-       FROM projects WHERE id = ? AND ignored = 0`,
+       FROM projects WHERE id = ? AND ignored = 0 AND presence_status = 'present'`,
     )
     .get(projectId) as Record<string, unknown> | undefined;
   if (!p) return null;

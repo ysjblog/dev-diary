@@ -1,6 +1,6 @@
 import type { DB } from '../db/index.js';
 import type { KanbanStatus, ProjectDetailSnapshot } from '../domain/types.js';
-import { buildProjectDiaryFallback, generateProjectDiaryDraft, type ProjectSummaryDraftGenerator } from './diaryAgent.js';
+import { buildProjectDiaryFallback, generateProjectDiaryDraft, type ProjectSummaryDraftGenerator, type ProviderRunContext } from './diaryAgent.js';
 import { getProjectDetail, type ProjectDetailQuery } from './projects.js';
 
 const MAX_COMMENT_LENGTH = 5000;
@@ -31,7 +31,7 @@ function nowISO(): string {
 }
 
 function ensureProject(db: DB, projectId: number): void {
-  const row = db.prepare(`SELECT id FROM projects WHERE id = ? AND ignored = 0`).get(projectId);
+  const row = db.prepare(`SELECT id FROM projects WHERE id = ? AND ignored = 0 AND presence_status = 'present'`).get(projectId);
   if (!row) throw new ProjectWriteNotFoundError(`project ${projectId} not found`);
 }
 
@@ -280,12 +280,14 @@ export async function regenerateProjectSummaryWithAgent(
   today: string,
   query: ProjectDetailQuery = {},
   generator?: ProjectSummaryDraftGenerator | null,
+  context: ProviderRunContext = {},
 ): Promise<ProjectDetailSnapshot> {
   const before = requireSnapshot(db, projectId, today, query);
-  const draft = await generateProjectDiaryDraft(before, today, generator);
+  const draft = await generateProjectDiaryDraft(before, today, generator, context);
   const markdown = draft.markdown;
   const ts = nowISO();
   db.transaction(() => {
+    context.assertLease?.();
     ensureProject(db, projectId);
     db.prepare(
       `INSERT INTO project_summaries (project_id, markdown_ai, ai_updated_at)
@@ -295,6 +297,7 @@ export async function regenerateProjectSummaryWithAgent(
          ai_updated_at = excluded.ai_updated_at`,
     ).run(projectId, markdown, ts);
   })();
+  context.recordOutcome?.(draft);
   return requireSnapshot(db, projectId, today, query);
 }
 
@@ -305,6 +308,7 @@ export async function regenerateProjectDiaryEntryWithAgent(
   today: string,
   query: ProjectDetailQuery = {},
   generator?: ProjectSummaryDraftGenerator | null,
+  context: ProviderRunContext = {},
 ): Promise<ProjectDetailSnapshot> {
   const date = normalizeDate(dateInput);
   const diaryQuery: ProjectDetailQuery = {
@@ -321,11 +325,13 @@ export async function regenerateProjectDiaryEntryWithAgent(
       token_today: before.metric_strip.range_token_total,
     },
   };
-  const draft = await generateProjectDiaryDraft(draftSnapshot, date, generator);
+  const draft = await generateProjectDiaryDraft(draftSnapshot, date, generator, context);
   db.transaction(() => {
+    context.assertLease?.();
     ensureProject(db, projectId);
     upsertDailyProjectSummary(db, projectId, date, draft.markdown, 'ai_generated', draft.fallback_report);
   })();
+  context.recordOutcome?.(draft);
   return requireSnapshot(db, projectId, date, diaryQuery);
 }
 

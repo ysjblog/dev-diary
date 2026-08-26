@@ -1,6 +1,6 @@
 # DevDiary — 專案規格總覽
 
-> Last updated: 2026-08-12
+> Last updated: 2026-08-26
 > Source of truth: `openspec/specs/`；`openspec/changes/` 只放尚未封存的工作。
 > Legacy 文件位於 `docs/specs/legacy/`，僅供 provenance 查閱，不是 active contract。
 
@@ -30,11 +30,11 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 
 ## 現行功能
 
-- **設定與 Agent**：Settings API/UI 持久化 roots、排除路徑、docs 規則、scan policy、scheduler、privacy、prompt 與 appearance；CLI Agents 支援 canonical source path、safe detection、custom-agent probe、enable/disable、model/reasoning 與 default diary agent。
-- **掃描與資料**：global/project scan 經 Core endpoint 執行；Claude/Codex JSONL 與 Antigravity glog/transcript metadata parser、stable source identity、SQLite mtime cache、project root discovery 與 scan warnings 已接入。
+- **設定與 Agent**：Settings API/UI 持久化 roots、排除路徑、docs 規則、scan policy、scheduler、privacy、prompt 與 appearance；CLI Agents 支援 canonical source path、safe detection、custom-agent probe、enable/disable、model/reasoning 與 default diary agent；local Ollama 另支援由使用者設定 private host、model、thinking、timeout、context/output 與完整有界 sampling/runtime 選項。
+- **掃描與資料**：global/project scan 經 Core endpoint 執行；Claude/Codex JSONL 與 Antigravity glog/transcript metadata parser、stable source identity、SQLite mtime cache、project root discovery 與 scan warnings已接入；每七日的 soft reconciliation 以兩次完整 root observation 標記 missing，保留所有歷史資料並在同路徑重現時自動恢復。
 - **Dashboard**：range metrics、agent mix、project concentration、24 小時 hourly trend、latest-26-week heatmap、daily highlights 由 Core snapshot 提供。
 - **Projects Workspace**：project detail、active/idle tracking、三欄 Kanban、manual status lock、AI-gated sync、comments、summary/daily diary writes、Project Docs 與 read-only Git Status。
-- **Diary 與排程**：Claude/Codex/Antigravity/local Ollama draft providers、deterministic fallback、date-scoped diary；自動排程整理執行當下的台北日（例如 01:00 僅含當日 00:00 至執行前已掃描資料），只有該日確實有 session 的專案產生 Daily diary，手動與自動共用已清理、有長度上限的 session/commit evidence；另有 scheduler preflight/Run now、sleep-like recovery tick、語意升級防漏跑與關閉 app 後的 LaunchAgent background scan/diary gate。
+- **Diary 與排程**：Claude/Codex/Antigravity/local Ollama draft providers、deterministic fallback、date-scoped diary；目標日固定、租約時鐘持續前進，長任務失去 owner/generation 時會 abort 並在交易內阻止後續 Project/Diary/Kanban/Highlight 寫入；每種輸出另有 provider success、fallback、failed、skipped 的可稽核 telemetry。只有目標日確實有 session 的專案產生 Daily diary，另有 scheduler preflight/Run now、sleep-like recovery tick 與關閉 app 後的 LaunchAgent background scan/diary gate。
 - **Export 與 runtime**：Markdown daily export、redacted structured backup、dynamic Core-port manifest、只信任具有存活 owner PID 的 canonical runtime identity、startup retry，以及將 LaunchAgent 支援檔固定放在使用者 Application Support 的 packaged Core lifecycle。
 
 ## 資料與 API 契約
@@ -47,13 +47,13 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 | Scan / writes | `POST /api/scan`, `POST /api/projects/:id/scan`, comments、Kanban status、summary、date-scoped diary endpoints |
 | Agents / scheduler | detection、custom-agent probe/write、`/api/scheduler/daily/preflight`、`POST /api/scheduler/daily/run` |
 | Export | `/api/exports/daily` 與 `/api/exports/backup`；backup kind 是 `devdiary-redacted-backup` |
-| Durable records | `projects`, `sessions`, `token_usage`, `daily_logs`, `comments`, `kanban_cards`, `project_docs`, `app_settings`, `log_file_scan_cache` |
+| Durable records | `projects`, `sessions`, `token_usage`, `daily_logs`, `comments`, `kanban_cards`, `project_docs`, `app_settings`, `daily_scheduler_runs`, `project_reconciliation_runs`, `log_file_scan_cache` |
 
 ## 測試與驗證
 
 - Core automated tests 位於 `core/test/*.test.ts`，涵蓋 scan/parser/cache/discovery、dashboard/projects/writes/Git、diary、scheduler、runtime、settings、exports、custom agents、台北日界線與瀏覽器 Origin 授權。
 - UI/API tests 位於 `src/api/*.test.js`，涵蓋 Core target、manifest owner PID、health retry、dashboard、projects、settings、shell/RWD contract 與 startup scan policy；Rust tests 另涵蓋 manifest 與 LaunchAgent 路徑／ownership。
-- 本輪 fresh checks 包含 `openspec validate --specs --strict --no-interactive`、`spec_author_preflight.py --all-current`、完整 Core/UI/Rust suites、in-memory loopback smoke、desktop-only 1280x820 UI、v0.1.3 mounted DMG／隔離 bundled-Core 驗證，以及綁定同一 commit 與 artifact digest 的獨立黑箱／安全檢查。
+- 本輪 fresh checks 包含 OpenSpec strict/preflight 與 O3 closer、Core 277 項、UI 79 項、Rust 21 項、Node 22 typecheck、production build、真實 `qwen3:8b` loopback provider、desktop-only 1280x820 UI、0.1.3 reader rollback fixture、雙 SQLite 連線競爭測試，以及 missing project 的六類歷史資料保留／同 id 恢復。
 - v0.1.3 已完成 local／remote `main`、immutable tag、GitHub Release 與 fresh-downloaded asset checksum readback；發布後只有純文件 closeout 可前進 `main`，不得移動已測試的 tag。
 - 這次不宣稱使用私人 runtime DB、真人 provider、實際 launchctl/install、Finder、OAuth 或長時間 packaged soak；這些限制見下節與 migration map。
 
@@ -81,6 +81,7 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 
 ## 變更紀錄
 
+- 2026-08-26：封存 `harden-daily-ai-local-providers-and-project-reconciliation`；Ollama 進階設定改由使用者完整控制且只接受 local/private origin，排程加入真實租約時鐘、generation fence、abort 與 typed telemetry，專案加入每七日、兩次確認、可恢復且不刪歷史資料的 missing reconciliation；Core/UI contract 更新為 v6。
 - 2026-08-12：發布 v0.1.3 並封存 `release-v0-1-3-publication-hygiene`；版本 metadata、fresh App／DMG、immutable tag、GitHub Release 與下載 checksum 已對帳，現行公開 source 加入機器專屬路徑衛生邊界，舊版 release 維持不變。
 - 2026-08-10：封存 `harden-local-runtime-boundaries`；Core 加入 pre-parser 精確 Origin 授權與跨站 Fetch Metadata 防護，所有 session 衍生日期標籤使用台北日界線，JS/Rust runtime manifest consumer 統一要求存活 PID，LaunchAgent 支援檔移至使用者 Application Support，並加入 revision-bound smoke／黑箱／安全驗證流程。
 - 2026-08-05：封存 `use-same-taipei-day-diary-scheduler`；所有 session 日期／小時統一使用台北日界線，排程改為整理執行當日截至當下的活動，只替目標日確實有 session 的專案產生 Daily diary，並加入語意版本避免舊 success 阻止首次補跑。

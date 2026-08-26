@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "continuation": 2,
+  "attempt": 2,
+  "previous_continuation_matrix_digest": "7e4480560928f3f90e57f2abfe86e2f65fd2b6b9f9fc4f8c13fbe95a6ccc9084",
+  "matrix_digest": "e334225f024f82f0b5bed9cb4a926d228b5724f71cb30a4e2dcb453f97e07670",
+  "reviewed_finding_ids": [
+    "CONT-EVIDENCE-001",
+    "CONT-RECOVERY-001",
+    "CONT-TELEMETRY-001"
+  ],
+  "changed_artifact_digest": "b252f6e7dc88c0a2277a15cdd1e320f7afa2a277dc56021945fa15d9078c9cfc",
+  "landing_checks_passed": true,
+  "strict_validation_passed": true,
+  "author_preflight_receipt_digest": "93261120f7d798d408915cc87603ed73d582734c70b3f9f82d60bb98fd7c89f0",
+  "initial_landing_receipt_digest": "c1b9ed0ce857f45da19ccfd0128d42eea82399c1b0154ae23d7eff40cad6dd34",
+  "review_revision": "3dccf669dc4b952818a89378cf1e4754d708248d",
+  "verify_strings": [
+    "initial-landing-continuation-receipt.json",
+    "KanbanAiTextGenerator(prompt, context)",
+    "attempted = provider_success + fallback + failed"
+  ],
+  "receipt_digest": "c23da00dec733f7a9a17eb295f93414ffe50d907bc02ffe6743d998ee5690dc3"
+}

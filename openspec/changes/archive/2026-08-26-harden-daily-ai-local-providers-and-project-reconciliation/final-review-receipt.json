@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "stage": "final",
+  "reviewer_id": "/root/spec_final_closer",
+  "matrix_digest": "68fe9ae27e0773e74a1b3e2036964f2ec10b0ef55157f68f38feff8604461993",
+  "review_revision": "3dccf669dc4b952818a89378cf1e4754d708248d",
+  "lens_results": {
+    "compatibility": "findings",
+    "failure_recovery": "findings",
+    "integration_authority": "findings",
+    "rollout": "findings"
+  },
+  "finding_ids": [
+    "FINAL-EVIDENCE-001",
+    "FINAL-RECOVERY-001",
+    "FINAL-COMPAT-001",
+    "FINAL-TELEMETRY-001",
+    "FINAL-ROLLOUT-001"
+  ],
+  "receipt_digest": "37c6fb4e9baa66d23eb25e0f59f2b8ce648cd32ce309b63ea5f82311557ae6f7"
+}

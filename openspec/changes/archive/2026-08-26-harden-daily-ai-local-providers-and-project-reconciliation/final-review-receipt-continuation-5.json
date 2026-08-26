@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "stage": "final",
+  "reviewer_id": "/root/spec_initial_review",
+  "matrix_digest": "451ba5cc67e431da279180fbe9a41db25a7463032cde05d5d46026fc080d1eab",
+  "review_revision": "3dccf669dc4b952818a89378cf1e4754d708248d",
+  "lens_results": {
+    "compatibility": "pass",
+    "failure_recovery": "pass",
+    "integration_authority": "pass",
+    "rollout": "pass"
+  },
+  "finding_ids": [],
+  "receipt_digest": "02a71de562f9ca1e83732f8a84e9b44076d0366978e21053d8a303cd71e4174c"
+}

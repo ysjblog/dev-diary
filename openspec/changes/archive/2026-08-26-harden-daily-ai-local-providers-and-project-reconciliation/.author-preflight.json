@@ -1,0 +1,14 @@
+{
+  "schema": "codex.openspec-author-preflight/v1",
+  "change": "harden-daily-ai-local-providers-and-project-reconciliation",
+  "content_sha256": "fe280429d48d0e1c1c29403c9965c06920ca62b867f7d9663fabe31ff04c8717",
+  "tracked_files": [
+    "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+    "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/proposal.md",
+    "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/specs/dev-diary-macos-app/spec.md",
+    "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/tasks.md",
+    "openspec/specs/dev-diary-macos-app/spec.md"
+  ],
+  "checked_at": "2026-08-26T11:24:15.040232+00:00",
+  "status": "pass"
+}

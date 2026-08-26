@@ -28,7 +28,10 @@ CREATE TABLE IF NOT EXISTS projects (
   scan_paused        INTEGER NOT NULL DEFAULT 0,
   git_repo_detected  INTEGER NOT NULL DEFAULT 0,
   git_branch         TEXT,
-  git_worktree_count INTEGER NOT NULL DEFAULT 0
+  git_worktree_count INTEGER NOT NULL DEFAULT 0,
+  presence_status    TEXT NOT NULL DEFAULT 'present' CHECK (presence_status IN ('present','missing')),
+  missing_check_count INTEGER NOT NULL DEFAULT 0,
+  last_presence_check_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS kanban_cards (
@@ -113,6 +116,20 @@ CREATE TABLE IF NOT EXISTS daily_scheduler_runs (
   status            TEXT NOT NULL CHECK (status IN ('running','success','failed')),
   started_at        TEXT NOT NULL,
   completed_at      TEXT,
+  error             TEXT,
+  lease_generation  INTEGER NOT NULL DEFAULT 1,
+  telemetry_json    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS project_reconciliation_runs (
+  period_start      TEXT PRIMARY KEY,
+  owner_instance_id TEXT NOT NULL,
+  lease_expires_at  TEXT NOT NULL,
+  started_at        TEXT NOT NULL,
+  completed_at      TEXT,
+  status            TEXT NOT NULL CHECK (status IN ('running','success','failed')),
+  checked_roots     TEXT NOT NULL DEFAULT '[]',
+  result_json       TEXT,
   error             TEXT
 );
 
@@ -157,4 +174,4 @@ CREATE TABLE IF NOT EXISTS log_file_scan_cache (
 );
 `;
 
-export const SCHEMA_VERSION = '6';
+export const SCHEMA_VERSION = '7';

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { openDb } from '../src/db/index.js';
 import { seedDatabase } from '../src/db/seed.js';
-import { backgroundIntervalMs, backgroundStartupDelayMs, runBackgroundCycle } from '../src/services/backgroundRunner.js';
+import { backgroundIntervalMs, backgroundStartupDelayMs, formatBackgroundCycleLog, runBackgroundCycle } from '../src/services/backgroundRunner.js';
 import { sleepUntilNextBackgroundCycle } from '../src/backgroundRunner.js';
 import { AntigravitySessionGate } from '../src/services/antigravitySession.js';
 import { createConfiguredScanProvider } from '../src/services/scans.js';
@@ -66,6 +66,9 @@ describe('Background LaunchAgent runner', () => {
         last_inserted_sessions: result.scan?.inserted_sessions,
         next_interval_ms: 5 * 60_000,
       });
+      const backgroundLog = JSON.parse(formatBackgroundCycleLog(result)) as { diary: { telemetry: NonNullable<typeof result.diary>['telemetry'] } };
+      expect(backgroundLog.diary.telemetry).toEqual(result.diary?.telemetry);
+      expect(backgroundLog.diary.telemetry.project_summaries.attempted).toBe(result.diary?.project_count);
     });
 
     it('enabled cycle 未到 daily run time 時只 scan 不寫 AI diary', async () => {

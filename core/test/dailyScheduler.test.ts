@@ -58,6 +58,15 @@ describe('Daily scheduler', () => {
       const synthCards = db.prepare(`SELECT COUNT(*) AS c FROM kanban_cards WHERE source_ref LIKE 'agent-synth://%'`).get() as { c: number };
       expect(synthCards.c).toBeGreaterThan(0);
       expect(getSettings(db, runtime()).daily_scheduler.last_status).toBe('success');
+      expect(result.telemetry.project_summaries.attempted).toBe(result.project_count);
+      expect(result.telemetry.project_summaries.attempted).toBe(
+        result.telemetry.project_summaries.provider_success + result.telemetry.project_summaries.fallback + result.telemetry.project_summaries.failed,
+      );
+      expect(result.telemetry.daily_diaries.attempted + result.telemetry.daily_diaries.preserved_confirmed + result.telemetry.daily_diaries.skipped_no_activity).toBe(result.project_count);
+      expect(result.telemetry.daily_highlight).toMatchObject({ attempted: 1, provider_success: 0, fallback: 1, failed: 0, skipped: 0 });
+      expect(result.telemetry.actual_agent_ids).toContain('antigravity-cli');
+      const persisted = db.prepare(`SELECT telemetry_json FROM daily_scheduler_runs WHERE date = ?`).get(TODAY) as { telemetry_json: string };
+      expect(JSON.parse(persisted.telemetry_json)).toEqual(result.telemetry);
     });
 
     it('daily scheduler 會統計有明確 fallback_report 的 project diary', async () => {
@@ -81,6 +90,9 @@ describe('Daily scheduler', () => {
         `SELECT fallback_report FROM project_daily_diaries WHERE project_id = 1 AND date = ?`,
       ).get(TODAY) as { fallback_report: string | null };
       expect(fallback.fallback_report).toContain('deterministic fallback');
+      expect(result.telemetry.project_summaries.fallback).toBe(result.project_count);
+      expect(result.telemetry.daily_diaries.fallback).toBe(eligible.c);
+      expect(result.telemetry.fallback_categories).toContain('provider_error');
     });
 
     it('automatic tick 只在 enabled / 到達時間 / 今日未跑時執行', async () => {
@@ -156,6 +168,38 @@ describe('Daily scheduler', () => {
       expect(result.kanban_ai_sync?.inserted).toBeGreaterThan(0);
       const row = db.prepare(`SELECT title FROM kanban_cards WHERE source_ref LIKE 'ai-suggest://%'`).get() as { title: string };
       expect(row.title).toBe('Scheduler AI Kanban 卡');
+    });
+
+    it('Kanban telemetry distinguishes valid zero-card success from malformed failure', async () => {
+      const db = freshDb();
+      updateSettings(db, { kanban_ai_auto_add: { enabled: true } }, runtime());
+      const validZero = new DailySchedulerRuntime(db, runtime, {
+        projectSummaryAgent: null,
+        globalSummaryAgent: null,
+        kanbanAiGenerator: async () => ({ agent_id: 'test-ai', text: '{"cards":[]}' }),
+      });
+      const success = await validZero.runNow({ force: true, now: RUN_AT });
+      expect(success.telemetry.kanban.ai_invocations).toMatchObject({
+        attempted: success.project_count,
+        provider_success: success.project_count,
+        fallback: 0,
+        failed: 0,
+        skipped: 0,
+      });
+
+      const malformed = new DailySchedulerRuntime(db, runtime, {
+        projectSummaryAgent: null,
+        globalSummaryAgent: null,
+        kanbanAiGenerator: async () => ({ agent_id: 'test-ai', text: '```json\n{"cards":[]}\n```' }),
+      });
+      const failed = await malformed.runNow({ force: true, now: new Date('2026-06-30T13:00:00.000Z') });
+      expect(failed.telemetry.kanban.ai_invocations).toMatchObject({
+        attempted: failed.project_count,
+        provider_success: 0,
+        fallback: 0,
+        failed: failed.project_count,
+        skipped: 0,
+      });
     });
 
     it('daily scheduler preserves manually confirmed per-project diary entries', async () => {
@@ -376,6 +420,49 @@ describe('Daily scheduler', () => {
         status: 'running',
         owner_instance_id: 'other-owner',
       });
+    });
+
+    it('keeps the target date fixed while lease completion uses an advancing clock', async () => {
+      const db = freshDb();
+      let tick = 0;
+      const scheduler = new DailySchedulerRuntime(db, runtime, {
+        projectSummaryAgent: async () => ({ markdown: '## scheduled', agent_id: 'fallback', fallback_report: null }),
+        globalSummaryAgent: null,
+        kanbanAiGenerator: null,
+        leaseNow: () => new Date(RUN_AT.getTime() + (++tick * 1000)),
+      });
+
+      const result = await scheduler.runNow({ force: true, now: RUN_AT });
+      const row = db.prepare(`SELECT date, started_at, completed_at FROM daily_scheduler_runs WHERE date = ?`).get(TODAY) as {
+        date: string; started_at: string; completed_at: string;
+      };
+      expect(result.date).toBe(TODAY);
+      expect(row.date).toBe(TODAY);
+      expect(Date.parse(row.completed_at)).toBeGreaterThan(Date.parse(row.started_at));
+    });
+
+    it('aborts the shared provider context and fences the write when lease generation is lost', async () => {
+      const db = freshDb();
+      const before = db.prepare(`SELECT markdown_ai FROM project_summaries WHERE project_id = 1`).get() as { markdown_ai: string | null } | undefined;
+      let observedAbort = false;
+      const scheduler = new DailySchedulerRuntime(db, runtime, {
+        projectSummaryAgent: async (_snapshot, _today, context) => {
+          context?.signal?.addEventListener('abort', () => { observedAbort = true; }, { once: true });
+          db.prepare(`UPDATE daily_scheduler_runs SET owner_instance_id = 'new-owner', lease_generation = lease_generation + 1 WHERE date = ?`).run(TODAY);
+          context?.assertLease?.();
+          return { markdown: '## stale write', agent_id: 'custom-test-agent', fallback_report: null };
+        },
+        globalSummaryAgent: null,
+        kanbanAiGenerator: null,
+      });
+
+      const result = await scheduler.runNow({ force: true, now: RUN_AT });
+      const after = db.prepare(`SELECT markdown_ai FROM project_summaries WHERE project_id = 1`).get() as { markdown_ai: string | null } | undefined;
+      expect(result.status).toBe('failed');
+      expect(result.telemetry.project_summaries.attempted).toBe(0);
+      expect(result.telemetry.daily_highlight.attempted).toBe(0);
+      expect(observedAbort).toBe(true);
+      expect(after?.markdown_ai ?? null).toBe(before?.markdown_ai ?? null);
     });
 
     it('scheduler runs all project outputs before Kanban and writes global highlight last', async () => {

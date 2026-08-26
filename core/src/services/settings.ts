@@ -69,6 +69,28 @@ export interface CustomAgentSettings {
   version: string | null;
   checked_at: string | null;
   error_message: string | null;
+  provider_kind?: 'ollama';
+  ollama?: OllamaProviderSettings;
+}
+
+export interface OllamaProviderSettings {
+  endpoint: string;
+  model: string;
+  thinking: boolean;
+  timeout_ms: number;
+  num_ctx: number;
+  num_predict: number;
+  temperature: number;
+  top_k: number;
+  top_p: number;
+  min_p: number;
+  repeat_last_n: number;
+  repeat_penalty: number;
+  seed: number | null;
+  num_thread: number | null;
+  num_gpu: number | null;
+  keep_alive: string;
+  stop: string[];
 }
 
 export interface DailySchedulerSettings {
@@ -198,6 +220,7 @@ interface PersistedSettings {
 export type SettingsPatch = Record<string, unknown>;
 
 const SETTINGS_KEY = 'core';
+const CUSTOM_AGENT_PROVIDERS_KEY = 'custom_agent_providers_v1';
 const MAX_PATH_LENGTH = 1024;
 const MAX_DOC_FILENAME_LENGTH = 240;
 const MAX_MODEL_LENGTH = 160;
@@ -208,6 +231,12 @@ const MIN_KANBAN_AI_TIMEOUT_MS = 1000;
 const MAX_KANBAN_AI_TIMEOUT_MS = 60_000;
 const AGENT_ORDER: CanonicalAgentId[] = ['claude-code', 'codex-cli', 'antigravity-cli'];
 const AI_PROMPTS_VERSION = 3;
+const DEFAULT_OLLAMA_SETTINGS: OllamaProviderSettings = {
+  endpoint: 'http://127.0.0.1:11434', model: 'qwen3:8b', thinking: false,
+  timeout_ms: 120_000, num_ctx: 4096, num_predict: 1024, temperature: 0.2,
+  top_k: 40, top_p: 0.9, min_p: 0, repeat_last_n: 64, repeat_penalty: 1.1,
+  seed: null, num_thread: null, num_gpu: null, keep_alive: '5m', stop: [],
+};
 export const DEFAULT_PROJECT_DIARY_PROMPT = [
   '你是 DevDiary 的本機 AI Diary Agent，負責把開發活動整理成可交接的專案摘要。',
   '',
@@ -640,6 +669,73 @@ function normalizeAgents(raw: unknown, current: SettingsAgent[], opts: { allowSo
   return buildAgents(preferences);
 }
 
+export function normalizeOllamaEndpoint(raw: unknown): string {
+  if (typeof raw !== 'string') fail('custom_agents.ollama.endpoint must be a string');
+  let url: URL;
+  try { url = new URL(raw.trim()); } catch { fail('custom_agents.ollama.endpoint must be a valid URL'); }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+    fail('custom_agents.ollama.endpoint must be an origin-only http(s) URL');
+  }
+  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)?.slice(1).map(Number);
+  const privateIpv4 = Boolean(ipv4 && ipv4.every((part) => part <= 255) && (
+    ipv4[0] === 10 || ipv4[0] === 127 || (ipv4[0] === 169 && ipv4[1] === 254)
+    || (ipv4[0] === 172 && ipv4[1]! >= 16 && ipv4[1]! <= 31) || (ipv4[0] === 192 && ipv4[1] === 168)
+  ));
+  const privateHost = host === 'localhost' || host.endsWith('.local') || host === '::1'
+    || /^f[cd][0-9a-f]*:/i.test(host) || /^fe[89ab][0-9a-f]*:/i.test(host);
+  if (!privateIpv4 && !privateHost) fail('custom_agents.ollama.endpoint must use a local or private host');
+  return url.origin;
+}
+
+function finiteNumber(raw: unknown, field: string, min: number, max: number, integer = false): number {
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || (integer && !Number.isInteger(raw)) || raw < min || raw > max) {
+    fail(`${field} must be ${integer ? 'an integer' : 'a number'} between ${min} and ${max}`);
+  }
+  return raw;
+}
+
+function optionalInteger(raw: unknown, field: string, min: number, max: number): number | null {
+  return raw === null || raw === undefined ? null : finiteNumber(raw, field, min, max, true);
+}
+
+function normalizeOllamaSettings(raw: unknown, agentModel: string): OllamaProviderSettings {
+  if (raw === undefined) raw = {};
+  if (!isRecord(raw)) fail('custom_agents.ollama must be an object');
+  const extra = Object.keys(raw).filter((key) => !(key in DEFAULT_OLLAMA_SETTINGS));
+  if (extra.length) fail(`unknown Ollama setting: ${extra[0]}`);
+  const model = normalizeShortText(raw.model ?? agentModel ?? DEFAULT_OLLAMA_SETTINGS.model, 'custom_agents.ollama.model');
+  const thinking = raw.thinking ?? false;
+  if (typeof thinking !== 'boolean') fail('custom_agents.ollama.thinking must be boolean');
+  const keepAlive = raw.keep_alive ?? '5m';
+  if (typeof keepAlive !== 'string' || !/^(?:0|(?:\d+(?:\.\d+)?)(?:s|m|h))$/.test(keepAlive.trim())) fail('custom_agents.ollama.keep_alive is invalid');
+  const seconds = keepAlive.trim() === '0' ? 0 : Number.parseFloat(keepAlive) * ({ s: 1, m: 60, h: 3600 }[keepAlive.trim().slice(-1)] ?? Infinity);
+  if (seconds > 86_400) fail('custom_agents.ollama.keep_alive must not exceed 24h');
+  const stopRaw = raw.stop ?? [];
+  if (!Array.isArray(stopRaw) || stopRaw.length > 8) fail('custom_agents.ollama.stop must contain at most 8 strings');
+  const stop = stopRaw.map((item) => {
+    if (typeof item !== 'string' || item.length < 1 || item.length > 128 || /[\u0000-\u001f\u007f]/.test(item)) fail('custom_agents.ollama.stop contains an invalid string');
+    return item;
+  });
+  if (stop.reduce((sum, item) => sum + item.length, 0) > 512) fail('custom_agents.ollama.stop is too large');
+  return {
+    endpoint: normalizeOllamaEndpoint(raw.endpoint ?? 'http://127.0.0.1:11434'), model, thinking,
+    timeout_ms: finiteNumber(raw.timeout_ms ?? 120_000, 'custom_agents.ollama.timeout_ms', 1000, 300_000, true),
+    num_ctx: finiteNumber(raw.num_ctx ?? 4096, 'custom_agents.ollama.num_ctx', 512, 32_768, true),
+    num_predict: finiteNumber(raw.num_predict ?? 1024, 'custom_agents.ollama.num_predict', 32, 4096, true),
+    temperature: finiteNumber(raw.temperature ?? 0.2, 'custom_agents.ollama.temperature', 0, 2),
+    top_k: finiteNumber(raw.top_k ?? 40, 'custom_agents.ollama.top_k', 0, 200, true),
+    top_p: finiteNumber(raw.top_p ?? 0.9, 'custom_agents.ollama.top_p', 0, 1),
+    min_p: finiteNumber(raw.min_p ?? 0, 'custom_agents.ollama.min_p', 0, 1),
+    repeat_last_n: finiteNumber(raw.repeat_last_n ?? 64, 'custom_agents.ollama.repeat_last_n', -1, 32_768, true),
+    repeat_penalty: finiteNumber(raw.repeat_penalty ?? 1.1, 'custom_agents.ollama.repeat_penalty', 0, 2),
+    seed: optionalInteger(raw.seed, 'custom_agents.ollama.seed', -1, 2_147_483_647),
+    num_thread: optionalInteger(raw.num_thread, 'custom_agents.ollama.num_thread', 1, 256),
+    num_gpu: optionalInteger(raw.num_gpu, 'custom_agents.ollama.num_gpu', 0, 256),
+    keep_alive: keepAlive.trim(), stop,
+  };
+}
+
 function normalizeCustomAgents(raw: unknown): CustomAgentSettings[] {
   if (!Array.isArray(raw)) fail('custom_agents must be an array');
   const seen = new Set<string>();
@@ -657,6 +753,8 @@ function normalizeCustomAgents(raw: unknown): CustomAgentSettings[] {
       'version',
       'checked_at',
       'error_message',
+      'provider_kind',
+      'ollama',
     ]);
     const extra = Object.keys(item).filter((key) => !allowed.has(key));
     if (extra.length > 0) fail(`unknown custom agent setting: ${extra[0]}`);
@@ -664,10 +762,14 @@ function normalizeCustomAgents(raw: unknown): CustomAgentSettings[] {
     if (seen.has(id)) fail(`duplicate custom agent setting: ${id}`);
     seen.add(id);
     if (typeof item.enabled !== 'boolean') fail('custom_agents.enabled must be boolean');
+    const providerKind = item.provider_kind;
+    if (providerKind !== undefined && providerKind !== 'ollama') fail('custom_agents.provider_kind must be ollama');
+    if (item.ollama !== undefined && providerKind !== 'ollama') fail('custom_agents.ollama requires provider_kind=ollama');
+    const model = normalizeShortText(item.model ?? 'custom', 'custom_agents.model');
     return {
       id,
       display_name: normalizeShortText(item.display_name, 'custom_agents.display_name'),
-      model: normalizeShortText(item.model ?? 'custom', 'custom_agents.model'),
+      model,
       reasoning: normalizeReasoning(item.reasoning, 'custom_agents.reasoning'),
       executable_path: normalizeExecutablePath(item.executable_path, 'custom_agents.executable_path'),
       probe_arg: normalizeProbeArg(item.probe_arg),
@@ -676,6 +778,7 @@ function normalizeCustomAgents(raw: unknown): CustomAgentSettings[] {
       version: normalizeOptionalIso(item.version, 'custom_agents.version'),
       checked_at: normalizeOptionalIso(item.checked_at, 'custom_agents.checked_at'),
       error_message: normalizeOptionalIso(item.error_message, 'custom_agents.error_message'),
+      ...(providerKind === 'ollama' ? { provider_kind: 'ollama' as const, ollama: normalizeOllamaSettings(item.ollama, model) } : {}),
     };
   });
 }
@@ -991,15 +1094,28 @@ function parsePersisted(raw: string): Partial<PersistedSettings> {
   }
 }
 
-function readStored(db: DB): { value: Partial<PersistedSettings>; updated_at: string | null } {
+type CustomAgentProviderMap = Record<string, { provider_kind: 'ollama'; ollama: OllamaProviderSettings }>;
+
+function readProviderMap(db: DB): CustomAgentProviderMap {
+  const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(CUSTOM_AGENT_PROVIDERS_KEY) as { value: string } | undefined;
+  if (!row) return {};
+  try {
+    const parsed = JSON.parse(row.value);
+    return isRecord(parsed) ? parsed as CustomAgentProviderMap : {};
+  } catch {
+    return {};
+  }
+}
+
+function readStored(db: DB): { value: Partial<PersistedSettings>; updated_at: string | null; providers: CustomAgentProviderMap } {
   const row = db.prepare(`SELECT value, updated_at FROM app_settings WHERE key = ?`).get(SETTINGS_KEY) as
     | { value: string; updated_at: string }
     | undefined;
-  if (!row) return { value: {}, updated_at: null };
-  return { value: parsePersisted(row.value), updated_at: row.updated_at };
+  if (!row) return { value: {}, updated_at: null, providers: readProviderMap(db) };
+  return { value: parsePersisted(row.value), updated_at: row.updated_at, providers: readProviderMap(db) };
 }
 
-function persistedToSnapshot(stored: Partial<PersistedSettings>, updatedAt: string | null, runtime: SettingsRuntimeDefaults): AppSettings {
+function persistedToSnapshot(stored: Partial<PersistedSettings>, updatedAt: string | null, runtime: SettingsRuntimeDefaults, providers: CustomAgentProviderMap = {}): AppSettings {
   const base = defaultSettings(runtime);
   let settings: AppSettings = { ...base, revision: Number.isInteger(stored.revision) && Number(stored.revision) >= 0 ? Number(stored.revision) : 0, updated_at: updatedAt };
 
@@ -1008,7 +1124,10 @@ function persistedToSnapshot(stored: Partial<PersistedSettings>, updatedAt: stri
   if (stored.project_doc_filenames) settings = { ...settings, project_doc_filenames: normalizeProjectDocFilenames(stored.project_doc_filenames) };
   if (stored.project_doc_folders) settings = { ...settings, project_doc_folders: normalizeProjectDocFolders(stored.project_doc_folders) };
   if (stored.scan_interval_minutes !== undefined) settings = { ...settings, scan_interval_minutes: normalizeScanInterval(stored.scan_interval_minutes) };
-  if (stored.custom_agents) settings = { ...settings, custom_agents: normalizeCustomAgents(stored.custom_agents) };
+  if (stored.custom_agents) settings = {
+    ...settings,
+    custom_agents: normalizeCustomAgents(stored.custom_agents.map((agent) => ({ ...agent, ...(providers[agent.id] ?? {}) }))),
+  };
   if (stored.default_diary_agent !== undefined) {
     settings = { ...settings, default_diary_agent: normalizeDiaryAgent(stored.default_diary_agent, 'default_diary_agent', settings.custom_agents) };
   }
@@ -1070,7 +1189,7 @@ function toPersisted(settings: AppSettings): PersistedSettings {
       reasoning: agent.reasoning,
       sources: agent.sources,
     })),
-    custom_agents: settings.custom_agents,
+    custom_agents: settings.custom_agents.map(({ provider_kind: _providerKind, ollama: _ollama, ...agent }) => agent),
     ai_prompts: settings.ai_prompts,
     daily_scheduler: settings.daily_scheduler,
     background_scan: settings.background_scan,
@@ -1086,11 +1205,18 @@ function writeSettings(db: DB, settings: AppSettings): AppSettings {
      VALUES (?, ?, ?)
      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
   ).run(SETTINGS_KEY, persisted, updatedAt);
+  const providers: CustomAgentProviderMap = Object.fromEntries(settings.custom_agents
+    .filter((agent) => agent.provider_kind === 'ollama' && agent.ollama)
+    .map((agent) => [agent.id, { provider_kind: 'ollama' as const, ollama: agent.ollama! }]));
+  db.prepare(
+    `INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+  ).run(CUSTOM_AGENT_PROVIDERS_KEY, JSON.stringify(providers), updatedAt);
   return persistedToSnapshot(toPersisted({ ...settings, updated_at: updatedAt }), updatedAt, {
     activeDbPath: settings.data_storage.active_db_path,
     projectRoots: settings.project_roots,
     scanProviderPolicy: settings.scan_provider,
-  });
+  }, providers);
 }
 
 export function mutateSettings(
@@ -1145,7 +1271,7 @@ function applyPatch(current: AppSettings, patch: SettingsPatch): AppSettings {
 
 export function getSettings(db: DB, runtime: SettingsRuntimeDefaults): AppSettings {
   const stored = readStored(db);
-  const settings = persistedToSnapshot(stored.value, stored.updated_at, runtime);
+  const settings = persistedToSnapshot(stored.value, stored.updated_at, runtime, stored.providers);
   // Recovery is not only a read-time illusion: stale or malformed running
   // operations must be written back so the next process sees the same owner
   // state and recovery receipt.

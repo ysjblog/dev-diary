@@ -222,6 +222,8 @@ test('settingsAgentsToCards includes removable custom agents from settings snaps
         version: 'local-agent 1.0',
         executable_path: '/tmp/local-agent',
         checked_at: '2026-07-01T00:00:00.000Z',
+        provider_kind: 'ollama',
+        ollama: { endpoint: 'http://127.0.0.1:11434', model: 'qwen3:8b' },
       },
     ],
   );
@@ -231,6 +233,8 @@ test('settingsAgentsToCards includes removable custom agents from settings snaps
   assert.equal(cards[1].removable, true);
   assert.equal(cards[1].name, 'Local Test Agent');
   assert.equal(cards[1].path, '/tmp/local-agent');
+  assert.equal(cards[1].providerKind, 'ollama');
+  assert.equal(cards[1].ollama.endpoint, 'http://127.0.0.1:11434');
 });
 
 test('agent detection and daily scheduler API helpers call Core endpoints', async () => {
@@ -287,16 +291,16 @@ test('classifyRuntimeHealth identifies connected, stale, and unreachable Core ru
   assert.deepEqual(
     classifyRuntimeHealth({
       ok: true,
-      api_contract_version: 5,
+      api_contract_version: 6,
       runtime: { host: '127.0.0.1', port: 4317, started_at: '2026-06-30T00:00:00.000Z', pid: 123 },
-      capabilities: ['kanban.ai-sync', 'scheduler.daily.preflight', 'scheduler.daily.run', 'agents.detect', 'agents.custom.probe', 'agents.custom.write', 'exports.daily', 'exports.backup'],
+      capabilities: ['kanban.ai-sync', 'scheduler.daily.preflight', 'scheduler.daily.run', 'agents.detect', 'agents.custom.probe', 'agents.custom.write', 'exports.daily', 'exports.backup', 'agents.custom.ollama-settings', 'scheduler.daily.telemetry-v2', 'projects.reconciliation'],
       checked_at: '2026-06-30T00:00:01.000Z',
     }),
     {
       status: 'connected',
       message: 'Core API 已連線',
       port: 4317,
-    contractVersion: 5,
+      contractVersion: 6,
       checkedAt: '2026-06-30T00:00:01.000Z',
       missingCapabilities: [],
       startedAt: '2026-06-30T00:00:00.000Z',
@@ -315,7 +319,7 @@ test('classifyRuntimeHealth identifies connected, stale, and unreachable Core ru
     capabilities: ['agents.detect'],
   });
   assert.equal(missingRoute.status, 'stale');
-  assert.deepEqual(missingRoute.missingCapabilities, ['kanban.ai-sync', 'scheduler.daily.preflight', 'scheduler.daily.run', 'agents.custom.probe', 'agents.custom.write', 'exports.daily', 'exports.backup']);
+  assert.deepEqual(missingRoute.missingCapabilities, ['kanban.ai-sync', 'scheduler.daily.preflight', 'scheduler.daily.run', 'agents.detect', 'agents.custom.probe', 'agents.custom.write', 'exports.daily', 'exports.backup', 'agents.custom.ollama-settings', 'scheduler.daily.telemetry-v2', 'projects.reconciliation'].filter((item) => item !== 'agents.detect'));
 
   const unreachable = classifyRuntimeHealth(null, new Error('fetch failed'));
   assert.equal(unreachable.status, 'unreachable');

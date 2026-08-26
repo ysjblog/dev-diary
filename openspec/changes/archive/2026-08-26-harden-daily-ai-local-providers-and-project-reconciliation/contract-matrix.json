@@ -1,0 +1,260 @@
+{
+  "schema_version": 2,
+  "generated_revision": "3dccf669dc4b952818a89378cf1e4754d708248d",
+  "input_manifest_digest": "8d1f1c65ebb279a0a7ef20f3c13b9e308eadc4679eb33d7e0f97504008f2e697",
+  "artifact_inventory": [
+    {
+      "path": "core/src/db/index.ts",
+      "sha256": "dace87f4ccf9099b9efa382088d5e3b8c5159941c29980621230d04458dd979e"
+    },
+    {
+      "path": "core/src/db/schema.ts",
+      "sha256": "16a1df67b53bc80c436efeb1a7199590419022372a148e34e59eb573817ffaa3"
+    },
+    {
+      "path": "core/src/services/backgroundRunner.ts",
+      "sha256": "3136cb3f3c1adc5c5064cda7e1c52e8410394a8c1f71974cf8d3cf44906ad19e"
+    },
+    {
+      "path": "core/src/services/dailyScheduler.ts",
+      "sha256": "10bfb36773ee8e655c97aa5072d913d119b51d9e84366815b3fff17886caf77d"
+    },
+    {
+      "path": "core/src/services/diaryAgent.ts",
+      "sha256": "05d8c225a076cbffed5182552323aa589f87e1747851aea9ad06dac80e13edc3"
+    },
+    {
+      "path": "core/src/services/projectDiscovery.ts",
+      "sha256": "e8492f53ffa8af78c55a057d3878c9efbf70d2479e3fe8eeeffa52c56f48e57d"
+    },
+    {
+      "path": "core/src/services/projects.ts",
+      "sha256": "4dfe04fca8bc05bb89f988a565212e58b9f442e3108966fd2cd8d1493c4a12fc"
+    },
+    {
+      "path": "core/src/services/scans.ts",
+      "sha256": "aae37cc2a5f076733e9824166f69b1fd3078fd947e877e11d37e39f8e6e3aab4"
+    },
+    {
+      "path": "core/src/services/settings.ts",
+      "sha256": "1e3e7dd54b886eba54b793fe041d8fa01f196bc21e6bdb0d667623f10aad028c"
+    },
+    {
+      "path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+      "sha256": "13fa7519fa52702379f21809f3da3ccc7e9236c6e834b132df09c2c00d0835eb"
+    },
+    {
+      "path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/proposal.md",
+      "sha256": "39b069dbb2fd7ed194ab5a0351dd2401f66c5bf8b20fea382cfe8e1abcbd1a56"
+    },
+    {
+      "path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/specs/dev-diary-macos-app/spec.md",
+      "sha256": "78971e9e065a4583401e42d51fd0d208948afc0e4137822bac854aef8c2e4a3e"
+    },
+    {
+      "path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/tasks.md",
+      "sha256": "c156e1b5ff7e3388c4e3d5461ac03a98cb8746f95cb8ac3f00a7721f38a4a9fc"
+    },
+    {
+      "path": "openspec/specs/dev-diary-macos-app/spec.md",
+      "sha256": "1b527231e60dd68b26968c9eb8ae85a5f416a26531a36e5172c9408ac4acf5cd"
+    },
+    {
+      "path": "src/App.jsx",
+      "sha256": "aa92710f80cb783b27c6a661453928234f7926ed6a06dfb1ce7e3a3ef4632519"
+    },
+    {
+      "path": "src/api/settings.js",
+      "sha256": "ec2c713c465f6c52fa9be28e13612e49d56d668912c0b6f12539bbc938a26c34"
+    }
+  ],
+  "inventory_scope": {
+    "change": [
+      "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+      "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/proposal.md",
+      "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/specs/dev-diary-macos-app/spec.md",
+      "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/tasks.md"
+    ],
+    "baseline": [
+      "core/src/db/index.ts",
+      "core/src/db/schema.ts",
+      "core/src/services/backgroundRunner.ts",
+      "core/src/services/dailyScheduler.ts",
+      "core/src/services/diaryAgent.ts",
+      "core/src/services/projectDiscovery.ts",
+      "core/src/services/projects.ts",
+      "core/src/services/scans.ts",
+      "core/src/services/settings.ts",
+      "openspec/specs/dev-diary-macos-app/spec.md",
+      "src/App.jsx",
+      "src/api/settings.js"
+    ]
+  },
+  "invariants": [
+    {
+      "id": "ollama_configuration",
+      "value": "CustomAgentSettings",
+      "search_terms": [
+        "CustomAgentSettings"
+      ],
+      "writers": [
+        "core/src/services/settings.ts"
+      ],
+      "readers": [
+        "core/src/services/diaryAgent.ts",
+        "src/App.jsx"
+      ],
+      "occurrences": [
+        {
+          "file": "core/src/services/diaryAgent.ts",
+          "line": 11
+        },
+        {
+          "file": "core/src/services/diaryAgent.ts",
+          "line": 503
+        },
+        {
+          "file": "core/src/services/diaryAgent.ts",
+          "line": 515
+        },
+        {
+          "file": "core/src/services/settings.ts",
+          "line": 60
+        },
+        {
+          "file": "core/src/services/settings.ts",
+          "line": 158
+        },
+        {
+          "file": "core/src/services/settings.ts",
+          "line": 191
+        },
+        {
+          "file": "core/src/services/settings.ts",
+          "line": 547
+        },
+        {
+          "file": "core/src/services/settings.ts",
+          "line": 643
+        },
+        {
+          "file": "core/src/services/settings.ts",
+          "line": 646
+        },
+        {
+          "file": "core/src/services/settings.ts",
+          "line": 833
+        },
+        {
+          "file": "core/src/services/settings.ts",
+          "line": 1159
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 46
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 105
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 106
+        }
+      ]
+    },
+    {
+      "id": "live_lease_clock",
+      "value": "leaseClock",
+      "search_terms": [
+        "leaseClock"
+      ],
+      "writers": [
+        "core/src/services/dailyScheduler.ts"
+      ],
+      "readers": [
+        "core/src/services/backgroundRunner.ts"
+      ],
+      "occurrences": [
+        {
+          "file": "core/src/services/dailyScheduler.ts",
+          "line": 287
+        },
+        {
+          "file": "core/src/services/dailyScheduler.ts",
+          "line": 315
+        },
+        {
+          "file": "core/src/services/dailyScheduler.ts",
+          "line": 390
+        },
+        {
+          "file": "core/src/services/dailyScheduler.ts",
+          "line": 394
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 15
+        }
+      ]
+    },
+    {
+      "id": "project_presence",
+      "value": "presence_status",
+      "search_terms": [
+        "presence_status"
+      ],
+      "writers": [
+        "core/src/db/index.ts",
+        "core/src/services/projectDiscovery.ts"
+      ],
+      "readers": [
+        "core/src/services/dailyScheduler.ts",
+        "core/src/services/projects.ts",
+        "core/src/services/scans.ts"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 39
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 78
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 110
+        }
+      ]
+    },
+    {
+      "id": "install_rollback",
+      "value": "SQLite Backup API",
+      "search_terms": [
+        "SQLite Backup API"
+      ],
+      "writers": [
+        "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md"
+      ],
+      "readers": [
+        "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/tasks.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 124
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 145
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/tasks.md",
+          "line": 37
+        }
+      ]
+    }
+  ],
+  "matrix_digest": "68fe9ae27e0773e74a1b3e2036964f2ec10b0ef55157f68f38feff8604461993"
+}

@@ -1,0 +1,403 @@
+{
+  "schema_version": 2,
+  "generated_revision": "3dccf669dc4b952818a89378cf1e4754d708248d",
+  "input_manifest_digest": "7c335b89b50d26a9a3acf4a4df5f77e0c7f78b7bd889283e924a2f1e6cbff09c",
+  "artifact_inventory": [
+    {
+      "path": "core/src/db/index.ts",
+      "sha256": "dace87f4ccf9099b9efa382088d5e3b8c5159941c29980621230d04458dd979e"
+    },
+    {
+      "path": "core/src/db/schema.ts",
+      "sha256": "16a1df67b53bc80c436efeb1a7199590419022372a148e34e59eb573817ffaa3"
+    },
+    {
+      "path": "core/src/server.ts",
+      "sha256": "cafd32deb97bb288a9fd3383a6047847010ec9a1d0ddc1c41ee63725d8718d3e"
+    },
+    {
+      "path": "core/src/services/backgroundRunner.ts",
+      "sha256": "3136cb3f3c1adc5c5064cda7e1c52e8410394a8c1f71974cf8d3cf44906ad19e"
+    },
+    {
+      "path": "core/src/services/dailyScheduler.ts",
+      "sha256": "10bfb36773ee8e655c97aa5072d913d119b51d9e84366815b3fff17886caf77d"
+    },
+    {
+      "path": "core/src/services/diaryAgent.ts",
+      "sha256": "05d8c225a076cbffed5182552323aa589f87e1747851aea9ad06dac80e13edc3"
+    },
+    {
+      "path": "core/src/services/kanbanAiSuggestions.ts",
+      "sha256": "0dc991bab6d2997f988d28767e7c1dbbae4195f5aa318ead62402c810e7b9044"
+    },
+    {
+      "path": "core/src/services/projectDiscovery.ts",
+      "sha256": "e8492f53ffa8af78c55a057d3878c9efbf70d2479e3fe8eeeffa52c56f48e57d"
+    },
+    {
+      "path": "core/src/services/projectWrites.ts",
+      "sha256": "1db0fd8bb299f05b5a1591640b60ba0e55f9f308ef9e75dca97ac34f688c5967"
+    },
+    {
+      "path": "core/src/services/projects.ts",
+      "sha256": "4dfe04fca8bc05bb89f988a565212e58b9f442e3108966fd2cd8d1493c4a12fc"
+    },
+    {
+      "path": "core/src/services/runtimeHealth.ts",
+      "sha256": "20fbbbf3e9df13abd14caca76efd5e1de51494453f0ea8b84ed4892b9593890b"
+    },
+    {
+      "path": "core/src/services/runtimeManifest.ts",
+      "sha256": "738852e5df5f45b92891d51f09c5f5fa6580ad41fa2905bf650770f094f8025d"
+    },
+    {
+      "path": "core/src/services/scans.ts",
+      "sha256": "aae37cc2a5f076733e9824166f69b1fd3078fd947e877e11d37e39f8e6e3aab4"
+    },
+    {
+      "path": "core/src/services/settings.ts",
+      "sha256": "1e3e7dd54b886eba54b793fe041d8fa01f196bc21e6bdb0d667623f10aad028c"
+    },
+    {
+      "path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/contradiction-matrix.md",
+      "sha256": "6eb6a644d070b0b7bede4a5d7d711bf10d39f7f01d0670308c1021b95431e856"
+    },
+    {
+      "path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+      "sha256": "23f8825a8e8102511d66f49f36955f5bdeb5ab57a15dbd89064485d5b4ac3391"
+    },
+    {
+      "path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/initial-landing-continuation-receipt.json",
+      "sha256": "493f4e156afbb2ed7e0f9d58dc710119138735a9dea60ce64972650cd6e5a2d9"
+    },
+    {
+      "path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/proposal.md",
+      "sha256": "d32ed5b24a092f08dc052eececfd281cd45ac8f07977e54353c378203952dda2"
+    },
+    {
+      "path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/root-cause-continuation.md",
+      "sha256": "c737f26a23fb290d5c178c6379fc1ddd026733b5b383a98e27ff9b4b0f4a196b"
+    },
+    {
+      "path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/specs/dev-diary-macos-app/spec.md",
+      "sha256": "a961c8dbc7cd2d91b19c729af011a45419514f778c7279e97ca3c0d0eb237035"
+    },
+    {
+      "path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/tasks.md",
+      "sha256": "7d354f8f374b89fc56820da0a717f9692404c9e9273840efbdb3b0c131f393f5"
+    },
+    {
+      "path": "openspec/specs/dev-diary-macos-app/spec.md",
+      "sha256": "1b527231e60dd68b26968c9eb8ae85a5f416a26531a36e5172c9408ac4acf5cd"
+    },
+    {
+      "path": "src/App.jsx",
+      "sha256": "aa92710f80cb783b27c6a661453928234f7926ed6a06dfb1ce7e3a3ef4632519"
+    },
+    {
+      "path": "src/api/settings.js",
+      "sha256": "ec2c713c465f6c52fa9be28e13612e49d56d668912c0b6f12539bbc938a26c34"
+    },
+    {
+      "path": "src/api/settings.test.js",
+      "sha256": "7e7230d49527c3b33ba03adae103b4488f45f2edc468b6189a2649f08f35fe59"
+    }
+  ],
+  "inventory_scope": {
+    "change": [
+      "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/contradiction-matrix.md",
+      "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+      "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/initial-landing-continuation-receipt.json",
+      "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/proposal.md",
+      "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/root-cause-continuation.md",
+      "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/specs/dev-diary-macos-app/spec.md",
+      "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/tasks.md"
+    ],
+    "baseline": [
+      "core/src/db/index.ts",
+      "core/src/db/schema.ts",
+      "core/src/server.ts",
+      "core/src/services/backgroundRunner.ts",
+      "core/src/services/dailyScheduler.ts",
+      "core/src/services/diaryAgent.ts",
+      "core/src/services/kanbanAiSuggestions.ts",
+      "core/src/services/projectDiscovery.ts",
+      "core/src/services/projectWrites.ts",
+      "core/src/services/projects.ts",
+      "core/src/services/runtimeHealth.ts",
+      "core/src/services/runtimeManifest.ts",
+      "core/src/services/scans.ts",
+      "core/src/services/settings.ts",
+      "openspec/specs/dev-diary-macos-app/spec.md",
+      "src/App.jsx",
+      "src/api/settings.js",
+      "src/api/settings.test.js"
+    ]
+  },
+  "invariants": [
+    {
+      "id": "ollama_configuration",
+      "value": "custom_agent_providers_v1",
+      "search_terms": [
+        "custom_agent_providers_v1"
+      ],
+      "writers": [
+        "core/src/services/settings.ts"
+      ],
+      "readers": [
+        "core/src/services/diaryAgent.ts",
+        "src/App.jsx"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 35
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 47
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 122
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/root-cause-continuation.md",
+          "line": 28
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/specs/dev-diary-macos-app/spec.md",
+          "line": 23
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/specs/dev-diary-macos-app/spec.md",
+          "line": 123
+        }
+      ]
+    },
+    {
+      "id": "provider_execution_context",
+      "value": "KanbanAiTextGenerator(prompt, context)",
+      "search_terms": [
+        "KanbanAiTextGenerator(prompt, context)"
+      ],
+      "writers": [
+        "core/src/services/diaryAgent.ts",
+        "core/src/services/kanbanAiSuggestions.ts",
+        "core/src/services/projectWrites.ts"
+      ],
+      "readers": [
+        "core/src/server.ts",
+        "core/src/services/dailyScheduler.ts"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 97
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/root-cause-continuation.md",
+          "line": 139
+        }
+      ]
+    },
+    {
+      "id": "api_contract_handshake",
+      "value": "CORE_API_CONTRACT_VERSION",
+      "search_terms": [
+        "CORE_API_CONTRACT_VERSION"
+      ],
+      "writers": [
+        "core/src/services/runtimeHealth.ts",
+        "core/src/services/runtimeManifest.ts"
+      ],
+      "readers": [
+        "src/App.jsx",
+        "src/api/settings.js",
+        "src/api/settings.test.js"
+      ],
+      "occurrences": [
+        {
+          "file": "core/src/services/runtimeHealth.ts",
+          "line": 1
+        },
+        {
+          "file": "core/src/services/runtimeHealth.ts",
+          "line": 37
+        },
+        {
+          "file": "core/src/services/runtimeManifest.ts",
+          "line": 4
+        },
+        {
+          "file": "core/src/services/runtimeManifest.ts",
+          "line": 31
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 115
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 131
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/root-cause-continuation.md",
+          "line": 117
+        },
+        {
+          "file": "src/api/settings.js",
+          "line": 9
+        },
+        {
+          "file": "src/api/settings.js",
+          "line": 106
+        }
+      ]
+    },
+    {
+      "id": "telemetry_equation",
+      "value": "attempted = provider_success + fallback + failed",
+      "search_terms": [
+        "attempted = provider_success + fallback + failed"
+      ],
+      "writers": [
+        "core/src/services/dailyScheduler.ts",
+        "core/src/services/kanbanAiSuggestions.ts"
+      ],
+      "readers": [
+        "core/src/services/backgroundRunner.ts",
+        "src/App.jsx"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 105
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 106
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 107
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 109
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/root-cause-continuation.md",
+          "line": 144
+        }
+      ]
+    },
+    {
+      "id": "live_lease_clock",
+      "value": "lease_generation",
+      "search_terms": [
+        "lease_generation"
+      ],
+      "writers": [
+        "core/src/services/dailyScheduler.ts"
+      ],
+      "readers": [
+        "core/src/services/kanbanAiSuggestions.ts",
+        "core/src/services/projectWrites.ts"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 37
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 89
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 126
+        }
+      ]
+    },
+    {
+      "id": "project_presence",
+      "value": "presence_status",
+      "search_terms": [
+        "presence_status"
+      ],
+      "writers": [
+        "core/src/db/index.ts",
+        "core/src/services/projectDiscovery.ts"
+      ],
+      "readers": [
+        "core/src/services/dailyScheduler.ts",
+        "core/src/services/projects.ts",
+        "core/src/services/scans.ts"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 39
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 79
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 124
+        }
+      ]
+    },
+    {
+      "id": "candidate_identity",
+      "value": "Candidate identity is invalidated",
+      "search_terms": [
+        "Candidate identity is invalidated"
+      ],
+      "writers": [
+        "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/tasks.md"
+      ],
+      "readers": [
+        "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/design.md",
+          "line": 163
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/root-cause-continuation.md",
+          "line": 127
+        }
+      ]
+    },
+    {
+      "id": "review_evidence",
+      "value": "initial-landing-continuation-receipt.json",
+      "search_terms": [
+        "initial-landing-continuation-receipt.json"
+      ],
+      "writers": [
+        "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/initial-landing-continuation-receipt.json"
+      ],
+      "readers": [
+        "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/contradiction-matrix.md",
+        "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/root-cause-continuation.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/root-cause-continuation.md",
+          "line": 133
+        },
+        {
+          "file": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/root-cause-continuation.md",
+          "line": 134
+        }
+      ]
+    }
+  ],
+  "matrix_digest": "6983ac94744415dc475f0cee147c8b53af38ff13ef474ac9f1bd78827fca09e8"
+}

@@ -7,6 +7,7 @@ import {
   generateDailySummaryDraft,
   type DailySummaryDraftGenerator,
   type ProjectSummaryDraftGenerator,
+  type ProviderRunContext,
 } from './diaryAgent.js';
 import { redactSensitiveText, synthesizeProjectKanban } from './kanbanSynthesis.js';
 import { createConfiguredKanbanAiGenerator, emptyKanbanAiSync, syncKanbanAiCards, type KanbanAiTextGenerator } from './kanbanAiSuggestions.js';
@@ -54,6 +55,47 @@ export interface DailySchedulerRunResult {
   kanban_ai_sync?: KanbanAiSyncResult;
   preflight?: SchedulerPreflightResult;
   error_message: string | null;
+  telemetry: DailySchedulerTelemetry;
+}
+
+interface ProviderOutcomeCounts {
+  attempted: number;
+  provider_success: number;
+  fallback: number;
+  failed: number;
+}
+
+export interface DailySchedulerTelemetry {
+  configured_provider_id: string;
+  actual_agent_ids: string[];
+  elapsed_ms: number;
+  fallback_categories: string[];
+  project_summaries: ProviderOutcomeCounts;
+  daily_diaries: ProviderOutcomeCounts & { preserved_confirmed: number; skipped_no_activity: number };
+  daily_highlight: ProviderOutcomeCounts & { skipped: number };
+  kanban: {
+    deterministic_cards: { inserted: number; updated: number };
+    ai_invocations: ProviderOutcomeCounts & { skipped: number };
+  };
+}
+
+function emptyTelemetry(configuredProviderId = 'unknown'): DailySchedulerTelemetry {
+  const counts = () => ({ attempted: 0, provider_success: 0, fallback: 0, failed: 0 });
+  return {
+    configured_provider_id: configuredProviderId,
+    actual_agent_ids: [],
+    elapsed_ms: 0,
+    fallback_categories: [],
+    project_summaries: counts(),
+    daily_diaries: { ...counts(), preserved_confirmed: 0, skipped_no_activity: 0 },
+    daily_highlight: { ...counts(), skipped: 1 },
+    kanban: { deterministic_cards: { inserted: 0, updated: 0 }, ai_invocations: { ...counts(), skipped: 0 } },
+  };
+}
+
+function fallbackCategory(report: string | null): string {
+  if (!report) return 'provider_error';
+  return report.includes('unavailable') || report.includes('disabled') ? 'provider_unavailable' : 'provider_error';
 }
 
 export interface DailySchedulerRuntimeOptions {
@@ -62,6 +104,8 @@ export interface DailySchedulerRuntimeOptions {
   kanbanAiGenerator?: KanbanAiTextGenerator | null;
   antigravityGate?: AntigravitySessionGate;
   now?: () => Date;
+  /** Independent advancing clock used only for lease ownership and terminal timestamps. */
+  leaseNow?: () => Date;
 }
 
 // Wall-clock minutes-of-day in Asia/Taipei, used only to gate run_time_local (spec:
@@ -224,11 +268,13 @@ async function buildGlobalSummary(
   kanbanCount: number,
   generator: DailySummaryDraftGenerator | null | undefined,
   systemPrompt = DEFAULT_DAILY_HIGHLIGHT_PROMPT,
-): Promise<{ markdown: string; fallbackReport: string | null }> {
+  context: ProviderRunContext = {},
+): Promise<{ markdown: string; agentId: string; fallbackReport: string | null }> {
   const fallback = buildPlainLanguageFallback(date, projects, draftCount, kanbanCount);
-  const draft = await generateDailySummaryDraft(buildGlobalSummaryPrompt(date, projects, fallback, systemPrompt), fallback, generator);
+  const draft = await generateDailySummaryDraft(buildGlobalSummaryPrompt(date, projects, fallback, systemPrompt), fallback, generator, context);
   return {
     markdown: redactSensitiveText(draft.markdown),
+    agentId: draft.agent_id,
     fallbackReport: draft.fallback_report,
   };
 }
@@ -284,7 +330,8 @@ export class DailySchedulerRuntime {
 
   async runNow(input: { force?: boolean; now?: Date; preflight?: SchedulerPreflightResult } = {}): Promise<DailySchedulerRunResult> {
     const now = input.now ?? this.options.now?.() ?? new Date();
-    const leaseClock = () => input.now ?? this.options.now?.() ?? new Date();
+    const leaseStartedAt = Date.now();
+    const leaseClock = () => this.options.leaseNow?.() ?? new Date(now.getTime() + (Date.now() - leaseStartedAt));
     const date = schedulerTargetDate(now);
     if (this.running) {
       return {
@@ -299,6 +346,7 @@ export class DailySchedulerRuntime {
         kanban_ai_sync: emptyKanbanAiSync(false),
         preflight: input.preflight,
         error_message: null,
+        telemetry: emptyTelemetry(),
       };
     }
 
@@ -307,12 +355,43 @@ export class DailySchedulerRuntime {
     if (!input.force && !settings.daily_scheduler.enabled) {
       return this.skipResult(date, 'Daily scheduler is disabled.');
     }
-    if (!this.claimLease(date, now, !!input.force)) return this.skipResult(date, 'Daily scheduler already ran or is running today.');
+    const leaseGeneration = this.claimLease(date, leaseClock(), !!input.force);
+    if (leaseGeneration === null) return this.skipResult(date, 'Daily scheduler already ran or is running today.');
+    const runStartedAt = leaseClock().getTime();
+    const telemetry = emptyTelemetry(settings.default_diary_agent ?? 'unknown');
+    const actualAgentIds = new Set<string>();
+    const fallbackCategories = new Set<string>();
+    const recordOutcome = (counts: ProviderOutcomeCounts, result: { agent_id: string; fallback_report: string | null }) => {
+      counts.attempted += 1;
+      if (result.agent_id !== 'fallback' && !result.fallback_report) {
+        counts.provider_success += 1;
+        actualAgentIds.add(result.agent_id);
+      } else {
+        counts.fallback += 1;
+        fallbackCategories.add(fallbackCategory(result.fallback_report));
+      }
+    };
 
     this.running = true;
     let leaseLost = false;
+    const abortController = new AbortController();
+    const assertLease = () => {
+      const lease = this.db.prepare(`SELECT owner_instance_id, status, lease_expires_at, lease_generation FROM daily_scheduler_runs WHERE date = ?`).get(date) as
+        | { owner_instance_id: string; status: string; lease_expires_at: string; lease_generation: number }
+        | undefined;
+      if (leaseLost || lease?.owner_instance_id !== this.ownerInstanceId || lease.lease_generation !== leaseGeneration || lease.status !== 'running' || Date.parse(lease.lease_expires_at) <= leaseClock().getTime()) {
+        if (!abortController.signal.aborted) abortController.abort(new SchedulerLeaseLostError());
+        throw new SchedulerLeaseLostError();
+      }
+    };
+    const baseProviderContext: ProviderRunContext = { signal: abortController.signal, assertLease };
+    const summaryContext: ProviderRunContext = { ...baseProviderContext, recordOutcome: (result) => recordOutcome(telemetry.project_summaries, result) };
+    const diaryContext: ProviderRunContext = { ...baseProviderContext, recordOutcome: (result) => recordOutcome(telemetry.daily_diaries, result) };
     const leaseTimer = setInterval(() => {
-      if (!this.renewLease(date, leaseClock())) leaseLost = true;
+      if (!this.renewLease(date, leaseGeneration, leaseClock())) {
+        leaseLost = true;
+        if (!abortController.signal.aborted) abortController.abort(new SchedulerLeaseLostError());
+      }
     }, DAILY_SCHEDULER_RENEWAL_MS);
     leaseTimer.unref?.();
     try {
@@ -344,17 +423,22 @@ export class DailySchedulerRuntime {
       let kanbanCount = 0;
       const kanbanAiSync = emptyKanbanAiSync(settings.kanban_ai_auto_add.enabled);
       for (const project of projects) {
-        await regenerateProjectSummaryWithAgent(this.db, project.id, date, query, generator);
+        assertLease();
+        await regenerateProjectSummaryWithAgent(this.db, project.id, date, query, generator, summaryContext);
         draftCount += 1;
         const hasTargetDateActivity = this.db.prepare(
           `SELECT 1 FROM sessions WHERE project_id = ? AND ${sqliteTaipeiDate('start_time')} = ? LIMIT 1`,
         ).get(project.id, date);
-        if (!hasTargetDateActivity) continue;
+        if (!hasTargetDateActivity) {
+          telemetry.daily_diaries.skipped_no_activity += 1;
+          continue;
+        }
         const existingDiary = this.db.prepare(`SELECT status FROM project_daily_diaries WHERE project_id = ? AND date = ?`).get(project.id, date) as { status?: string } | undefined;
         if (existingDiary?.status === 'confirmed') {
           diaryPreserved += 1;
+          telemetry.daily_diaries.preserved_confirmed += 1;
         } else {
-          await regenerateProjectDiaryEntryWithAgent(this.db, project.id, date, date, query, diaryGenerator);
+          await regenerateProjectDiaryEntryWithAgent(this.db, project.id, date, date, query, diaryGenerator, diaryContext);
           const finalDiary = this.db.prepare(`SELECT status, fallback_report FROM project_daily_diaries WHERE project_id = ? AND date = ?`).get(project.id, date) as { status?: string; fallback_report?: string | null } | undefined;
           if (finalDiary?.status === 'confirmed') diaryPreserved += 1;
           else {
@@ -365,37 +449,63 @@ export class DailySchedulerRuntime {
       }
       // Kanban always runs after every project summary and daily diary write.
       for (const project of projects) {
+        assertLease();
         for (const card of synthesizeProjectKanban(this.db, project.id, date, query)) {
-          const upsert = upsertKanbanCandidate(this.db, project.id, card, now.toISOString());
-          if (upsert.inserted || upsert.updated) kanbanCount += 1;
+          assertLease();
+          const upsert = upsertKanbanCandidate(this.db, project.id, card, now.toISOString(), assertLease);
+          if (upsert.inserted) {
+            kanbanCount += 1;
+            telemetry.kanban.deterministic_cards.inserted += 1;
+          }
+          if (upsert.updated) {
+            kanbanCount += 1;
+            telemetry.kanban.deterministic_cards.updated += 1;
+          }
         }
         if (settings.kanban_ai_auto_add.enabled) {
           const ai = await syncKanbanAiCards(this.db, project.id, date, query, settings, {
             generator: kanbanAiGenerator,
             now: now.toISOString(),
+            assertWriteAllowed: assertLease,
+            signal: abortController.signal,
           });
           kanbanAiSync.inserted += ai.inserted;
           kanbanAiSync.updated += ai.updated;
           kanbanAiSync.skipped += ai.skipped;
           kanbanAiSync.warnings.push(...ai.warnings);
           kanbanAiSync.agent_id = ai.agent_id ?? kanbanAiSync.agent_id;
+          kanbanAiSync.fallback_report = ai.fallback_report ?? kanbanAiSync.fallback_report;
+          telemetry.kanban.ai_invocations.attempted += 1;
+          if (ai.agent_id && !ai.fallback_report) {
+            telemetry.kanban.ai_invocations.provider_success += 1;
+            actualAgentIds.add(ai.agent_id);
+          } else if (!kanbanAiGenerator) {
+            telemetry.kanban.ai_invocations.fallback += 1;
+            fallbackCategories.add('provider_unavailable');
+          } else {
+            telemetry.kanban.ai_invocations.failed += 1;
+            fallbackCategories.add('provider_error');
+          }
+        } else {
+          telemetry.kanban.ai_invocations.skipped += 1;
         }
       }
       const dailyInputs = buildDailyProjectInputs(this.db, date);
-      const summary = await buildGlobalSummary(date, dailyInputs, draftCount, kanbanCount, globalGenerator, settings.ai_prompts.daily_highlight);
+      const summary = await buildGlobalSummary(date, dailyInputs, draftCount, kanbanCount, globalGenerator, settings.ai_prompts.daily_highlight, baseProviderContext);
+      assertLease();
       this.db.transaction(() => {
-        const lease = this.db.prepare(
-          `SELECT owner_instance_id, status, lease_expires_at FROM daily_scheduler_runs WHERE date = ?`,
-        ).get(date) as { owner_instance_id: string; status: string; lease_expires_at: string } | undefined;
-        if (leaseLost || lease?.owner_instance_id !== this.ownerInstanceId || lease.status !== 'running' || Date.parse(lease.lease_expires_at) <= leaseClock().getTime()) {
-          throw new SchedulerLeaseLostError();
-        }
+        assertLease();
         upsertDailyLog(this.db, date, summary.markdown, summary.fallbackReport);
-        const finalized = this.db.prepare(`UPDATE daily_scheduler_runs SET status = 'success', completed_at = ?, error = NULL WHERE date = ? AND owner_instance_id = ? AND status = 'running'`).run(leaseClock().toISOString(), date, this.ownerInstanceId);
+        recordOutcome(telemetry.daily_highlight, { agent_id: summary.agentId, fallback_report: summary.fallbackReport });
+        telemetry.daily_highlight.skipped = 0;
+        telemetry.elapsed_ms = Math.max(0, leaseClock().getTime() - runStartedAt);
+        telemetry.actual_agent_ids = Array.from(actualAgentIds).sort();
+        telemetry.fallback_categories = Array.from(fallbackCategories).sort();
+        const finalized = this.db.prepare(`UPDATE daily_scheduler_runs SET status = 'success', completed_at = ?, error = NULL, telemetry_json = ? WHERE date = ? AND owner_instance_id = ? AND lease_generation = ? AND status = 'running'`).run(leaseClock().toISOString(), JSON.stringify(telemetry), date, this.ownerInstanceId, leaseGeneration);
         if (finalized.changes !== 1) throw new SchedulerLeaseLostError();
         updateDailySchedulerState(this.db, {
           last_run_date: date,
-          last_run_at: now.toISOString(),
+          last_run_at: leaseClock().toISOString(),
           last_status: 'success',
           last_error: null,
           last_project_count: draftCount,
@@ -418,14 +528,19 @@ export class DailySchedulerRuntime {
         kanban_ai_sync: kanbanAiSync,
         preflight: input.preflight,
         error_message: null,
+        telemetry,
       };
     } catch (err) {
       const message = sanitizeSchedulerError(err);
+      const reportedTelemetry = err instanceof SchedulerLeaseLostError
+        ? { ...emptyTelemetry(settings.default_diary_agent ?? 'unknown'), elapsed_ms: Math.max(0, leaseClock().getTime() - runStartedAt) }
+        : { ...telemetry, elapsed_ms: Math.max(0, leaseClock().getTime() - runStartedAt) };
       let failureStateNotPersisted = false;
       try {
-        const failedRun = this.db.prepare(`UPDATE daily_scheduler_runs SET status = 'failed', completed_at = ?, error = ? WHERE date = ? AND owner_instance_id = ? AND status = 'running'`).run(now.toISOString(), message, date, this.ownerInstanceId);
+        const failedAt = leaseClock().toISOString();
+        const failedRun = this.db.prepare(`UPDATE daily_scheduler_runs SET status = 'failed', completed_at = ?, error = ? WHERE date = ? AND owner_instance_id = ? AND lease_generation = ? AND status = 'running'`).run(failedAt, message, date, this.ownerInstanceId, leaseGeneration);
         if (failedRun.changes !== 1) throw new Error('scheduler terminal state was not owned');
-        updateDailySchedulerState(this.db, { last_run_date: date, last_run_at: now.toISOString(), last_status: 'failed', last_error: message, last_project_count: 0 }, runtime);
+        updateDailySchedulerState(this.db, { last_run_date: date, last_run_at: failedAt, last_status: 'failed', last_error: message, last_project_count: 0 }, runtime);
       } catch { failureStateNotPersisted = true; }
       return {
         status: 'failed',
@@ -439,6 +554,7 @@ export class DailySchedulerRuntime {
         kanban_ai_sync: emptyKanbanAiSync(settings.kanban_ai_auto_add.enabled, [message]),
         preflight: input.preflight,
         error_message: message,
+        telemetry: reportedTelemetry,
       };
     } finally {
       clearInterval(leaseTimer);
@@ -471,34 +587,36 @@ export class DailySchedulerRuntime {
       kanban_ai_sync: emptyKanbanAiSync(false),
       preflight: undefined,
       error_message: null,
+      telemetry: emptyTelemetry(),
     };
   }
 
-  private claimLease(date: string, now: Date, force: boolean): boolean {
+  private claimLease(date: string, now: Date, force: boolean): number | null {
     const expires = new Date(now.getTime() + DAILY_SCHEDULER_LEASE_MS).toISOString();
     return this.db.transaction(() => {
-      const existing = this.db.prepare(`SELECT status, lease_expires_at FROM daily_scheduler_runs WHERE date = ?`).get(date) as { status: string; lease_expires_at: string } | undefined;
-      if (existing?.status === 'running' && Date.parse(existing.lease_expires_at) > now.getTime()) return false;
-      if (!force && existing?.status === 'success') return false;
+      const existing = this.db.prepare(`SELECT status, lease_expires_at, lease_generation FROM daily_scheduler_runs WHERE date = ?`).get(date) as { status: string; lease_expires_at: string; lease_generation: number } | undefined;
+      if (existing?.status === 'running' && Date.parse(existing.lease_expires_at) > now.getTime()) return null;
+      if (!force && existing?.status === 'success') return null;
+      const generation = (existing?.lease_generation ?? 0) + 1;
       if (existing?.status === 'running') {
         this.db.prepare(
           `UPDATE daily_scheduler_runs SET status = 'failed', completed_at = ?, error = 'Daily scheduler lease expired.' WHERE date = ? AND status = 'running' AND lease_expires_at <= ?`,
         ).run(now.toISOString(), date, now.toISOString());
       }
       this.db.prepare(
-        `INSERT INTO daily_scheduler_runs (date, owner_instance_id, lease_expires_at, status, started_at, completed_at, error)
-         VALUES (?, ?, ?, 'running', ?, NULL, NULL)
-         ON CONFLICT(date) DO UPDATE SET owner_instance_id = excluded.owner_instance_id, lease_expires_at = excluded.lease_expires_at, status = 'running', started_at = excluded.started_at, completed_at = NULL, error = NULL`,
-      ).run(date, this.ownerInstanceId, expires, now.toISOString());
-      return true;
+        `INSERT INTO daily_scheduler_runs (date, owner_instance_id, lease_expires_at, status, started_at, completed_at, error, lease_generation)
+         VALUES (?, ?, ?, 'running', ?, NULL, NULL, ?)
+         ON CONFLICT(date) DO UPDATE SET owner_instance_id = excluded.owner_instance_id, lease_expires_at = excluded.lease_expires_at, status = 'running', started_at = excluded.started_at, completed_at = NULL, error = NULL, lease_generation = excluded.lease_generation`,
+      ).run(date, this.ownerInstanceId, expires, now.toISOString(), generation);
+      return generation;
     })();
   }
 
-  private renewLease(date: string, now: Date): boolean {
+  private renewLease(date: string, generation: number, now: Date): boolean {
     const expires = new Date(now.getTime() + DAILY_SCHEDULER_LEASE_MS).toISOString();
     const result = this.db.prepare(
-      `UPDATE daily_scheduler_runs SET lease_expires_at = ? WHERE date = ? AND owner_instance_id = ? AND status = 'running' AND lease_expires_at > ?`,
-    ).run(expires, date, this.ownerInstanceId, now.toISOString());
+      `UPDATE daily_scheduler_runs SET lease_expires_at = ? WHERE date = ? AND owner_instance_id = ? AND lease_generation = ? AND status = 'running' AND lease_expires_at > ?`,
+    ).run(expires, date, this.ownerInstanceId, generation, now.toISOString());
     return result.changes === 1;
   }
 }

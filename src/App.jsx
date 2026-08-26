@@ -416,7 +416,13 @@ import TrendChart from './components/TrendChart.jsx';
       const [wizardStep, setWizardStep] = useState(1);
       const [newAgentName, setNewAgentName] = useState("");
       const [newAgentPath, setNewAgentPath] = useState("");
-      const [newAgentModel, setNewAgentModel] = useState("Gemini-2.0-Flash");
+      const [newAgentModel, setNewAgentModel] = useState("qwen3:8b");
+      const [newOllama, setNewOllama] = useState({
+        endpoint: 'http://127.0.0.1:11434', thinking: false, timeout_ms: 120000,
+        num_ctx: 4096, num_predict: 1024, temperature: 0.2, top_k: 40,
+        top_p: 0.9, min_p: 0, repeat_last_n: 64, repeat_penalty: 1.1,
+        seed: '', num_thread: '', num_gpu: '', keep_alive: '5m', stop: '',
+      });
       const [newAgentProbe, setNewAgentProbe] = useState(null);
       const [agentProbeRunning, setAgentProbeRunning] = useState(false);
 
@@ -1432,6 +1438,17 @@ import TrendChart from './components/TrendChart.jsx';
         }
       };
 
+      const updateOllamaPreference = (agent, key, rawValue, kind = 'text') => {
+        let value = rawValue;
+        if (kind === 'number') value = Number(rawValue);
+        if (kind === 'optional-number') value = rawValue === '' ? null : Number(rawValue);
+        if (kind === 'stop') value = String(rawValue).split('\n').map((item) => item.trim()).filter(Boolean);
+        const ollama = { ...(agent.ollama || {}), [key]: value };
+        const patch = { provider_kind: 'ollama', ollama };
+        if (key === 'model') patch.model = value;
+        void updateAgentRuntimePreference(agent.id, patch);
+      };
+
       const updateDiaryAgent = async (agentId) => {
         if (!settingsSnapshot) {
           triggerToast("Settings 尚未載入，請稍後再試。");
@@ -1471,7 +1488,13 @@ import TrendChart from './components/TrendChart.jsx';
         setWizardStep(1);
         setNewAgentName("");
         setNewAgentPath("");
-        setNewAgentModel("Gemini-2.0-Flash");
+        setNewAgentModel("qwen3:8b");
+        setNewOllama({
+          endpoint: 'http://127.0.0.1:11434', thinking: false, timeout_ms: 120000,
+          num_ctx: 4096, num_predict: 1024, temperature: 0.2, top_k: 40,
+          top_p: 0.9, min_p: 0, repeat_last_n: 64, repeat_penalty: 1.1,
+          seed: '', num_thread: '', num_gpu: '', keep_alive: '5m', stop: '',
+        });
         setNewAgentProbe(null);
         setAgentProbeRunning(false);
       };
@@ -1556,6 +1579,15 @@ import TrendChart from './components/TrendChart.jsx';
             model: newAgentModel,
             executable_path: newAgentPath,
             probe_arg: '--version',
+            provider_kind: 'ollama',
+            ollama: {
+              ...newOllama,
+              model: newAgentModel,
+              seed: newOllama.seed === '' ? null : Number(newOllama.seed),
+              num_thread: newOllama.num_thread === '' ? null : Number(newOllama.num_thread),
+              num_gpu: newOllama.num_gpu === '' ? null : Number(newOllama.num_gpu),
+              stop: newOllama.stop.split('\n').map((item) => item.trim()).filter(Boolean),
+            },
           });
           applySettingsSnapshot(snapshot);
           closeAgentWizard();
@@ -2910,7 +2942,9 @@ import TrendChart from './components/TrendChart.jsx';
                                   <input
                                     className="wizard-input"
                                     defaultValue={ag.model || ''}
-                                    onBlur={(e) => updateAgentRuntimePreference(ag.id, { model: e.target.value })}
+                                    onBlur={(e) => ag.providerKind === 'ollama'
+                                      ? updateOllamaPreference(ag, 'model', e.target.value)
+                                      : updateAgentRuntimePreference(ag.id, { model: e.target.value })}
                                     onKeyDown={(e) => {
                                       if (e.key === 'Enter') e.currentTarget.blur();
                                     }}
@@ -2929,6 +2963,24 @@ import TrendChart from './components/TrendChart.jsx';
                                 </select>
                               </label>
                             </div>
+                            {ag.providerKind === 'ollama' && ag.ollama && (
+                              <details className="agent-derived-locations">
+                                <summary>Ollama Provider 全部設定</summary>
+                                <p className="agent-source-help">Host 只允許本機或私人網段。數值超出安全範圍時 Core 會整筆拒絕，不會部分保存。</p>
+                                <div className="prompt-grid">
+                                  <label><span>Host</span><input className="wizard-input" defaultValue={ag.ollama.endpoint} onBlur={(e) => updateOllamaPreference(ag, 'endpoint', e.target.value)} /></label>
+                                  {[['num_ctx','Context'],['num_predict','Max output'],['timeout_ms','Timeout (ms)'],['temperature','Temperature'],['top_k','Top K'],['top_p','Top P'],['min_p','Min P'],['repeat_last_n','Repeat last N'],['repeat_penalty','Repeat penalty']].map(([key, label]) => (
+                                    <label key={key}><span>{label}</span><input className="wizard-input" type="number" defaultValue={ag.ollama[key]} onBlur={(e) => updateOllamaPreference(ag, key, e.target.value, 'number')} /></label>
+                                  ))}
+                                  {[['seed','Seed'],['num_thread','Threads'],['num_gpu','GPU layers']].map(([key, label]) => (
+                                    <label key={key}><span>{label}</span><input className="wizard-input" type="number" defaultValue={ag.ollama[key] ?? ''} onBlur={(e) => updateOllamaPreference(ag, key, e.target.value, 'optional-number')} /></label>
+                                  ))}
+                                  <label><span>Keep alive</span><input className="wizard-input" defaultValue={ag.ollama.keep_alive} onBlur={(e) => updateOllamaPreference(ag, 'keep_alive', e.target.value)} /></label>
+                                  <label className="settings-toggle-row"><span>Thinking</span><input type="checkbox" checked={ag.ollama.thinking} onChange={(e) => updateOllamaPreference(ag, 'thinking', e.target.checked)} /></label>
+                                  <label><span>Stop sequences（一行一個）</span><textarea className="wizard-input" defaultValue={(ag.ollama.stop || []).join('\n')} onBlur={(e) => updateOllamaPreference(ag, 'stop', e.target.value, 'stop')} /></label>
+                                </div>
+                              </details>
+                            )}
                             {ag.detectionError && (
                               <div className="agent-detection-error">{ag.detectionError}</div>
                             )}
@@ -3017,7 +3069,7 @@ import TrendChart from './components/TrendChart.jsx';
             <div className="modal-overlay">
               <div className="modal-window">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: '600' }}>新增 CLI Coding Agent</h3>
+                    <h3 style={{ fontSize: '16px', fontWeight: '600' }}>新增本機 Ollama Provider</h3>
                   <button className="btn" onClick={closeAgentWizard}>取消</button>
                 </div>
 
@@ -3040,13 +3092,8 @@ import TrendChart from './components/TrendChart.jsx';
                       value={newAgentName}
                       onChange={(e) => setNewAgentName(e.target.value)}
                     />
-                    <label>背景 AI 引擎型號</label>
-                    <select className="wizard-input" value={newAgentModel} onChange={(e) => setNewAgentModel(e.target.value)}>
-                      <option value="Gemini-2.0-Flash">Gemini 2.0 Flash (預設)</option>
-                      <option value="Claude-3.5-Sonnet">Claude 3.5 Sonnet</option>
-                      <option value="DeepSeek-R1">DeepSeek R1</option>
-                      <option value="custom">自訂 Custom CLI</option>
-                    </select>
+                    <label>Ollama 模型</label>
+                    <input className="wizard-input" value={newAgentModel} onChange={(e) => setNewAgentModel(e.target.value)} placeholder="qwen3:8b" />
                   </div>
                 )}
 
@@ -3057,13 +3104,27 @@ import TrendChart from './components/TrendChart.jsx';
                     <input 
                       type="text" 
                       className="wizard-input" 
-                      placeholder="例如: /usr/local/bin/deepseek-cli" 
+                      placeholder="例如: /opt/homebrew/bin/ollama"
                       value={newAgentPath}
                       onChange={(e) => setNewAgentPath(e.target.value)}
                     />
                     <div style={{ fontSize: '11px', color: 'var(--muted)', background: 'var(--surface-hover)', padding: '10px', borderRadius: 'var(--radius-sm)' }}>
                       DevDiary Core 只會使用 safe probe argv（預設 --version），不接受 shell string，也不會在 project folder 內執行。
                     </div>
+                    <label>Ollama Host</label>
+                    <input className="wizard-input" value={newOllama.endpoint} onChange={(e) => setNewOllama({ ...newOllama, endpoint: e.target.value })} placeholder="http://127.0.0.1:11434" />
+                    <p className="agent-source-help">僅接受 localhost、私人網段或 .local 主機；不會把日記內容送到公開網址，也不會跟隨重新導向。</p>
+                    <details>
+                      <summary>進階生成設定（全部可自訂）</summary>
+                      <div className="prompt-grid" style={{ marginTop: '10px' }}>
+                        {[['timeout_ms','Timeout (ms)'],['num_ctx','Context'],['num_predict','Max output'],['temperature','Temperature'],['top_k','Top K'],['top_p','Top P'],['min_p','Min P'],['repeat_last_n','Repeat last N'],['repeat_penalty','Repeat penalty'],['seed','Seed'],['num_thread','Threads'],['num_gpu','GPU layers']].map(([key, label]) => (
+                          <label key={key}><span>{label}</span><input className="wizard-input" type="number" value={newOllama[key]} onChange={(e) => setNewOllama({ ...newOllama, [key]: e.target.value === '' ? '' : Number(e.target.value) })} /></label>
+                        ))}
+                        <label><span>Keep alive</span><input className="wizard-input" value={newOllama.keep_alive} onChange={(e) => setNewOllama({ ...newOllama, keep_alive: e.target.value })} /></label>
+                        <label className="settings-toggle-row"><span>Thinking</span><input type="checkbox" checked={newOllama.thinking} onChange={(e) => setNewOllama({ ...newOllama, thinking: e.target.checked })} /></label>
+                        <label><span>Stop sequences（一行一個）</span><textarea className="wizard-input" value={newOllama.stop} onChange={(e) => setNewOllama({ ...newOllama, stop: e.target.value })} /></label>
+                      </div>
+                    </details>
                   </div>
                 )}
 

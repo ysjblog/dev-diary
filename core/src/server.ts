@@ -350,7 +350,12 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
       if (probe.status !== 'connected') {
         return res.status(400).json({ error: 'custom_agent_probe_failed', message: probe.error_message ?? 'Custom agent probe failed.', probe });
       }
-      const settings = addCustomAgent(db, customAgentFromProbe(probe), settingsRuntime());
+      const providerInput = req.body && typeof req.body === 'object' ? req.body as Record<string, unknown> : {};
+      const settings = addCustomAgent(db, {
+        ...customAgentFromProbe(probe),
+        ...(providerInput.provider_kind === undefined ? {} : { provider_kind: providerInput.provider_kind as 'ollama' }),
+        ...(providerInput.ollama === undefined ? {} : { ollama: providerInput.ollama as never }),
+      }, settingsRuntime());
       return res.json(settings);
     } catch (err) {
       if (err instanceof CustomAgentValidationError || err instanceof SettingsValidationError) {

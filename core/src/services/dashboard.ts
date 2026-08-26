@@ -119,7 +119,7 @@ function buildProjectConcentration(db: DB, start: string, end: string, total: nu
               COUNT(*) AS session_count
        FROM sessions s
        JOIN projects p ON p.id = s.project_id
-       WHERE ${sqliteTaipeiDate('s.start_time')} >= ? AND ${sqliteTaipeiDate('s.start_time')} <= ? AND p.ignored = 0
+       WHERE ${sqliteTaipeiDate('s.start_time')} >= ? AND ${sqliteTaipeiDate('s.start_time')} <= ? AND p.ignored = 0 AND p.presence_status = 'present'
        GROUP BY p.id, p.name
        HAVING token_total > 0
        ORDER BY token_total DESC, p.name ASC

@@ -10,6 +10,7 @@ import {
   ScanNotFoundError,
   createConfiguredScanProvider,
   runManualScan,
+  upsertKanbanCandidate,
   type ScanProvider,
 } from '../src/services/scans.js';
 import { getProjectDetail } from '../src/services/projects.js';
@@ -87,6 +88,49 @@ describe('Scan Now / project rescan', () => {
   });
 
   describe('function 邏輯', () => {
+    it('Kanban upsert holds the SQLite writer lock while checking the scheduler generation fence', () => {
+      const root = tempRoot();
+      const dbPath = join(root, 'kanban-fence.sqlite');
+      const ownerDb = openDb(dbPath);
+      seedDatabase(ownerDb, { today: TODAY, days: 2, seed: 1337 });
+      const competitorDb = openDb(dbPath);
+      competitorDb.pragma('busy_timeout = 1');
+      ownerDb.prepare(
+        `INSERT INTO daily_scheduler_runs
+           (date, owner_instance_id, lease_generation, lease_expires_at, started_at, status)
+         VALUES (?, 'owner-a', 1, ?, ?, 'running')`,
+      ).run(TODAY, `${TODAY}T23:00:00.000Z`, `${TODAY}T12:00:00.000Z`);
+
+      let competitorBlocked = false;
+      const assertOwner = () => {
+        try {
+          competitorDb.prepare(`UPDATE daily_scheduler_runs SET owner_instance_id = 'owner-b', lease_generation = 2 WHERE date = ?`).run(TODAY);
+        } catch (err) {
+          competitorBlocked = (err as { code?: string }).code === 'SQLITE_BUSY';
+        }
+        expect(ownerDb.prepare(`SELECT owner_instance_id, lease_generation FROM daily_scheduler_runs WHERE date = ?`).get(TODAY)).toEqual({
+          owner_instance_id: 'owner-a', lease_generation: 1,
+        });
+      };
+      const card = {
+        title: 'Fenced card', description: 'race proof', status: 'todo' as const,
+        assignee_agent_id: null, source_ref: 'test://kanban-fence',
+      };
+      expect(upsertKanbanCandidate(ownerDb, 1, card, `${TODAY}T12:01:00.000Z`, assertOwner)).toEqual({ inserted: true, updated: false });
+      expect(competitorBlocked).toBe(true);
+
+      competitorDb.prepare(`UPDATE daily_scheduler_runs SET owner_instance_id = 'owner-b', lease_generation = 2 WHERE date = ?`).run(TODAY);
+      expect(() => upsertKanbanCandidate(ownerDb, 1, { ...card, source_ref: 'test://stale-owner' }, `${TODAY}T12:02:00.000Z`, () => {
+        const lease = ownerDb.prepare(`SELECT owner_instance_id, lease_generation FROM daily_scheduler_runs WHERE date = ?`).get(TODAY) as {
+          owner_instance_id: string; lease_generation: number;
+        };
+        if (lease.owner_instance_id !== 'owner-a' || lease.lease_generation !== 1) throw new Error('scheduler lease was lost');
+      })).toThrow('scheduler lease was lost');
+      expect(ownerDb.prepare(`SELECT COUNT(*) AS count FROM kanban_cards WHERE source_ref = 'test://stale-owner'`).get()).toEqual({ count: 0 });
+      competitorDb.close();
+      ownerDb.close();
+    });
+
     it('global scan 第一次新增 deterministic records，第二次不新增 duplicate', () => {
       const before = counts(db, 1);
 

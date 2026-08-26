@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -21,6 +21,7 @@ import { createConfiguredScanProvider } from '../src/services/scans.js';
 
 const roots: string[] = [];
 const sourceRuntime = { activeDbPath: '/tmp/settings-sources.sqlite', projectRoots: [] };
+const V0_1_3_REVISION = '3dccf669dc4b952818a89378cf1e4754d708248d';
 
 function tempRoot(): string {
   const root = mkdtempSync(join(tmpdir(), 'devdiary-settings-'));
@@ -171,6 +172,159 @@ describe('Settings backend', () => {
       });
 
       expect(settings.scan_provider).toEqual({ provider: 'cli-logs', fallback: 'none' });
+    });
+
+    it('Ollama provider settings use bounded defaults and persist outside legacy custom_agents', () => {
+      const db = openDb(':memory:');
+      const runtime = { activeDbPath: ':memory:', projectRoots: [] };
+      const updated = updateSettings(db, {
+        custom_agents: [{
+          id: 'custom-ollama', display_name: 'Ollama', model: 'qwen3:8b', reasoning: 'default',
+          executable_path: '/usr/local/bin/ollama', probe_arg: '--version', enabled: true,
+          status: 'connected', version: '0.20.0', checked_at: null, error_message: null,
+          provider_kind: 'ollama',
+          ollama: { endpoint: 'http://127.0.0.1:11434', thinking: false, num_predict: 128 },
+        }],
+      }, runtime);
+
+      expect(updated.custom_agents[0]?.provider_kind).toBe('ollama');
+      expect(updated.custom_agents[0]?.ollama).toMatchObject({ model: 'qwen3:8b', thinking: false, num_predict: 128, timeout_ms: 120000 });
+      const legacy = JSON.parse((db.prepare(`SELECT value FROM app_settings WHERE key = 'core'`).get() as { value: string }).value);
+      expect(legacy.custom_agents[0].provider_kind).toBeUndefined();
+      expect(db.prepare(`SELECT value FROM app_settings WHERE key = 'custom_agent_providers_v1'`).get()).toBeTruthy();
+    });
+
+    it('real 0.1.3 settings reader can read and write the upgraded database without erasing provider settings', () => {
+      const root = tempRoot();
+      const dbPath = join(root, 'upgraded.sqlite');
+      const runtime = { activeDbPath: dbPath, projectRoots: [] };
+      const db = openDb(dbPath);
+      const updated = updateSettings(db, {
+        custom_agents: [{
+          id: 'custom-ollama', display_name: 'Ollama', model: 'qwen3:8b', reasoning: 'default',
+          executable_path: '/usr/local/bin/ollama', probe_arg: '--version', enabled: true,
+          status: 'connected', version: '0.20.0', checked_at: null, error_message: null,
+          provider_kind: 'ollama',
+          ollama: { endpoint: 'http://127.0.0.1:11434', thinking: false, num_predict: 128 },
+        }],
+      }, runtime);
+      expect(updated.custom_agents[0]?.provider_kind).toBe('ollama');
+      db.close();
+
+      const fixtureRoot = join(root, 'v0.1.3');
+      const archivePath = join(root, 'v0.1.3.tar');
+      mkdirSync(fixtureRoot);
+      expect(JSON.parse(git(process.cwd(), ['show', `${V0_1_3_REVISION}:package.json`])).version).toBe('0.1.3');
+      execFileSync('git', ['archive', '--format=tar', `--output=${archivePath}`, V0_1_3_REVISION, ':(top)core'], { cwd: process.cwd() });
+      execFileSync('tar', ['-xf', archivePath, '-C', fixtureRoot]);
+      symlinkSync(join(process.cwd(), 'node_modules'), join(fixtureRoot, 'node_modules'), 'dir');
+      const resultPath = join(root, 'v0.1.3-result.json');
+      const runnerPath = join(fixtureRoot, 'read-and-write.mts');
+      writeFileSync(runnerPath, [
+        "import { writeFileSync } from 'node:fs';",
+        "import { openDb } from './src/db/index.ts';",
+        "import { getSettings, updateSettings } from './src/services/settings.ts';",
+        "const [dbPath, resultPath] = process.argv.slice(2);",
+        "if (!dbPath || !resultPath) throw new Error('database and result paths are required');",
+        "const runtime = { activeDbPath: dbPath, projectRoots: [] };",
+        "const db = openDb(dbPath);",
+        "const before = getSettings(db, runtime);",
+        "const after = updateSettings(db, { appearance: 'dark' }, runtime);",
+        "writeFileSync(resultPath, JSON.stringify({ before: before.custom_agents, after: after.custom_agents, appearance: after.appearance }));",
+        "db.close();",
+      ].join('\n'));
+      execFileSync(join(process.cwd(), 'node_modules', '.bin', 'tsx'), [runnerPath, dbPath, resultPath], {
+        cwd: fixtureRoot,
+        stdio: 'pipe',
+      });
+      const legacyResult = JSON.parse(readFileSync(resultPath, 'utf8'));
+      expect(legacyResult).toMatchObject({
+        before: [{ id: 'custom-ollama', model: 'qwen3:8b' }],
+        after: [{ id: 'custom-ollama', model: 'qwen3:8b' }],
+        appearance: 'dark',
+      });
+
+      const reopened = openDb(dbPath);
+      const current = getSettings(reopened, runtime);
+      expect(current.appearance).toBe('dark');
+      expect(current.custom_agents[0]).toMatchObject({
+        id: 'custom-ollama',
+        provider_kind: 'ollama',
+        ollama: { endpoint: 'http://127.0.0.1:11434', model: 'qwen3:8b', thinking: false, num_predict: 128 },
+      });
+      expect(reopened.prepare(`SELECT value FROM app_settings WHERE key = 'custom_agent_providers_v1'`).get()).toBeTruthy();
+      reopened.close();
+    });
+
+    it('Ollama provider settings reject public endpoints, unknown keys and out-of-range values atomically', () => {
+      const db = openDb(':memory:');
+      const runtime = { activeDbPath: ':memory:', projectRoots: [] };
+      const base = {
+        id: 'custom-ollama', display_name: 'Ollama', model: 'qwen3:8b', reasoning: 'default',
+        executable_path: '/usr/local/bin/ollama', probe_arg: '--version', enabled: true,
+        status: 'connected', version: null, checked_at: null, error_message: null, provider_kind: 'ollama',
+      };
+      for (const ollama of [
+        { endpoint: 'https://example.com' },
+        { endpoint: 'http://127.0.0.1:11434/path' },
+        { endpoint: 'http://user:pass@127.0.0.1:11434' },
+        { endpoint: 'http://127.0.0.1:11434?next=public' },
+        { endpoint: 'http://127.0.0.1:11434#fragment' },
+        { endpoint: 'http://127.0.0.1:11434', model: '' },
+        { endpoint: 'http://127.0.0.1:11434', thinking: 'false' },
+        { endpoint: 'http://127.0.0.1:11434', timeout_ms: 999 },
+        { endpoint: 'http://127.0.0.1:11434', timeout_ms: 300001 },
+        { endpoint: 'http://127.0.0.1:11434', num_ctx: 511 },
+        { endpoint: 'http://127.0.0.1:11434', num_ctx: 32769 },
+        { endpoint: 'http://127.0.0.1:11434', num_predict: 31 },
+        { endpoint: 'http://127.0.0.1:11434', num_predict: 4097 },
+        { endpoint: 'http://127.0.0.1:11434', temperature: -0.01 },
+        { endpoint: 'http://127.0.0.1:11434', temperature: 2.01 },
+        { endpoint: 'http://127.0.0.1:11434', top_k: -1 },
+        { endpoint: 'http://127.0.0.1:11434', top_k: 201 },
+        { endpoint: 'http://127.0.0.1:11434', top_p: -0.01 },
+        { endpoint: 'http://127.0.0.1:11434', top_p: 1.01 },
+        { endpoint: 'http://127.0.0.1:11434', min_p: -0.01 },
+        { endpoint: 'http://127.0.0.1:11434', min_p: 1.01 },
+        { endpoint: 'http://127.0.0.1:11434', repeat_last_n: -2 },
+        { endpoint: 'http://127.0.0.1:11434', repeat_last_n: 32769 },
+        { endpoint: 'http://127.0.0.1:11434', repeat_penalty: -0.01 },
+        { endpoint: 'http://127.0.0.1:11434', repeat_penalty: 2.01 },
+        { endpoint: 'http://127.0.0.1:11434', seed: -2 },
+        { endpoint: 'http://127.0.0.1:11434', seed: 2147483648 },
+        { endpoint: 'http://127.0.0.1:11434', seed: '1' },
+        { endpoint: 'http://127.0.0.1:11434', num_thread: 0 },
+        { endpoint: 'http://127.0.0.1:11434', num_thread: 257 },
+        { endpoint: 'http://127.0.0.1:11434', num_gpu: -1 },
+        { endpoint: 'http://127.0.0.1:11434', num_gpu: 257 },
+        { endpoint: 'http://127.0.0.1:11434', keep_alive: '25h' },
+        { endpoint: 'http://127.0.0.1:11434', keep_alive: 'forever' },
+        { endpoint: 'http://127.0.0.1:11434', stop: Array(9).fill('stop') },
+        { endpoint: 'http://127.0.0.1:11434', stop: [''] },
+        { endpoint: 'http://127.0.0.1:11434', stop: ['bad\nstop'] },
+        { endpoint: 'http://127.0.0.1:11434', stop: ['x'.repeat(129)] },
+        { endpoint: 'http://127.0.0.1:11434', stop: Array(8).fill('x'.repeat(65)) },
+        { endpoint: 'http://127.0.0.1:11434', temperature: Number.NaN },
+        { endpoint: 'http://127.0.0.1:11434', top_p: Number.POSITIVE_INFINITY },
+        { endpoint: 'http://127.0.0.1:11434', unknown: true },
+      ]) {
+        expect(() => updateSettings(db, { custom_agents: [{ ...base, ollama }] }, runtime)).toThrow(SettingsValidationError);
+      }
+      expect(db.prepare(`SELECT value FROM app_settings WHERE key = 'core'`).get()).toBeUndefined();
+    });
+
+    it('Ollama provider settings accept loopback and private IPv4/IPv6 origins', () => {
+      const db = openDb(':memory:');
+      const runtime = { activeDbPath: ':memory:', projectRoots: [] };
+      const base = {
+        id: 'custom-ollama', display_name: 'Ollama', model: 'qwen3:8b', reasoning: 'default',
+        executable_path: '/usr/local/bin/ollama', probe_arg: '--version', enabled: true,
+        status: 'connected', version: null, checked_at: null, error_message: null, provider_kind: 'ollama',
+      };
+      for (const endpoint of ['http://localhost:11434', 'http://192.168.1.20:11434', 'http://[::1]:11434', 'http://[fd00::1]:11434', 'http://[fe80::1]:11434']) {
+        const saved = updateSettings(db, { custom_agents: [{ ...base, ollama: { endpoint } }] }, runtime);
+        expect(saved.custom_agents[0]?.ollama?.endpoint).toBe(endpoint);
+      }
     });
 
     it('PATCH settings normalizes and persists configurable fields', () => {

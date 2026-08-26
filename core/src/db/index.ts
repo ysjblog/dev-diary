@@ -11,6 +11,23 @@ function ensureSchemaPatches(db: DB): void {
   if (!kanbanColumns.some((column) => column.name === 'status_locked_by_user')) {
     db.prepare(`ALTER TABLE kanban_cards ADD COLUMN status_locked_by_user INTEGER NOT NULL DEFAULT 0`).run();
   }
+  const projectColumns = db.prepare(`PRAGMA table_info(projects)`).all() as Array<{ name: string }>;
+  if (!projectColumns.some((column) => column.name === 'presence_status')) {
+    db.prepare(`ALTER TABLE projects ADD COLUMN presence_status TEXT NOT NULL DEFAULT 'present' CHECK (presence_status IN ('present','missing'))`).run();
+  }
+  if (!projectColumns.some((column) => column.name === 'missing_check_count')) {
+    db.prepare(`ALTER TABLE projects ADD COLUMN missing_check_count INTEGER NOT NULL DEFAULT 0`).run();
+  }
+  if (!projectColumns.some((column) => column.name === 'last_presence_check_at')) {
+    db.prepare(`ALTER TABLE projects ADD COLUMN last_presence_check_at TEXT`).run();
+  }
+  const schedulerColumns = db.prepare(`PRAGMA table_info(daily_scheduler_runs)`).all() as Array<{ name: string }>;
+  if (!schedulerColumns.some((column) => column.name === 'lease_generation')) {
+    db.prepare(`ALTER TABLE daily_scheduler_runs ADD COLUMN lease_generation INTEGER NOT NULL DEFAULT 1`).run();
+  }
+  if (!schedulerColumns.some((column) => column.name === 'telemetry_json')) {
+    db.prepare(`ALTER TABLE daily_scheduler_runs ADD COLUMN telemetry_json TEXT`).run();
+  }
 }
 
 /**

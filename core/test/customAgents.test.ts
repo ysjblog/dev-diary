@@ -120,6 +120,33 @@ describe('Custom agent safe probe', () => {
       }
     });
 
+    it('custom Ollama provider save preserves bounded host and generation settings', async () => {
+      const root = tempRoot();
+      const bin = fakeBin(join(root, 'bin'), 'ollama');
+      const db = openDb(':memory:');
+      const server = createServer(db, { dbPath: ':memory:', projectRoots: [] }).listen(0);
+      try {
+        const address = server.address();
+        if (!address || typeof address === 'string') throw new Error('test server failed to listen');
+        const response = await fetch(`http://127.0.0.1:${address.port}/api/agents/custom`, {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            display_name: 'Local Ollama', model: 'qwen3:8b', executable_path: bin,
+            provider_kind: 'ollama',
+            ollama: { endpoint: 'http://127.0.0.1:11434', thinking: false, num_predict: 128 },
+          }),
+        });
+        expect(response.status).toBe(200);
+        const body = await response.json() as { custom_agents: Array<{ provider_kind?: string; ollama?: { endpoint: string; num_predict: number; timeout_ms: number } }> };
+        expect(body.custom_agents[0]).toMatchObject({
+          provider_kind: 'ollama',
+          ollama: { endpoint: 'http://127.0.0.1:11434', num_predict: 128, timeout_ms: 120000 },
+        });
+      } finally {
+        await closeServer(server);
+      }
+    });
+
     it('custom agent enable disable and remove persists without removing canonical agents', async () => {
       const root = tempRoot();
       const bin = fakeBin(join(root, 'bin'));

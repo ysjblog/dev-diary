@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "initial_reviewer_id": "/root/spec_initial_review",
+  "initial_review_revision": "3dccf669dc4b952818a89378cf1e4754d708248d",
+  "pre_fix_matrix_digest": "31782573a4b3937d566662b614668e56f90a8f46c388df9e0a46af055fd49e5d",
+  "preserved_evidence_path": "openspec/changes/harden-daily-ai-local-providers-and-project-reconciliation/root-cause-continuation.md",
+  "preserved_evidence_digest": "c737f26a23fb290d5c178c6379fc1ddd026733b5b383a98e27ff9b4b0f4a196b",
+  "findings": [
+    {
+      "id": "COMPAT-001",
+      "severity": "high",
+      "original_location": "design.md:100-105; delta spec.md:79-84",
+      "runtime_evidence": ["core/src/services/settings.ts:643-662", "core/src/services/settings.ts:1002-1013"],
+      "landed_location": "design.md:35",
+      "verify_string": "The legacy `core.custom_agents` shape stays unchanged.",
+      "landed": true
+    },
+    {
+      "id": "RECOVERY-001",
+      "severity": "high",
+      "original_location": "design.md:78-84; delta spec.md:40-52",
+      "runtime_evidence": ["core/src/services/dailyScheduler.ts:313-316", "core/src/services/dailyScheduler.ts:346-395"],
+      "landed_location": "design.md:96",
+      "verify_string": "immediately after the provider await, and again inside the SQLite transaction before the first statement",
+      "landed": true
+    },
+    {
+      "id": "RECOVERY-002",
+      "severity": "high",
+      "original_location": "design.md:32-40,56-59,78-84; delta spec.md:54-71",
+      "runtime_evidence": ["core/src/services/projectDiscovery.ts:50-82", "core/src/services/projectDiscovery.ts:85-125"],
+      "landed_location": "design.md:81",
+      "verify_string": "a due reconciliation directly stats each already-tracked path under a configured root",
+      "landed": true
+    },
+    {
+      "id": "RECOVERY-003",
+      "severity": "high",
+      "original_location": "design.md:37-40,56-59,78-84; delta spec.md:54-66",
+      "runtime_evidence": ["core/src/services/scans.ts:490-496", "core/src/services/settings.ts:1255-1270"],
+      "landed_location": "design.md:139",
+      "verify_string": "only that winner mutates counters and completes the period",
+      "landed": true
+    },
+    {
+      "id": "AUTH-001",
+      "severity": "high",
+      "original_location": "design.md:52-55,86-91; delta spec.md:21-33,73-77",
+      "runtime_evidence": ["core/src/services/diaryAgent.ts:289-303"],
+      "landed_location": "design.md:75",
+      "verify_string": "Provider fetch MUST use `redirect: 'error'`",
+      "landed": true
+    },
+    {
+      "id": "RECOVERY-004",
+      "severity": "high",
+      "original_location": "proposal.md:15-26; design.md:66-75; delta spec.md:40-52",
+      "runtime_evidence": ["core/src/services/dailyScheduler.ts:340-418", "core/src/services/diaryAgent.ts:29-33"],
+      "landed_location": "design.md:111",
+      "verify_string": "Each provider success requires a non-fallback `agent_id`",
+      "landed": true
+    },
+    {
+      "id": "AUTH-002",
+      "severity": "high",
+      "original_location": "design.md:44-55; delta spec.md:21-33",
+      "runtime_evidence": ["core/src/services/diaryAgent.ts:274-301"],
+      "landed_location": "design.md:69",
+      "verify_string": "Unknown keys, numeric strings, non-finite values and partial invalid objects reject the whole mutation.",
+      "landed": true
+    },
+    {
+      "id": "ROLLOUT-001",
+      "severity": "high",
+      "original_location": "proposal.md:55-60; design.md:78-105; tasks.md:36-37",
+      "runtime_evidence": ["core/src/db/index.ts:24-33", "core/src/services/backgroundRunner.ts:80-116"],
+      "landed_location": "design.md:161",
+      "verify_string": "Installation never backs up a live WAL database by copying only its main file.",
+      "landed": true
+    }
+  ],
+  "all_landed": true,
+  "receipt_digest": "52dd16fa748dd9be40cc8298224533f82d3870123975b3046441e3f272a9d122"
+}
