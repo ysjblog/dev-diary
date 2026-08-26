@@ -33,7 +33,13 @@ npx tauri build --bundles dmg --no-sign
 dmg_path="$expected_dmg"
 [[ -f "$dmg_path" && "$dmg_path" -nt "$marker" ]] || fail "Tauri did not create the expected fresh DMG: $expected_dmg"
 hdiutil convert "$dmg_path" -format UDRW -o "$rw_dmg" -ov >/dev/null
-hdiutil resize -size 350m "$rw_dmg" >/dev/null
+read -r minimum_sectors _ < <(hdiutil resize -limits "$rw_dmg")
+[[ "$minimum_sectors" =~ ^[0-9]+$ ]] || fail "Unable to determine the writable DMG minimum size."
+# hdiutil reports 512-byte sectors. Keep 256 MiB above the filesystem's
+# current minimum so the bundled Node runtime and final Finder metadata fit
+# even when Core dependencies make the base App larger than an older release.
+target_mib=$(( (minimum_sectors + 2047) / 2048 + 256 ))
+hdiutil resize -size "${target_mib}m" "$rw_dmg" >/dev/null
 mkdir -p "$mount_dir"
 hdiutil attach "$rw_dmg" -nobrowse -mountpoint "$mount_dir" -quiet
 app_path="$mount_dir/DevDiary.app"

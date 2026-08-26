@@ -70,6 +70,10 @@ describe('release distribution safeguards', () => {
 
     assert.match(packager, /expected_dmg=/)
     assert.doesNotMatch(packager, /find .*\.dmg.*head -n 1/)
+    assert.match(packager, /hdiutil resize -limits/)
+    assert.match(packager, /minimum_sectors/)
+    assert.match(packager, /\+ 256/)
+    assert.doesNotMatch(packager, /resize -size 350m/)
     assert.match(verifier, /CFBundleShortVersionString/)
     assert.match(verifier, /DevDiary_\$\{expected_version\}_aarch64\.dmg/)
   })
