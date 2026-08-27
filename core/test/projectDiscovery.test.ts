@@ -148,6 +148,33 @@ describe('Project root discovery', () => {
     expect(db.prepare(`SELECT missing_check_count FROM projects WHERE root_path = ?`).get(repo)).toEqual({ missing_check_count: 0 });
   });
 
+  it('bounds a stuck configured-root traversal and never turns the timeout into a missing observation', () => {
+    const db = freshDb();
+    const root = tempRoot();
+    const repo = initRepo(root, 'Slow External Project');
+    discoverProjectsFromRoots(db, [root], { now: '2026-06-01T00:00:00.000Z' });
+    rmSync(repo, { recursive: true, force: true });
+    const hangingWorker = join(root, 'hanging-discovery-worker.mjs');
+    writeFileSync(hangingWorker, 'setInterval(() => {}, 1_000);\n');
+
+    const startedAt = Date.now();
+    const discovery = discoverProjectsFromRoots(db, [root], {
+      now: '2026-06-08T00:00:00.000Z',
+      workerPath: hangingWorker,
+      rootTimeoutMs: 50,
+    });
+    const reconciliation = reconcileMissingProjects(db, [root], {
+      now: '2026-06-08T00:00:00.000Z',
+      workerPath: hangingWorker,
+      rootTimeoutMs: 50,
+    });
+
+    expect(Date.now() - startedAt).toBeLessThan(2_000);
+    expect(discovery.incomplete_roots).toEqual([root]);
+    expect(reconciliation).toEqual({ skipped: true, observed: 0, marked_missing: 0, restored: 0 });
+    expect(db.prepare(`SELECT missing_check_count FROM projects WHERE root_path = ?`).get(repo)).toEqual({ missing_check_count: 0 });
+  });
+
   it('final cadence check lets only one different-date reconciliation update counters across two DB connections', () => {
     const root = tempRoot();
     const dbPath = join(root, 'reconciliation-race.sqlite');

@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { basename, join, normalize, relative, sep } from 'node:path';
 import type { DB } from '../db/index.js';
 import type { KanbanAiSyncResult } from '../domain/types.js';
@@ -7,6 +7,7 @@ import { createSqliteFileScanCache } from './logFileScanCache.js';
 import { synthesizeProjectKanban } from './kanbanSynthesis.js';
 import { discoverProjectsFromRoots, reconcileMissingProjects } from './projectDiscovery.js';
 import { taipeiDate } from './taipeiDate.js';
+import { boundedReadUtf8 } from './boundedFileRead.js';
 
 type ScanScope = 'global' | 'project';
 type SkipReason = 'ignored' | 'scan_paused' | 'missing';
@@ -274,7 +275,7 @@ function readProjectDoc(name: string, path: string): { name: string; content: st
   }
   if (!stat.isFile() || stat.size > DOC_SCAN_MAX_BYTES) return null;
   try {
-    const content = readFileSync(path, 'utf8').slice(0, DOC_SCAN_CONTENT_BYTES);
+    const content = boundedReadUtf8(path, { maxBytes: DOC_SCAN_CONTENT_BYTES }).slice(0, DOC_SCAN_CONTENT_BYTES);
     if (content.includes('\0')) return null;
     const logicalName = logicalProjectDocPath(name);
     if (!logicalName) return null;

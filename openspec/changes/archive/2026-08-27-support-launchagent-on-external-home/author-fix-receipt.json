@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "matrix_digest": "aa55bc247cefa6a745fd281b058ff2c1e5fd4f57fa79418790fe5fcd6fe1a5f3",
+  "review_revision": "2536edc314e6a2818fcd0ba7bbeef4fd960d3128",
+  "reviewed_finding_ids": [
+    "O2-NAMING-001",
+    "O2-ROLLBACK-001"
+  ],
+  "changed_artifact_digest": "afc117f3f104e19d90ff07ab13e7cfe804f0b3dc94132db27e33bebd3879644f",
+  "landing_checks_passed": true,
+  "strict_validation_passed": true,
+  "author_preflight_receipt_digest": "15928647d26c7b42cc5d401a29b76bad9f9190d6fad24e0e23824cdaa4a7a70e",
+  "fixes": [
+    {
+      "finding_id": "O2-NAMING-001",
+      "concern_tag": "field-type",
+      "verify_string": "### Requirement: Background-runner support files use a launchd-compatible local boundary"
+    },
+    {
+      "finding_id": "O2-ROLLBACK-001",
+      "concern_tag": "readers-writers",
+      "verify_string": "relaunch while preserving the current SQLite database"
+    }
+  ],
+  "receipt_digest": "11b15bb889d0e4f040e061dcfba26585c7c2f6ca1680fc6a740c2a52e0da0fb0"
+}

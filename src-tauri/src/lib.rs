@@ -202,8 +202,16 @@ fn launch_agent_storage_dir(app_dir: &Path) -> PathBuf {
   app_dir.join("LaunchAgents")
 }
 
-fn resolve_launch_agent_storage_dir(app_dir: &Path, _core_dir: &Path) -> PathBuf {
-  launch_agent_storage_dir(app_dir)
+fn packaged_launch_agent_storage_dir(core_dir: &Path) -> Option<PathBuf> {
+  core_dir
+    .ancestors()
+    .find(|path| path.extension().map(|extension| extension == "app").unwrap_or(false))
+    .and_then(Path::parent)
+    .map(|parent| parent.join(".DevDiaryLaunchAgents"))
+}
+
+fn resolve_launch_agent_storage_dir(app_dir: &Path, core_dir: &Path) -> PathBuf {
+  packaged_launch_agent_storage_dir(core_dir).unwrap_or_else(|| launch_agent_storage_dir(app_dir))
 }
 
 fn open_core_log() -> Option<std::fs::File> {
@@ -688,7 +696,8 @@ mod tests {
 
   fn temporary_executable(name: &str) -> (PathBuf, PathBuf) {
     let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-    let directory = std::env::temp_dir().join(format!("devdiary-node-test-{unique}"));
+    let sequence = TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    let directory = std::env::temp_dir().join(format!("devdiary-node-test-{unique}-{sequence}"));
     fs::create_dir_all(&directory).unwrap();
     let executable = directory.join(name);
     fs::write(&executable, "#!/bin/sh\nexit 0\n").unwrap();
@@ -706,12 +715,12 @@ mod tests {
   }
 
   #[test]
-  fn packaged_and_development_launch_agent_files_use_application_support() {
+  fn packaged_launch_agent_files_use_local_app_sibling_while_development_uses_application_support() {
     let app_data_dir = Path::new("/Users/tester/Library/Application Support/DevDiary");
     let core_dir = Path::new("/Applications/DevDiary.app/Contents/Resources/core");
     assert_eq!(
       resolve_launch_agent_storage_dir(app_data_dir, core_dir),
-      Path::new("/Users/tester/Library/Application Support/DevDiary/LaunchAgents")
+      Path::new("/Applications/.DevDiaryLaunchAgents")
     );
     assert_eq!(
       resolve_launch_agent_storage_dir(app_data_dir, Path::new("/tmp/devdiary/core")),

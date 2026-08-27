@@ -431,7 +431,7 @@ describe('Scan Now / project rescan', () => {
       }
     });
 
-    it('POST /api/scan includes ai_sync counts only when kanban_ai_auto_add is enabled', async () => {
+    it('POST /api/scan never hides a per-project AI batch behind the local scan action', async () => {
       updateSettings(db, { kanban_ai_auto_add: { enabled: true } }, runtime());
       let calls = 0;
       const app = createServer(db, {
@@ -462,10 +462,9 @@ describe('Scan Now / project rescan', () => {
         if (!address || typeof address === 'string') throw new Error('test server failed to listen');
         const response = await fetch(`http://127.0.0.1:${address.port}/api/scan?range=24h`, { method: 'POST' });
         expect(response.status).toBe(200);
-        const body = (await response.json()) as { scan: { ai_sync: { inserted: number; skipped: number } } };
-        expect(calls).toBeGreaterThan(0);
-        expect(body.scan.ai_sync.inserted).toBeGreaterThan(0);
-        expect(body.scan.ai_sync.skipped).toBe(0);
+        const body = (await response.json()) as { scan: { ai_sync: { enabled: boolean; inserted: number; skipped: number } } };
+        expect(calls).toBe(0);
+        expect(body.scan.ai_sync).toMatchObject({ enabled: false, inserted: 0, skipped: 0 });
       } finally {
         await new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
       }

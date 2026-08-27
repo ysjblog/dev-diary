@@ -18,6 +18,7 @@ import { buildRuntimeHealth, type RuntimeHealthOptions } from './services/runtim
 import { buildSchedulerPreflight } from './services/schedulerPreflight.js';
 import { ScanNotFoundError, createConfiguredScanProvider, resolveScanProviderPolicy, runManualScan } from './services/scans.js';
 import type { ScanProvider, ScanProviderPolicy } from './services/scans.js';
+import { ManualScanWorkerError, runIsolatedManualScan } from './services/manualScanIsolation.js';
 import {
   SettingsValidationError,
   SettingsConflictError,
@@ -169,6 +170,17 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
     }, {
       dataRoots: Object.fromEntries(settings.agents.map((agent) => [agent.id, resolveCanonicalActivityDataRoots(agent.id, agent.sources)])),
     }, db);
+  };
+  const executeManualScan = async (settings: AppSettings, request: { scope: 'global' | 'project'; projectId?: number; today: string }) => {
+    const dbPath = settingsRuntime().activeDbPath;
+    if (opts.scanProvider || dbPath === ':memory:' || process.env.VITEST) {
+      return runManualScan(db, {
+        scope: request.scope, projectId: request.projectId, today: request.today,
+        provider: scanProviderFor(settings), projectRoots: request.scope === 'global' ? settings.project_roots : undefined,
+        projectDocFilenames: settings.project_doc_filenames, projectDocFolders: settings.project_doc_folders,
+      });
+    }
+    return runIsolatedManualScan({ dbPath, request });
   };
   const detectConfiguredAgents = async (): Promise<AgentDetectionSnapshot> => {
     if (opts.agentDetector) return opts.agentDetector();
@@ -466,15 +478,15 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
     const stopHeartbeat = startScanOperationHeartbeat(db, settingsRuntime(), operation);
     let scan;
     try {
-      scan = runManualScan(db, {
-        scope: 'global', today, provider: scanProviderFor(settings), projectRoots: settings.project_roots,
-        projectDocFilenames: settings.project_doc_filenames, projectDocFolders: settings.project_doc_folders,
-      });
+      scan = await executeManualScan(settings, { scope: 'global', today });
     } catch (err) {
       stopHeartbeat();
       // A thrown scan still owns one terminal cleanup attempt; recovery handles a
       // transient SQLite-busy cleanup on a later Core read.
       try { recordScanOperation(db, settingsRuntime(), { phase: 'finish', operation, status: 'failed', error: 'Scan aborted unexpectedly.' }); } catch { /* safe later reconciliation */ }
+      if (err instanceof ManualScanWorkerError) {
+        return res.status(err.code === 'scan_timeout' ? 504 : 500).json({ error: err.code, message: err.message });
+      }
       throw err;
     }
     stopHeartbeat();
@@ -491,7 +503,11 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
     }
     if (scan.status === 'failed') return res.status(500).json({ error: 'scan_failed', message: scan.error_message, scan, background_scan: scanState });
     try {
-      scan.ai_sync = await runScanKanbanAiSync(scan.scanned_projects, today, rangeQuery, settings);
+      // Scan Now is the bounded local-import action. AI Kanban remains available
+      // through the explicit per-project endpoint and the once-daily scheduler;
+      // hiding a sequential project-wide AI batch here made a successful scan
+      // look stuck for several minutes.
+      scan.ai_sync = emptyKanbanAiSync(false);
       return res.json({
         scan,
         dashboard: getDashboardSnapshot(db, {
@@ -522,13 +538,13 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
       const operation = recordScanOperation(db, settingsRuntime(), { phase: 'start', scope: 'project', project_id: projectId }).operation;
       const stopHeartbeat = startScanOperationHeartbeat(db, settingsRuntime(), operation);
       try {
-        scan = runManualScan(db, {
-          scope: 'project', projectId, today, provider: scanProviderFor(settings),
-          projectDocFilenames: settings.project_doc_filenames, projectDocFolders: settings.project_doc_folders,
-        });
+        scan = await executeManualScan(settings, { scope: 'project', projectId, today });
       } catch (err) {
         stopHeartbeat();
         try { recordScanOperation(db, settingsRuntime(), { phase: 'finish', operation, status: 'failed', error: 'Scan aborted unexpectedly.' }); } catch { /* recovered later */ }
+        if (err instanceof ManualScanWorkerError) {
+          return res.status(err.code === 'scan_timeout' ? 504 : 500).json({ error: err.code, message: err.message });
+        }
         throw err;
       }
       stopHeartbeat();
@@ -538,7 +554,7 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
         scanned_projects: scan.scanned_projects.length, inserted_sessions: scan.inserted_sessions,
       }).settings.background_scan;
       if (scan.status === 'failed') return res.status(500).json({ error: 'scan_failed', message: scan.error_message, scan, background_scan: scanState });
-      scan.ai_sync = await runScanKanbanAiSync(scan.scanned_projects, today, rangeQuery, settings);
+      scan.ai_sync = emptyKanbanAiSync(false);
       return res.json({
         scan,
         dashboard: getDashboardSnapshot(db, { range: '24h', today }),

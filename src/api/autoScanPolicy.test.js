@@ -40,6 +40,25 @@ test('startup auto scan runs once only after Core is connected and roots are con
   }), false);
 });
 
+test('packaged runtime delegates startup scanning to LaunchAgent instead of blocking the App Core', () => {
+  const settingsSnapshot = { project_roots: ['/Users/demo/Developer/projects'] };
+  assert.equal(shouldAutoScanOnStartup({
+    alreadyStarted: false,
+    isAnyScanRunning: false,
+    settingsSnapshot,
+    runtimeStatus: { status: 'connected' },
+    packagedRuntime: true,
+  }), false);
+
+  assert.equal(shouldAutoScanOnStartup({
+    alreadyStarted: false,
+    isAnyScanRunning: false,
+    settingsSnapshot,
+    runtimeStatus: { status: 'connected' },
+    packagedRuntime: false,
+  }), true);
+});
+
 test('scan activity label only represents Core scan or inline AI work, not response refresh', () => {
   assert.deepEqual(scanActivityPresentation({ activeWorkPending: true, coreScanRunning: true }), {
     label: '正在掃描...',

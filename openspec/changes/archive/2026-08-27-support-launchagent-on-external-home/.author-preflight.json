@@ -1,0 +1,14 @@
+{
+  "schema": "codex.openspec-author-preflight/v1",
+  "change": "support-launchagent-on-external-home",
+  "content_sha256": "65130a6d75a6a3b81506578bd13097616ead6f86ba0c2c70f038e19984204529",
+  "tracked_files": [
+    "openspec/changes/support-launchagent-on-external-home/design.md",
+    "openspec/changes/support-launchagent-on-external-home/proposal.md",
+    "openspec/changes/support-launchagent-on-external-home/specs/dev-diary-macos-app/spec.md",
+    "openspec/changes/support-launchagent-on-external-home/tasks.md",
+    "openspec/specs/dev-diary-macos-app/spec.md"
+  ],
+  "checked_at": "2026-08-27T17:15:21.362695+00:00",
+  "status": "pass"
+}

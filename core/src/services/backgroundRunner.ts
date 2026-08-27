@@ -4,6 +4,7 @@ import { DailySchedulerRuntime, type DailySchedulerRuntimeOptions } from './dail
 import { createAntigravityProbe, usesAntigravityProvider } from './antigravitySession.js';
 import { resolveCanonicalActivityDataRoots } from './agentDetection.js';
 import { createConfiguredScanProvider, runManualScan, type ManualScanResult, type ScanProvider } from './scans.js';
+import { runIsolatedManualScan } from './manualScanIsolation.js';
 import {
   getSettings,
   recordScanOperation,
@@ -131,14 +132,15 @@ export async function runBackgroundCycle(
   let scan: ManualScanResult | null = null;
   let antigravitySkipped = false;
   try {
-    scan = runManualScan(db, {
-      scope: 'global',
-      today,
-      provider: scanProviderFor(db, settings, options.scanProvider),
-      projectRoots,
-      projectDocFilenames: settings.project_doc_filenames,
-      projectDocFolders: settings.project_doc_folders,
-    });
+    scan = options.scanProvider || runtimeDefaults.activeDbPath === ':memory:'
+      ? runManualScan(db, {
+          scope: 'global', today, provider: scanProviderFor(db, settings, options.scanProvider), projectRoots,
+          projectDocFilenames: settings.project_doc_filenames, projectDocFolders: settings.project_doc_folders,
+        })
+      : await runIsolatedManualScan({
+          dbPath: runtimeDefaults.activeDbPath,
+          request: { scope: 'global', today },
+        });
     if (scan.status === 'failed') {
       updateDailySchedulerState(
         db,

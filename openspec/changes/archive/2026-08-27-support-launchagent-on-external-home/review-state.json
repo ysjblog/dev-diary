@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "change": "support-launchagent-on-external-home",
+  "openspec_level": "o2",
+  "routing_signals": [
+    "durable_shared_contract",
+    "material_decision",
+    "known_bug"
+  ],
+  "review_provider": "codex",
+  "review_revision": "2536edc314e6a2818fcd0ba7bbeef4fd960d3128",
+  "contract_matrix_path": "openspec/changes/support-launchagent-on-external-home/contract-matrix.json",
+  "contract_matrix_root": ".",
+  "contract_matrix_digest": "aa55bc247cefa6a745fd281b058ff2c1e5fd4f57fa79418790fe5fcd6fe1a5f3",
+  "focused_lenses": [
+    "data-and-facts",
+    "naming-and-types",
+    "blast-radius"
+  ],
+  "initial_full_complete": true,
+  "initial_review_receipt_path": "openspec/changes/support-launchagent-on-external-home/initial-review-receipt.json",
+  "initial_review_receipt_digest": "7af98fb1311de2c46284b2e3bbcde072624737ca873fa00b66469d20444fbb7d",
+  "pending_finding_ids": [],
+  "pending_concern_tags": [],
+  "resolved_finding_ids": [
+    "O2-NAMING-001",
+    "O2-ROLLBACK-001"
+  ],
+  "author_fix_complete": true,
+  "author_fix_receipt_path": "openspec/changes/support-launchagent-on-external-home/author-fix-receipt.json",
+  "author_fix_receipt_digest": "11b15bb889d0e4f040e061dcfba26585c7c2f6ca1680fc6a740c2a52e0da0fb0",
+  "changed_artifact_digest": "afc117f3f104e19d90ff07ab13e7cfe804f0b3dc94132db27e33bebd3879644f",
+  "post_fix_contract_matrix_path": "openspec/changes/support-launchagent-on-external-home/post-fix-contract-matrix.json",
+  "post_fix_contract_matrix_digest": "a31ec2c82976a129b6b60e52e5fbb94f7644363a8381b8ac518c38ab5b5f7878",
+  "post_fix_author_preflight_receipt_digest": "fe09cd7855f721b651e061e3d768fefe2aa96a7497e5232b59a2802a1b7305f4",
+  "evidence_chain_note": "The pre-fix matrix and reviewer receipts remain immutable. The post-fix matrix separately proves the reviewed findings landed in current artifacts; regenerating the original matrix would falsely claim the reviewer saw post-fix content.",
+  "final_full_used": false,
+  "converged": true,
+  "new_cross_file_findings": 0,
+  "fullCloserCount": 0,
+  "consolidatedAuthorFixes": 1,
+  "newCrossFileFindings": 0
+}

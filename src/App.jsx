@@ -1181,6 +1181,7 @@ import TrendChart from './components/TrendChart.jsx';
           isAnyScanRunning,
           settingsSnapshot,
           runtimeStatus,
+          packagedRuntime: Boolean(window.__TAURI_INTERNALS__) || window.location.protocol.startsWith('tauri'),
         })) {
           return;
         }

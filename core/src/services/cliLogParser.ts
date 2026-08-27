@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
-import { accessSync, constants, existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { accessSync, constants, existsSync, lstatSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
 import type { CanonicalAgentId } from '../domain/types.js';
 import { createInMemoryFileScanCache, type FileScanCache } from './logFileScanCache.js';
 import type { ProjectScanCandidate, ScanProvider, ScanSessionCandidate, ScannableProject } from './scans.js';
+import { boundedReadUtf8 } from './boundedFileRead.js';
 
 export type ParserWarningKind = 'malformed_jsonl' | 'unreadable_file' | 'missing_root' | 'unreadable_root' | 'invalid_data_root_layout' | 'symlink_escape' | 'symlink_cycle';
 
@@ -249,13 +250,13 @@ function sortedLogFiles(dir: string, maxFiles: number, warnings?: ParserWarning[
 function readJsonl(file: string, agentName: ParserWarning['agent_name'], warnings: ParserWarning[]): JsonObject[] {
   let content = '';
   try {
-    content = readFileSync(file, 'utf8');
+    content = boundedReadUtf8(file);
   } catch (err) {
     warnings.push({
       agent_name: agentName,
       kind: 'unreadable_file',
       source: `${agentName}:${basename(file)}`,
-      message: err instanceof Error ? err.message : String(err),
+      message: 'Skipped a log file that could not be read within the safety limit.',
     });
     return [];
   }
@@ -551,13 +552,13 @@ function transcriptTimes(opts: Required<CliLogParserOptions>, roots: string[], c
 function parseAntigravityFile(file: string, warnings: ParserWarning[]): AntigravityLogEntry | null {
   let content = '';
   try {
-    content = readFileSync(file, 'utf8');
+    content = boundedReadUtf8(file);
   } catch (err) {
     warnings.push({
       agent_name: 'antigravity-cli',
       kind: 'unreadable_file',
       source: `antigravity-cli:${basename(file)}`,
-      message: err instanceof Error ? err.message : String(err),
+      message: 'Skipped a log file that could not be read within the safety limit.',
     });
     return null;
   }

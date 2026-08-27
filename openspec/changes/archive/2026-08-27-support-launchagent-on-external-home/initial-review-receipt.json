@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "stage": "initial",
+  "reviewer_id": "/root/o2_launchagent_spec_reviewer_retry",
+  "matrix_digest": "aa55bc247cefa6a745fd281b058ff2c1e5fd4f57fa79418790fe5fcd6fe1a5f3",
+  "review_revision": "2536edc314e6a2818fcd0ba7bbeef4fd960d3128",
+  "lens_results": {
+    "data-and-facts": "pass",
+    "naming-and-types": "findings",
+    "blast-radius": "findings"
+  },
+  "finding_ids": [
+    "O2-NAMING-001",
+    "O2-ROLLBACK-001"
+  ],
+  "findings": [
+    {
+      "id": "O2-NAMING-001",
+      "severity": "medium",
+      "title": "Requirement name contradicts the packaged support boundary"
+    },
+    {
+      "id": "O2-ROLLBACK-001",
+      "severity": "high",
+      "title": "Unconditional SQLite rollback could overwrite current data"
+    }
+  ],
+  "receipt_digest": "7af98fb1311de2c46284b2e3bbcde072624737ca873fa00b66469d20444fbb7d"
+}

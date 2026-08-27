@@ -284,30 +284,6 @@ The JS development proxy and Rust/Tauri shell SHALL trust a Core runtime manifes
 - **WHEN** no manifest is valid and the configured fallback port is missing, non-numeric, fractional, non-positive or greater than 65535
 - **THEN** JS and Rust resolve `http://127.0.0.1:4317`.
 
-### Requirement: Background-runner support files stay in the user data boundary
-
-The macOS shell SHALL generate the background launcher and source plist below `<Application Support>/DevDiary/LaunchAgents` for both packaged and development Core paths, SHALL keep logs below the same app-data boundary, and SHALL register the stable label `com.ysjblog.devdiary.background` through a link at `~/Library/LaunchAgents`. New source content MUST be written and validated at a separate candidate path so validation failure leaves any live stable source byte-for-byte unchanged; only validated content may atomically replace the stable source before registration replacement. It MUST limit legacy cleanup and failure cleanup to files carrying DevDiary ownership markers or the exact link created by the current attempt, and MUST return/log a failure without deleting unrelated files. Unit tests MUST use pure paths or temporary directories and MUST NOT invoke real `launchctl`, modify the user's HOME, or install/uninstall an agent.
-
-#### Scenario: Drag-installed app uses a standard-user writable source directory
-
-- **WHEN** Core resolves from `/Applications/DevDiary.app/Contents/Resources/core`
-- **THEN** launcher and source plist resolve below the current user's DevDiary Application Support directory, not `/Applications` or the app bundle's parent.
-
-#### Scenario: Development and packaged registration use the same layout
-
-- **WHEN** background registration is prepared for a development or packaged Core path
-- **THEN** both use the same app-data source layout and the same per-user registration-link contract.
-
-#### Scenario: Invalid staged plist does not replace registration
-
-- **WHEN** source plist validation fails before bootstrap
-- **THEN** the installer removes the candidate, preserves the prior stable source byte-for-byte, reports failure before replacing the per-user registration, and does not invoke bootstrap.
-
-#### Scenario: Failed current attempt cannot delete unrelated registration
-
-- **WHEN** link creation or bootstrap fails and the registration path no longer points to the exact source from the current attempt
-- **THEN** cleanup leaves that path untouched and reports the incomplete installation.
-
 ### Requirement: Public release source privacy boundary
 
 The system MUST keep current tracked production source, active specifications, release documentation and newly generated public release notes free from maintainer-specific checkout paths, private volume/user-home identifiers and literal production demo roots of the form `/Users/<name>/...`. It MUST preserve immutable legacy provenance under `docs/specs/legacy/`, anonymous test fixtures and standard operating-system executable/application candidates when they are needed to explain history or verify behavior. Runtime seed paths MUST derive from a non-identifying OS-owned temporary boundary, while UI placeholder or fallback data MUST use a non-filesystem example or the current Core detection state. The privacy scanner MUST derive the current checkout/account identity without embedding the maintainer identity literal in tracked scanner source, and MUST check the release body both before creation and after remote readback.
@@ -412,6 +388,30 @@ The system SHALL periodically reconcile tracked project paths no more often than
 
 - **WHEN** a missing project path is rediscovered under a readable configured root
 - **THEN** Core restores it to present in the same discovery transaction, resets absence metadata, and the next normal list/scan can include it without recreating historical rows.
+
+### Requirement: Background-runner support files use a launchd-compatible local boundary
+
+The macOS shell SHALL generate the background launcher and source plist below a fixed `.DevDiaryLaunchAgents` sibling of the `.app` bundle when Core resolves from a packaged App, and below `<Application Support>/DevDiary/LaunchAgents` for a development Core path. It SHALL keep logs below the app-data boundary and SHALL register the stable label `com.ysjblog.devdiary.background` through a link at `~/Library/LaunchAgents`. New source content MUST be written and validated at a separate candidate path so validation failure leaves any live stable source byte-for-byte unchanged; only validated content may atomically replace the stable source before registration replacement. It MUST limit legacy cleanup and failure cleanup to files carrying DevDiary ownership markers or the exact link created by the current attempt, and MUST return/log a failure without deleting unrelated files. Unit tests MUST use pure paths or temporary directories and MUST NOT invoke real `launchctl`, modify the user's HOME, or install/uninstall an agent.
+
+#### Scenario: Drag-installed App avoids an incompatible external HOME source
+
+- **WHEN** Core resolves from `/Applications/DevDiary.app/Contents/Resources/core` while the user's Application Support is on a filesystem that `launchd` rejects for the executable support source
+- **THEN** launcher and source plist resolve to `/Applications/.DevDiaryLaunchAgents`, while logs and SQLite remain in the user's DevDiary app-data directory.
+
+#### Scenario: Development remains inside app data
+
+- **WHEN** Core resolves from a development path without a `.app` ancestor
+- **THEN** launcher and source plist resolve below the current user's DevDiary Application Support directory and use the same per-user registration-link contract.
+
+#### Scenario: Invalid staged plist does not replace registration
+
+- **WHEN** source plist validation fails before bootstrap
+- **THEN** the installer removes the candidate, preserves the prior stable source byte-for-byte, reports failure before replacing the per-user registration, and does not invoke bootstrap.
+
+#### Scenario: Failed current attempt cannot delete unrelated registration
+
+- **WHEN** link creation or bootstrap fails and the registration path no longer points to the exact source from the current attempt
+- **THEN** cleanup leaves that path untouched and reports the incomplete installation.
 
 ## Data Contracts
 

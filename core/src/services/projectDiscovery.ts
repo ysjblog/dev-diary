@@ -1,6 +1,8 @@
-import { existsSync, readdirSync, statSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { statSync } from 'node:fs';
 import { basename, join, resolve, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import type { DB } from '../db/index.js';
 
 export interface DiscoveredProject {
@@ -12,11 +14,14 @@ export interface DiscoveredProject {
 export interface ProjectDiscoveryOptions {
   maxDepth?: number;
   now?: string;
+  workerPath?: string;
+  rootTimeoutMs?: number;
 }
 
 export interface ProjectDiscoveryResult {
   roots: string[];
   discovered: DiscoveredProject[];
+  incomplete_roots: string[];
   inserted: number;
   updated: number;
 }
@@ -29,87 +34,53 @@ export interface ProjectReconciliationResult {
 }
 
 const DEFAULT_MAX_DEPTH = 2;
-const IGNORED_DIRS = new Set(['.git', '.hg', '.svn', 'node_modules', 'dist', 'build', 'coverage', '.next', '.turbo', '.cache']);
-const PROJECT_MARKERS = ['package.json', 'pyproject.toml', 'Cargo.toml', 'go.mod', 'deno.json', 'README.md'];
-
-function isIgnoredDir(name: string): boolean {
-  return name.startsWith('.') || IGNORED_DIRS.has(name);
-}
-
-function isDirectory(path: string): boolean {
-  try {
-    return statSync(path).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
-function projectMarker(path: string): { isProject: boolean; git: boolean } {
-  const git = isDirectory(join(path, '.git'));
-  if (git) return { isProject: true, git };
-  return {
-    isProject:
-      PROJECT_MARKERS.some((marker) => existsSync(join(path, marker))) ||
-      existsSync(join(path, 'app', 'public', 'wp-config.php')),
-    git,
-  };
-}
+const DEFAULT_ROOT_TIMEOUT_MS = 30_000;
+const DEFAULT_DISCOVERY_WORKER = fileURLToPath(new URL('./projectDiscoveryWorker.mjs', import.meta.url));
 
 function fsErrorCode(err: unknown): string | null {
   return err && typeof err === 'object' && 'code' in err && typeof err.code === 'string' ? err.code : null;
 }
 
-function collectProjects(root: string, maxDepth: number): { discovered: DiscoveredProject[]; complete: boolean } {
-  const discovered: DiscoveredProject[] = [];
-  const seen = new Set<string>();
-  let complete = true;
-
-  const visit = (dir: string, depth: number) => {
-    const marker = projectMarker(dir);
-    if (marker.isProject) {
-      if (!seen.has(dir)) {
-        seen.add(dir);
-        discovered.push({ name: basename(dir), root_path: dir, git_repo_detected: marker.git });
-      }
-      // A configured root may also be a container repository (for example a
-      // Local Sites folder). Keep exploring its direct descendants, while a
-      // nested project remains a traversal boundary.
-      if (depth > 0) return;
-    }
-    if (depth >= maxDepth) return;
-
-    let entries: string[] = [];
-    try {
-      entries = readdirSync(dir).sort();
-    } catch {
-      complete = false;
-      return;
-    }
-    for (const entry of entries) {
-      if (isIgnoredDir(entry)) continue;
-      const child = join(dir, entry);
-      try {
-        if (statSync(child).isDirectory()) visit(child, depth + 1);
-      } catch {
-        complete = false;
-      }
-    }
-  };
-
+function collectProjects(
+  root: string,
+  maxDepth: number,
+  options: Pick<ProjectDiscoveryOptions, 'workerPath' | 'rootTimeoutMs'> = {},
+): { discovered: DiscoveredProject[]; complete: boolean } {
+  const timeout = Math.max(25, Math.min(options.rootTimeoutMs ?? DEFAULT_ROOT_TIMEOUT_MS, 120_000));
+  const workerPath = options.workerPath ?? DEFAULT_DISCOVERY_WORKER;
+  const result = spawnSync(process.execPath, [workerPath, root, String(maxDepth)], {
+    encoding: 'utf8',
+    timeout,
+    maxBuffer: 8 * 1024 * 1024,
+    windowsHide: true,
+  });
+  if (result.status !== 0 || result.error || !result.stdout) return { discovered: [], complete: false };
   try {
-    if (statSync(root).isDirectory()) visit(root, 0);
-    else complete = false;
+    const parsed = JSON.parse(result.stdout) as { discovered?: unknown; complete?: unknown };
+    if (!Array.isArray(parsed.discovered) || typeof parsed.complete !== 'boolean') return { discovered: [], complete: false };
+    const discovered = parsed.discovered.filter((item): item is DiscoveredProject => {
+      if (!item || typeof item !== 'object') return false;
+      const value = item as Partial<DiscoveredProject>;
+      return typeof value.name === 'string'
+        && typeof value.root_path === 'string'
+        && typeof value.git_repo_detected === 'boolean'
+        && value.name === basename(value.root_path)
+        && pathWithinRoot(value.root_path, root);
+    });
+    if (discovered.length !== parsed.discovered.length) return { discovered: [], complete: false };
+    return { discovered, complete: parsed.complete };
   } catch {
-    complete = false;
+    return { discovered: [], complete: false };
   }
-  return { discovered, complete };
 }
 
 export function discoverProjectsFromRoots(db: DB, roots: string[], options: ProjectDiscoveryOptions = {}): ProjectDiscoveryResult {
   const maxDepth = options.maxDepth ?? DEFAULT_MAX_DEPTH;
   const now = options.now ?? new Date().toISOString();
   const uniqueRoots = Array.from(new Set(roots.map((root) => root.trim()).filter(Boolean)));
-  const discovered = uniqueRoots.flatMap((root) => collectProjects(root, maxDepth).discovered).sort((a, b) => a.root_path.localeCompare(b.root_path));
+  const rootResults = uniqueRoots.map((root) => ({ root, result: collectProjects(root, maxDepth, options) }));
+  const discovered = rootResults.flatMap(({ result }) => result.discovered).sort((a, b) => a.root_path.localeCompare(b.root_path));
+  const incompleteRoots = rootResults.filter(({ result }) => !result.complete).map(({ root }) => root);
   let inserted = 0;
   let updated = 0;
 
@@ -146,7 +117,7 @@ export function discoverProjectsFromRoots(db: DB, roots: string[], options: Proj
   });
   sync();
 
-  return { roots: uniqueRoots, discovered, inserted, updated };
+  return { roots: uniqueRoots, discovered, incomplete_roots: incompleteRoots, inserted, updated };
 }
 
 function pathWithinRoot(path: string, root: string): boolean {
@@ -158,7 +129,7 @@ function pathWithinRoot(path: string, root: string): boolean {
 export function reconcileMissingProjects(
   db: DB,
   roots: string[],
-  options: { now?: string; intervalDays?: number; beforeFinalize?: () => void } = {},
+  options: { now?: string; intervalDays?: number; beforeFinalize?: () => void; workerPath?: string; rootTimeoutMs?: number } = {},
 ): ProjectReconciliationResult {
   const now = options.now ?? new Date().toISOString();
   const observationStartedAt = Date.now();
@@ -194,7 +165,7 @@ export function reconcileMissingProjects(
   if (!claimed) return { skipped: true, observed: 0, marked_missing: 0, restored: 0 };
 
   const configuredRoots = Array.from(new Set(roots.map((root) => root.trim()).filter(Boolean)));
-  const usableRoots = configuredRoots.filter((root) => collectProjects(root, DEFAULT_MAX_DEPTH).complete);
+  const usableRoots = configuredRoots.filter((root) => collectProjects(root, DEFAULT_MAX_DEPTH, options).complete);
   if (usableRoots.length === 0) {
     db.prepare(`UPDATE project_reconciliation_runs SET status = 'failed', completed_at = ?, error = 'No configured root completed traversal.' WHERE period_start = ? AND owner_instance_id = ? AND status = 'running'`).run(now, periodStart, owner);
     return { skipped: true, observed: 0, marked_missing: 0, restored: 0 };

@@ -1,0 +1,191 @@
+{
+  "schema_version": 2,
+  "generated_revision": "2536edc314e6a2818fcd0ba7bbeef4fd960d3128",
+  "input_manifest_digest": "4e25c614c5847bb0e14571171630f3471723aca1d6fa7ef6fce26780b296b2a2",
+  "artifact_inventory": [
+    {
+      "path": "doc/test/background-launchagent-runner.md",
+      "sha256": "3f80590f7b76d0a8447d7a7402c0556a14ed03730e6fc328adf9bda38d9ff7d7"
+    },
+    {
+      "path": "openspec/changes/support-launchagent-on-external-home/design.md",
+      "sha256": "eb5ac39fcc2e6e29eeed8cc550e4eea00e2b59193b3cd6e1e1434004843a7f42"
+    },
+    {
+      "path": "openspec/changes/support-launchagent-on-external-home/proposal.md",
+      "sha256": "68f4aa9711d6c341e4ecf61c03d10eb91cdcbae13158f4214cc6dc750a4316e2"
+    },
+    {
+      "path": "openspec/changes/support-launchagent-on-external-home/specs/dev-diary-macos-app/spec.md",
+      "sha256": "c0445545877b8905a4b3623033825a5131d52b443fc6530ccd1c3d125b81ba68"
+    },
+    {
+      "path": "openspec/changes/support-launchagent-on-external-home/tasks.md",
+      "sha256": "3eb58f9b45ebdb9cc83310637c8dc68c72e696e1000cdf44c0e04db2ba30bd9f"
+    },
+    {
+      "path": "openspec/specs/dev-diary-macos-app/spec.md",
+      "sha256": "f52b991ec2495ae014a52462ffe3195971e346de930d97c6c3b66d0dbcc91841"
+    },
+    {
+      "path": "src-tauri/src/lib.rs",
+      "sha256": "df26a4f5dac97c5251c3d7ef317f65a3f4ff35b23d242c80d5084919bf6a03af"
+    }
+  ],
+  "inventory_scope": {
+    "change": [
+      "openspec/changes/support-launchagent-on-external-home/design.md",
+      "openspec/changes/support-launchagent-on-external-home/proposal.md",
+      "openspec/changes/support-launchagent-on-external-home/specs/dev-diary-macos-app/spec.md",
+      "openspec/changes/support-launchagent-on-external-home/tasks.md"
+    ],
+    "baseline": [
+      "doc/test/background-launchagent-runner.md",
+      "openspec/specs/dev-diary-macos-app/spec.md",
+      "src-tauri/src/lib.rs"
+    ]
+  },
+  "invariants": [
+    {
+      "id": "support-path",
+      "value": ".DevDiaryLaunchAgents",
+      "search_terms": [
+        ".DevDiaryLaunchAgents"
+      ],
+      "writers": [
+        "src-tauri/src/lib.rs"
+      ],
+      "readers": [
+        "doc/test/background-launchagent-runner.md",
+        "openspec/changes/support-launchagent-on-external-home/specs/dev-diary-macos-app/spec.md"
+      ],
+      "occurrences": [
+        {
+          "file": "doc/test/background-launchagent-runner.md",
+          "line": 58
+        },
+        {
+          "file": "openspec/changes/support-launchagent-on-external-home/design.md",
+          "line": 11
+        },
+        {
+          "file": "openspec/changes/support-launchagent-on-external-home/design.md",
+          "line": 18
+        },
+        {
+          "file": "openspec/changes/support-launchagent-on-external-home/design.md",
+          "line": 29
+        },
+        {
+          "file": "openspec/changes/support-launchagent-on-external-home/specs/dev-diary-macos-app/spec.md",
+          "line": 22
+        },
+        {
+          "file": "openspec/changes/support-launchagent-on-external-home/specs/dev-diary-macos-app/spec.md",
+          "line": 27
+        },
+        {
+          "file": "src-tauri/src/lib.rs",
+          "line": 210
+        },
+        {
+          "file": "src-tauri/src/lib.rs",
+          "line": 722
+        }
+      ]
+    },
+    {
+      "id": "stable-label",
+      "value": "com.ysjblog.devdiary.background",
+      "search_terms": [
+        "com.ysjblog.devdiary.background"
+      ],
+      "writers": [
+        "src-tauri/src/lib.rs"
+      ],
+      "readers": [
+        "openspec/changes/support-launchagent-on-external-home/specs/dev-diary-macos-app/spec.md",
+        "openspec/specs/dev-diary-macos-app/spec.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/support-launchagent-on-external-home/specs/dev-diary-macos-app/spec.md",
+          "line": 22
+        },
+        {
+          "file": "openspec/specs/dev-diary-macos-app/spec.md",
+          "line": 289
+        },
+        {
+          "file": "src-tauri/src/lib.rs",
+          "line": 498
+        },
+        {
+          "file": "src-tauri/src/lib.rs",
+          "line": 756
+        },
+        {
+          "file": "src-tauri/src/lib.rs",
+          "line": 757
+        },
+        {
+          "file": "src-tauri/src/lib.rs",
+          "line": 764
+        },
+        {
+          "file": "src-tauri/src/lib.rs",
+          "line": 769
+        },
+        {
+          "file": "src-tauri/src/lib.rs",
+          "line": 776
+        },
+        {
+          "file": "src-tauri/src/lib.rs",
+          "line": 795
+        },
+        {
+          "file": "src-tauri/src/lib.rs",
+          "line": 805
+        }
+      ]
+    },
+    {
+      "id": "validation-order",
+      "value": "prepare_validated_launch_agent_source",
+      "search_terms": [
+        "prepare_validated_launch_agent_source"
+      ],
+      "writers": [
+        "src-tauri/src/lib.rs"
+      ],
+      "readers": [
+        "openspec/changes/support-launchagent-on-external-home/design.md",
+        "src-tauri/src/lib.rs"
+      ],
+      "occurrences": [
+        {
+          "file": "src-tauri/src/lib.rs",
+          "line": 299
+        },
+        {
+          "file": "src-tauri/src/lib.rs",
+          "line": 513
+        },
+        {
+          "file": "src-tauri/src/lib.rs",
+          "line": 690
+        },
+        {
+          "file": "src-tauri/src/lib.rs",
+          "line": 786
+        },
+        {
+          "file": "src-tauri/src/lib.rs",
+          "line": 799
+        }
+      ]
+    }
+  ],
+  "matrix_digest": "aa55bc247cefa6a745fd281b058ff2c1e5fd4f57fa79418790fe5fcd6fe1a5f3"
+}
