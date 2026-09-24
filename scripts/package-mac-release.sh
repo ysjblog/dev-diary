@@ -28,6 +28,18 @@ cd "$root_dir"
 app_version="$(node -p "require('./package.json').version")"
 [[ "$app_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "package.json has an invalid release version: $app_version"
 expected_dmg="$root_dir/src-tauri/target/release/bundle/dmg/DevDiary_${app_version}_aarch64.dmg"
+# The DMG is public: keep the maintainer's home, volume and checkout paths out
+# of compiled panic/debug strings.
+# The checkout path contains a space, so pass the flags unit-separated
+# (CARGO_ENCODED_RUSTFLAGS) rather than through whitespace-split RUSTFLAGS.
+remap_flags=(
+  "--remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/cargo"
+  "--remap-path-prefix=${RUSTUP_HOME:-$HOME/.rustup}=/rustup"
+  "--remap-path-prefix=$root_dir=/devdiary"
+)
+[[ -z "${RUSTFLAGS:-}" ]] || fail "Unset RUSTFLAGS; CARGO_ENCODED_RUSTFLAGS carries the release flags."
+unit_separator=$'\x1f'
+export CARGO_ENCODED_RUSTFLAGS="$(IFS="$unit_separator"; printf '%s' "${CARGO_ENCODED_RUSTFLAGS:+$CARGO_ENCODED_RUSTFLAGS$unit_separator}${remap_flags[*]}")"
 npx tauri build --bundles dmg --no-sign
 
 dmg_path="$expected_dmg"
@@ -56,6 +68,13 @@ printf '%s  %s\n' "$node_sha256" "$node_archive_path" | shasum -a 256 -c - >/dev
 mkdir -p "$app_path/Contents/Resources/core/node/bin"
 tar -xzf "$node_archive_path" -C "$app_path/Contents/Resources/core/node/bin" --strip-components=2 "node-v${node_version}-darwin-arm64/bin/node"
 "$app_path/Contents/Resources/core/node/bin/node" --version | grep -qx "v${node_version}" || fail "Bundled Node runtime version check failed."
+# npm keeps replaced native build trees here, and the .bin command shims embed
+# absolute build paths; the runtime starts tsx/dist/cli.mjs directly and never
+# loads either.
+rm -rf "$app_path/Contents/Resources/core/node_modules/.ignored"
+find "$app_path/Contents/Resources/core/node_modules" -type d -name .bin -prune -exec rm -rf {} +
+private_hits="$(grep -rlF -e "$HOME" -e "$root_dir" "$app_path" || true)"
+[[ -z "$private_hits" ]] || fail "Bundle contains private build paths: $private_hits"
 while IFS= read -r -d '' executable; do
   if /usr/bin/file -b "$executable" | grep -q 'Mach-O'; then
     codesign --force --sign - "$executable"
