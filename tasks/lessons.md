@@ -14,3 +14,8 @@
 - **觸發情境**：任何 bug 修復，一旦確定要開始 Edit/Write 程式碼。
 - **正確做法**：在第一個 Edit 之前就跑 `git checkout -b fix/<name>`，不要先改完檔案才想到要建 branch。
 - **為什麼**：這是重複發生的疏漏——這次是改完 `core/src/services/scans.ts` 才想到要建 branch，只是剛好還沒 commit 才補救得回來；若當下已經 commit 到 main 就要多一道 revert/cherry-pick 的麻煩。
+
+## [2026-09-24] 讀「別人正在寫入的檔案」時，前後 stat 不一致要重讀，不可當成檔案被竄改
+- **觸發情境**：程式讀 Codex / Claude 等外部程式仍在 append 的 session 檔，並用 size/mtime/prefix 做完整性判斷。
+- **正確做法**：把「讀到一半檔案變了（暫時不穩）」和「檔案真的被換掉／截斷／改寫（完整性失敗）」分成兩種結果；前者重讀幾次，仍不穩就本輪跳過、不寫狀態；只有穩定讀到的內容才拿來判定完整性失敗。
+- **為什麼**：Codex 續跑 engine 原本把兩者混成同一個 null，撞到 Codex 同時寫入就把任務永久標成 `session_integrity_changed`，使用者要手動重開。
