@@ -18,7 +18,7 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 
 | Change | 目的 | 狀態 |
 |---|---|---|
-| [`add-codex-desktop-auto-resume`](../../openspec/changes/add-codex-desktop-auto-resume/proposal.md) | 整合 macOS Codex Desktop 多任務 deep-link 額度恢復續跑；thread ID 精確定位、背景只送固定「繼續」 | v8 已實作並 commit（本機）；背景掃描節流（7.1–7.2）已完成，7.3 打包驗證中；3.1 O3 收門審查、3.4 獨立黑箱 QA、6.4 可靠無人啟動證據仍待完成，完成後才 archive |
+| [`add-codex-desktop-auto-resume`](../../openspec/changes/add-codex-desktop-auto-resume/proposal.md) | 整合 macOS Codex Desktop 多任務 deep-link 額度恢復續跑；thread ID 精確定位、背景只送固定「繼續」 | v8 已實作並 commit（本機）；背景掃描節流（7.1–7.3）已完成並完成打包安裝與實機節奏驗證；3.1 O3 收門審查、3.4 獨立黑箱 QA、6.4 可靠無人啟動證據仍待完成，完成後才 archive |
 
 舊 Delta 的「後續」段落已由後續 commit 覆蓋，或是明確 deferred/non-goal；它們不會被假裝成 active work。
 

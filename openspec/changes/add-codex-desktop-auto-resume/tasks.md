@@ -80,4 +80,4 @@ None.
 ## Background rescan cadence amendment
 - [x] 7.1 Review the throttled-rescan spec/design delta before implementation. (advisor: first pass REJECT, revised delta APPROVE 2026-09-25; converged, no unlanded required fixes; adopted non-blocking notes: roots fingerprint in the key, memory limited to this tick's eligible rows, extra guard tests)
 - [x] 7.2 Add rescan-cadence regression tests first, then implement the engine gate. (`core/test/codexDesktopResumeRescanCadence.test.ts` 10 tests; red 4/9 before, green 10/10 after)
-- [ ] 7.3 Run full Core/UI/Rust tests, typecheck, build, package and confirm the installed runner uses the new cadence.
+- [x] 7.3 Run full Core/UI/Rust tests, typecheck, build, package and confirm the installed runner uses the new cadence. (2026-09-25: Core 440/440, UI 83/83, Rust 24/24, `tsc --noEmit` clean; `npm run package:mac` DMG installed, bundle `core/src` identical to repo; runner CPU sampled every 30s for 6 min: ~0.75s per tick with one full-rescan spike ~5 min after start, then back to ~0.75s; both targets stayed `watching`/`waiting_for_reset` with no error code)
