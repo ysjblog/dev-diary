@@ -36,7 +36,7 @@ write_plist() {
   <key>KeepAlive</key>
   <true/>
   <key>ProcessType</key>
-  <string>Background</string>
+  <string>Standard</string>
   <key>WorkingDirectory</key>
   <string>$ROOT_DIR</string>
   <key>StandardOutPath</key>

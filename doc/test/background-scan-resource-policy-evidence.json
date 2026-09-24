@@ -1,0 +1,50 @@
+{
+  "direct_scan_ms": 33726,
+  "isolated_scan_ms": 33907,
+  "launchd_default_seconds": 34,
+  "background_scan_ms": 118110,
+  "background_with_resume": {
+    "error": "scan_timeout",
+    "elapsed_ms": 120008
+  },
+  "standard_with_resume": {
+    "status": "success",
+    "elapsed_ms": 41760
+  },
+  "files": {
+    "src-tauri/src/lib.rs": "f2a7e915707fa090827a35a1c1e638ed95c7e3b31c2d76c48c803ca210245b35",
+    "scripts/devdiary-background-agent.sh": "e82b793625201e27f3a999b037cbd4a4ff05a73aa99978de418f1b808820f2ae",
+    "src/api/backgroundResourcePolicy.test.js": "13e3fa7f3270263f0923391e0b821eda8bc698d0766e962ea9081dfd59cffa77"
+  },
+  "installation": {
+    "checked_at": "2026-09-24T02:41:31.422668+00:00",
+    "standard_service_running": true,
+    "macho_sections_match": 16,
+    "installed_binary_matches_dmg": true,
+    "binary_sha256": "47060b25152f15fc53c8ead08d4843e9c47e793883c6afe8a1a1c2edea048a37",
+    "signature_verified": true,
+    "app_db_plist_backed_up": true,
+    "monitor_restored": true,
+    "independent_qa": "PASS"
+  },
+  "post_install_verification": {
+    "owner": "Claude Code",
+    "desktop_tcc_block_observed": "2026-09-24T10:40:23+08:00 sandboxd kTCCServiceSystemPolicyDesktopFolder request; scan blocked in open() until prompt resolved",
+    "launchd_node_desktop_readdir_s": 1.0,
+    "copy_db_launchd_standard_scan_ms": 34547,
+    "installed_core_scan_now": {
+      "status": "success",
+      "seconds": 33.1,
+      "projects": 22,
+      "inserted_sessions": 3
+    },
+    "scheduled_launchagent_cycle": {
+      "status": "success",
+      "started_at": "2026-09-24T04:02:25.122Z",
+      "completed_at": "2026-09-24T04:03:25.315Z",
+      "scanned_projects": 22,
+      "warnings": 0,
+      "process_type": "Standard"
+    }
+  }
+}

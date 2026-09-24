@@ -345,7 +345,10 @@ export DEVDIARY_BACKGROUND_START_DELAY_MS="${{DEVDIARY_BACKGROUND_START_DELAY_MS
 
 NODE_BIN="${{DEVDIARY_NODE_BIN:-}}"
 if [[ -z "$NODE_BIN" ]]; then
-  if [[ -x "/opt/homebrew/opt/node@22/bin/node" ]]; then
+  BUNDLED_NODE="$CORE_DIR/node/bin/node"
+  if [[ -x "$BUNDLED_NODE" ]]; then
+    NODE_BIN="$BUNDLED_NODE"
+  elif [[ -x "/opt/homebrew/opt/node@22/bin/node" ]]; then
     NODE_BIN="/opt/homebrew/opt/node@22/bin/node"
   else
     NODE_BIN="$(command -v node || true)"
@@ -353,7 +356,7 @@ if [[ -z "$NODE_BIN" ]]; then
 fi
 
 if [[ -z "$NODE_BIN" || ! -x "$NODE_BIN" ]]; then
-  echo "Node.js executable was not found. Install node@22 with Homebrew or set DEVDIARY_NODE_BIN." >&2
+  echo "Node.js executable was not found in the app bundle or supported fallback paths." >&2
   exit 69
 fi
 
@@ -384,7 +387,7 @@ fn background_launch_agent_plist(label: &str, launcher: &Path, root_dir: &Path, 
   <key>KeepAlive</key>
   <true/>
   <key>ProcessType</key>
-  <string>Background</string>
+  <string>Standard</string>
   <key>WorkingDirectory</key>
   <string>{root_dir}</string>
   <key>StandardOutPath</key>
@@ -657,16 +660,23 @@ pub fn run() {
             .build(),
         )?;
       }
-      if let Some(core_dir) = resolve_core_dir(app) {
-        if let Err(err) = install_background_launch_agent(&core_dir) {
-          append_core_log(&format!("DevDiary background LaunchAgent install failed: {err}"));
-        }
-      }
-      if let Some(child) = spawn_core(app) {
+      let core_started = if let Some(child) = spawn_core(app) {
         let state = app.state::<CoreProcess>();
         if let Ok(mut guard) = state.0.lock() {
           *guard = Some(child);
         };
+        true
+      } else {
+        false
+      };
+      if core_started {
+        if let Some(core_dir) = resolve_core_dir(app) {
+          if let Err(err) = install_background_launch_agent(&core_dir) {
+            append_core_log(&format!("DevDiary background LaunchAgent install failed: {err}"));
+          }
+        }
+      } else {
+        append_core_log("Skipped DevDiary background LaunchAgent install because Core did not start.");
       }
       if let Some(window) = app.get_webview_window("main") {
         let app_handle = app.handle().clone();
@@ -685,7 +695,7 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
   use super::{
-    background_launch_agent_plist, fallback_core_api_origin_from_port, first_executable_node,
+    background_launch_agent_plist, background_launcher_script, fallback_core_api_origin_from_port, first_executable_node,
     launch_agent_storage_dir, legacy_devdiary_background_label, remove_registration_if_current_attempt,
     prepare_validated_launch_agent_source, replace_devdiary_registration_link, resolve_core_api_origin_from_manifest,
     resolve_launch_agent_storage_dir,
@@ -726,6 +736,17 @@ mod tests {
       resolve_launch_agent_storage_dir(app_data_dir, Path::new("/tmp/devdiary/core")),
       Path::new("/Users/tester/Library/Application Support/DevDiary/LaunchAgents")
     );
+  }
+
+  #[test]
+  fn background_launcher_prefers_the_same_bundled_node_as_core() {
+    let script = background_launcher_script(
+      Path::new("/Applications/DevDiary.app/Contents/Resources/core"),
+      Path::new("/Users/tester/Library/Application Support/DevDiary"),
+    );
+    let bundled = script.find("$CORE_DIR/node/bin/node").expect("bundled Node candidate");
+    let homebrew = script.find("/opt/homebrew/opt/node@22/bin/node").expect("Homebrew fallback");
+    assert!(bundled < homebrew);
   }
 
   #[test]
@@ -781,12 +802,34 @@ mod tests {
   }
 
   #[test]
+  fn background_agent_uses_standard_resource_policy_without_changing_identity() {
+    let xml = background_launch_agent_plist(
+      "com.ysjblog.devdiary.background", Path::new("/tmp/fixture/launcher.sh"),
+      Path::new("/tmp/fixture/core"), Path::new("/tmp/fixture/logs"),
+    );
+    assert!(xml.contains("<key>ProcessType</key>\n  <string>Standard</string>"));
+    assert!(xml.contains("<key>RunAtLoad</key>\n  <true/>"));
+    assert!(xml.contains("<key>KeepAlive</key>\n  <true/>"));
+    assert!(xml.contains("<string>com.ysjblog.devdiary.background</string>"));
+    assert!(!xml.contains("<string>Interactive</string>"));
+  }
+
+  #[test]
   fn source_plist_lint_precedes_registration_replacement() {
     let source = include_str!("lib.rs");
     let install = source.split_once("fn install_background_launch_agent").unwrap().1;
     let lint_source = install.find("prepare_validated_launch_agent_source").unwrap();
     let replace_registration = install.find("replace_devdiary_registration_link").unwrap();
     assert!(lint_source < replace_registration);
+  }
+
+  #[test]
+  fn core_is_spawned_before_the_background_launch_agent_is_installed() {
+    let source = include_str!("lib.rs");
+    let setup = source.split_once(".setup(|app|").unwrap().1;
+    let spawn = setup.find("spawn_core(app)").unwrap();
+    let install = setup.find("install_background_launch_agent(&core_dir)").unwrap();
+    assert!(spawn < install);
   }
 
   #[test]

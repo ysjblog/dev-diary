@@ -22,7 +22,10 @@ export DEVDIARY_APP_RUNTIME="${DEVDIARY_APP_RUNTIME:-launchagent}"
 
 NODE_BIN="${DEVDIARY_NODE_BIN:-}"
 if [[ -z "$NODE_BIN" ]]; then
-  if [[ -x "/opt/homebrew/opt/node@22/bin/node" ]]; then
+  BUNDLED_NODE="$CORE_DIR/node/bin/node"
+  if [[ -x "$BUNDLED_NODE" ]]; then
+    NODE_BIN="$BUNDLED_NODE"
+  elif [[ -x "/opt/homebrew/opt/node@22/bin/node" ]]; then
     NODE_BIN="/opt/homebrew/opt/node@22/bin/node"
   else
     NODE_BIN="$(command -v node || true)"
@@ -30,7 +33,7 @@ if [[ -z "$NODE_BIN" ]]; then
 fi
 
 if [[ -z "$NODE_BIN" || ! -x "$NODE_BIN" ]]; then
-  echo "Node.js executable was not found. Install node@22 with Homebrew or set DEVDIARY_NODE_BIN." >&2
+  echo "Node.js executable was not found in the app bundle or supported fallback paths." >&2
   exit 69
 fi
 

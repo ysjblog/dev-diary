@@ -182,3 +182,5 @@ npm run typecheck
 
 - [`docs/specs/MASTER.md`](docs/specs/MASTER.md)
 - [`docs/specs/dev-diary-macos-app.md`](docs/specs/dev-diary-macos-app.md)
+
+背景服務使用 macOS `Standard` 資源分類，保留系統的輕量CPU／I/O限制，避免 `Background` 的較嚴格限制使掃描超過既有120秒截止。此調整不提供防休眠，也不改動Codex續跑判定。
