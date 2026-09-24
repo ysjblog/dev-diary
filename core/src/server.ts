@@ -53,6 +53,17 @@ import type { RangeKey } from './domain/types.js';
 import { normalizeAgentId } from './domain/agents.js';
 import { taipeiDate } from './services/taipeiDate.js';
 import { buildTrustedBrowserOrigins, createBrowserOriginMiddleware } from './services/browserOriginPolicy.js';
+import {
+  decodeExpectedCoreTargetHeader,
+  parseCodexThreadDeepLink,
+  type VerifiedCoreTargetSnapshot,
+} from './services/codexDesktopResumeContracts.js';
+import {
+  createCodexDesktopResumeRepository,
+  type VerifiedTargetRegistration,
+} from './services/codexDesktopResumeRepository.js';
+import { buildVerifiedRuntimeTargetSnapshot, verifyExpectedRuntimeTarget } from './services/runtimeManifest.js';
+import { resolveCodexDesktopRegistration } from './services/codexDesktopSessionLookup.js';
 
 const VALID_RANGES: RangeKey[] = ['all', '24h', '7d', '1m', 'custom'];
 
@@ -141,12 +152,38 @@ export interface CreateServerOptions {
   dbPath?: string;
   runtime?: RuntimeHealthOptions;
   additionalBrowserOrigins?: readonly string[];
+  verifyCodexResumeMutationTarget?: (snapshot: VerifiedCoreTargetSnapshot) => boolean;
+  resolveCodexResumeRegistration?: (
+    threadId: string,
+    displayName: string,
+  ) => VerifiedTargetRegistration | Promise<VerifiedTargetRegistration>;
+  runtimeManifestPath?: string;
 }
 
 export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
   const trustedBrowserOrigins = buildTrustedBrowserOrigins(opts.additionalBrowserOrigins);
   const app = express();
   app.use(createBrowserOriginMiddleware(trustedBrowserOrigins));
+  app.use('/api/codex/desktop-resume', (req: Request, res: Response, next) => {
+    const legacyPath = req.path === '/register' || req.path === '/stop';
+    if (req.method === 'GET' || req.method === 'OPTIONS' || legacyPath) return next();
+    if (!['POST', 'PATCH', 'DELETE'].includes(req.method)) return next();
+    try {
+      const snapshot = decodeExpectedCoreTargetHeader(req.get('x-devdiary-expected-core-target'));
+      const verified = opts.verifyCodexResumeMutationTarget
+        ? opts.verifyCodexResumeMutationTarget(snapshot)
+        : Boolean(opts.runtimeManifestPath && opts.runtime && verifyExpectedRuntimeTarget(opts.runtimeManifestPath, {
+          host: '127.0.0.1', port: opts.runtime.port ?? null, pid: opts.runtime.pid ?? process.pid,
+          startedAt: opts.runtime.startedAt ?? '',
+        }, snapshot));
+      if (!verified) {
+        return res.status(409).json({ error: 'runtime_target_changed', message: 'Core runtime 已變更，請重新整理後再試。' });
+      }
+      return next();
+    } catch {
+      return res.status(409).json({ error: 'runtime_target_changed', message: 'Core runtime 已變更，請重新整理後再試。' });
+    }
+  });
   app.use(express.json());
 
   const settingsRuntime = () => ({
@@ -159,6 +196,11 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
         DEVDIARY_SCAN_PROVIDER: process.env.DEVDIARY_SCAN_PROVIDER,
         DEVDIARY_SCAN_FALLBACK: process.env.DEVDIARY_SCAN_FALLBACK,
       }),
+  });
+  const codexDesktopResumeV8 = createCodexDesktopResumeRepository(db);
+  const publicSettings = (settings: AppSettings) => ({
+    ...settings,
+    codex_desktop_resume: codexDesktopResumeV8.snapshot(),
   });
 
   const scanProviderFor = (settings: AppSettings): ScanProvider | undefined => {
@@ -234,13 +276,20 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
   const runtimeStartedAt = opts.runtime?.startedAt ?? new Date().toISOString();
 
   app.get('/api/health', (_req: Request, res: Response) => {
-    res.json(buildRuntimeHealth({
+    const health = buildRuntimeHealth({
       port: opts.runtime?.port ?? Number(process.env.DEVDIARY_PORT ?? 4317),
       startedAt: runtimeStartedAt,
       pid: opts.runtime?.pid,
       projectRoots: opts.projectRoots ?? [],
       dbPath: opts.dbPath ?? ':memory:',
-    }));
+    });
+    const verifiedCoreTarget = opts.runtimeManifestPath && opts.runtime
+      ? buildVerifiedRuntimeTargetSnapshot(opts.runtimeManifestPath, {
+        host: '127.0.0.1', port: opts.runtime.port ?? null, pid: opts.runtime.pid ?? process.pid,
+        startedAt: opts.runtime.startedAt ?? runtimeStartedAt,
+      })
+      : null;
+    res.json({ ...health, verified_core_target: verifiedCoreTarget });
   });
 
   app.get('/api/dashboard', (req: Request, res: Response) => {
@@ -269,18 +318,82 @@ export function createServer(db: DB, opts: CreateServerOptions = {}): Express {
   });
 
   app.get('/api/settings', (_req: Request, res: Response) => {
-    res.json(getSettings(db, settingsRuntime()));
+    res.json(publicSettings(getSettings(db, settingsRuntime())));
   });
 
   app.patch('/api/settings', (req: Request, res: Response) => {
     try {
-      return res.json(updateSettings(db, req.body ?? {}, settingsRuntime()));
+      if (req.body && typeof req.body === 'object' && Object.hasOwn(req.body, 'codex_desktop_resume')) {
+        return res.status(400).json({ error: 'dedicated_route_required', message: 'Codex Desktop 自動續跑只能透過專用設定頁修改。' });
+      }
+      return res.json(publicSettings(updateSettings(db, req.body ?? {}, settingsRuntime())));
     } catch (err) {
       if (err instanceof SettingsValidationError) {
         return res.status(400).json({ error: err.code, message: err.message });
       }
       throw err;
     }
+  });
+
+  app.get('/api/codex/desktop-resume', (_req: Request, res: Response) => {
+    res.json({ ok: true, codex_desktop_resume: codexDesktopResumeV8.snapshot() });
+  });
+
+  const sendCodexV8Error = (res: Response, error: unknown) => {
+    const code = error instanceof Error ? error.message : 'codex_resume_failed';
+    if (code === 'codex_resume_target_not_found') return res.status(404).json({ error: code, message: '找不到指定的 Codex 任務。' });
+    if (code === 'duplicate_codex_resume_target' || code === 'codex_resume_action_in_progress') {
+      return res.status(409).json({ error: code, message: code === 'duplicate_codex_resume_target' ? '這個 Codex 任務已註冊。' : '續跑動作執行中，設定未變更。' });
+    }
+    if (code.startsWith('invalid_')) return res.status(400).json({ error: code, message: 'Codex Desktop 續跑資料格式無效。' });
+    return res.status(503).json({ error: 'resume_probe_incomplete', message: '無法完整證明 Codex session 身分，未註冊。' });
+  };
+
+  app.patch('/api/codex/desktop-resume', (req: Request, res: Response) => {
+    try {
+      const body = req.body;
+      if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length !== 1 || typeof body.enabled !== 'boolean') {
+        return res.status(400).json({ error: 'invalid_codex_global_patch', message: '只接受 enabled boolean。' });
+      }
+      return res.json({ ok: true, codex_desktop_resume: codexDesktopResumeV8.setGlobalEnabled(body.enabled) });
+    } catch (error) { return sendCodexV8Error(res, error); }
+  });
+
+  app.post('/api/codex/desktop-resume/targets', async (req: Request, res: Response) => {
+    try {
+      const body = req.body;
+      if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).sort().join(',') !== 'deep_link,display_name') {
+        return res.status(400).json({ error: 'invalid_codex_registration', message: '只接受 deep_link 與 display_name。' });
+      }
+      const threadId = parseCodexThreadDeepLink(body.deep_link);
+      const codexAgent = getSettings(db, settingsRuntime()).agents.find((agent) => agent.id === 'codex-cli');
+      if (!opts.resolveCodexResumeRegistration && !codexAgent) throw new Error('resume_probe_incomplete');
+      const registration = opts.resolveCodexResumeRegistration
+        ? await opts.resolveCodexResumeRegistration(threadId, body.display_name)
+        : resolveCodexDesktopRegistration(threadId, body.display_name,
+          resolveCanonicalActivityDataRoots('codex-cli', codexAgent!.sources));
+      return res.json({ ok: true, codex_desktop_resume: codexDesktopResumeV8.registerVerifiedTarget(registration) });
+    } catch (error) { return sendCodexV8Error(res, error); }
+  });
+
+  app.patch('/api/codex/desktop-resume/targets/:threadId', (req: Request, res: Response) => {
+    try {
+      return res.json({ ok: true, codex_desktop_resume: codexDesktopResumeV8.patchTarget(String(req.params.threadId), req.body) });
+    } catch (error) { return sendCodexV8Error(res, error); }
+  });
+
+  app.delete('/api/codex/desktop-resume/targets/:threadId', (req: Request, res: Response) => {
+    try {
+      return res.json({ ok: true, codex_desktop_resume: codexDesktopResumeV8.deleteTarget(String(req.params.threadId)) });
+    } catch (error) { return sendCodexV8Error(res, error); }
+  });
+
+  app.post('/api/codex/desktop-resume/register', (_req: Request, res: Response) => {
+    return res.status(410).json({ error: 'legacy_resume_route', message: '請改用多任務 deep-link 註冊。' });
+  });
+
+  app.post('/api/codex/desktop-resume/stop', (_req: Request, res: Response) => {
+    return res.status(410).json({ error: 'legacy_resume_route', message: '請改用全域或個別任務控制。' });
   });
 
   app.get('/api/agents/detect', async (_req: Request, res: Response) => {

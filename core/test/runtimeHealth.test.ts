@@ -78,7 +78,9 @@ describe('Runtime health', () => {
         expect(preflight.status).toBe(204);
         expect(preflight.headers.get('access-control-allow-origin')).toBe('tauri://localhost');
         expect(preflight.headers.get('access-control-allow-methods')).toContain('PATCH');
-        expect(preflight.headers.get('access-control-allow-headers')).toContain('content-type');
+        const allowedHeaders = preflight.headers.get('access-control-allow-headers')?.toLowerCase();
+        expect(allowedHeaders).toContain('content-type');
+        expect(allowedHeaders).toContain('x-devdiary-expected-core-target');
       } finally {
         await new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
       }

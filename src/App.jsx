@@ -18,6 +18,10 @@ import {
   multilineToList,
   rowsToList,
   patchSettings,
+  registerCodexDesktopResume,
+  patchCodexDesktopResume,
+  patchCodexDesktopResumeTarget,
+  deleteCodexDesktopResumeTarget,
   patchCustomAgent,
   probeCustomAgent,
   REASONING_OPTIONS,
@@ -365,6 +369,7 @@ import TrendChart from './components/TrendChart.jsx';
       const [dailyExporting, setDailyExporting] = useState(false);
       const [backupExporting, setBackupExporting] = useState(false);
       const [settingsRefreshNotice, setSettingsRefreshNotice] = useState('');
+      const [codexResumeRegistering, setCodexResumeRegistering] = useState(false);
       const [agentLogRows, setAgentLogRows] = useState({});
       const [showOnboarding, setShowOnboarding] = useState(false);
       const [onboardingStep, setOnboardingStep] = useState(1);
@@ -662,6 +667,7 @@ import TrendChart from './components/TrendChart.jsx';
               return {
                 ...current,
                 background_scan: snapshot.background_scan,
+                codex_desktop_resume: snapshot.codex_desktop_resume,
                 updated_at: snapshot.updated_at,
               };
             });
@@ -891,6 +897,75 @@ import TrendChart from './components/TrendChart.jsx';
           triggerToast(`Settings 儲存失敗：${message}`);
         } finally {
           setSettingsSaving(false);
+        }
+      };
+
+      const refreshCodexResumeSettings = async () => {
+        const snapshot = await fetchSettingsWithRetry();
+        applySettingsSnapshot(snapshot);
+        return snapshot;
+      };
+
+      const verifiedResumeTarget = () => {
+        const target = runtimeHealth?.verified_core_target;
+        if (!target || runtimeStatus?.status !== 'connected') throw new Error('Core runtime 尚未完成精確驗證。');
+        return target;
+      };
+
+      const applyCodexResume = (body) => {
+        setSettingsSnapshot((current) => current ? { ...current, codex_desktop_resume: body.codex_desktop_resume } : current);
+      };
+
+      const handleRegisterCodexResume = async (deepLink, displayName) => {
+        setCodexResumeRegistering(true);
+        setSettingsError(null);
+        try {
+          const body = await registerCodexDesktopResume(verifiedResumeTarget(), deepLink, displayName);
+          applyCodexResume(body);
+          triggerToast('Codex 任務已依 deep link 精準註冊。');
+          return true;
+        } catch (err) {
+          const message = err.message || String(err);
+          setSettingsError(`Codex Desktop 續跑註冊失敗：${message}`);
+          triggerToast(`Codex Desktop 續跑註冊失敗：${message}`);
+          await refreshCodexResumeSettings().catch(() => {});
+          return false;
+        } finally {
+          setCodexResumeRegistering(false);
+        }
+      };
+
+      const handlePatchCodexResume = async (patch) => {
+        try {
+          const body = await patchCodexDesktopResume(verifiedResumeTarget(), patch);
+          applyCodexResume(body);
+          triggerToast(patch.enabled ? '已啟用全部自動續跑。' : '已暫停全部自動續跑。');
+        } catch (err) {
+          const message = err.message || String(err);
+          setSettingsError(`Codex Desktop 續跑設定失敗：${message}`);
+          triggerToast(`Codex Desktop 續跑設定失敗：${message}`);
+        }
+      };
+
+      const handlePatchCodexResumeTarget = async (threadId, patch) => {
+        try {
+          applyCodexResume(await patchCodexDesktopResumeTarget(verifiedResumeTarget(), threadId, patch));
+          triggerToast(patch.display_name ? '任務名稱已更新。' : patch.enabled ? '已繼續監看此任務。' : '已暫停此任務。');
+        } catch (err) {
+          const message = err.message || String(err);
+          setSettingsError(`Codex Desktop 任務更新失敗：${message}`);
+          triggerToast(`Codex Desktop 任務更新失敗：${message}`);
+        }
+      };
+
+      const handleDeleteCodexResumeTarget = async (threadId) => {
+        try {
+          applyCodexResume(await deleteCodexDesktopResumeTarget(verifiedResumeTarget(), threadId));
+          triggerToast('Codex 任務已註銷。');
+        } catch (err) {
+          const message = err.message || String(err);
+          setSettingsError(`Codex Desktop 任務註銷失敗：${message}`);
+          triggerToast(`Codex Desktop 任務註銷失敗：${message}`);
         }
       };
 
@@ -3042,6 +3117,11 @@ import TrendChart from './components/TrendChart.jsx';
                     setThemeMode={setThemeMode}
                     projectPaths={projects.map((project) => project.path)}
                     settingsRefreshNotice={settingsRefreshNotice}
+                    onRegisterCodexResume={handleRegisterCodexResume}
+                    onPatchCodexResume={handlePatchCodexResume}
+                    onPatchCodexResumeTarget={handlePatchCodexResumeTarget}
+                    onDeleteCodexResumeTarget={handleDeleteCodexResumeTarget}
+                    codexResumeRegistering={codexResumeRegistering}
                     triggerToast={triggerToast}
                   />
                 </div>
@@ -3218,9 +3298,16 @@ import TrendChart from './components/TrendChart.jsx';
       setThemeMode,
       projectPaths = [],
       settingsRefreshNotice = '',
+      onRegisterCodexResume,
+      onPatchCodexResume,
+      onPatchCodexResumeTarget,
+      onDeleteCodexResumeTarget,
+      codexResumeRegistering = false,
     }) {
       const [activeSettingsTab, setActiveSettingsTab] = useState('projects');
       const [pathPickerNotice, setPathPickerNotice] = useState('');
+      const [codexDeepLink, setCodexDeepLink] = useState('');
+      const [codexDisplayName, setCodexDisplayName] = useState('');
       const updateForm = (patch) => setForm((prev) => ({ ...prev, ...patch }));
       const restartRequired = settings?.data_storage?.restart_required ||
         (settings?.data_storage?.active_db_path && form.desiredDbPath && settings.data_storage.active_db_path !== form.desiredDbPath.trim());
@@ -3230,6 +3317,9 @@ import TrendChart from './components/TrendChart.jsx';
           ? 'Core runtime 可能過舊'
           : 'Core runtime 未連線';
       const storagePath = settings?.data_storage?.active_db_path || '載入中';
+      const codexResume = settings?.codex_desktop_resume || {};
+      const codexResumeStateLabel = codexResume.enabled ? '全域監看已啟用' : '全域監看已暫停';
+      const codexResumeMutationsEnabled = runtimeStatus?.status === 'connected' && Boolean(runtimeHealth?.verified_core_target);
       const settingsTabs = [
         { id: 'projects', label: 'Projects' },
         { id: 'prompts', label: 'Prompts' },
@@ -3489,6 +3579,56 @@ import TrendChart from './components/TrendChart.jsx';
                       {schedulerRunning ? '執行中...' : 'Run now'}
                     </button>
                   </div>
+                </div>
+              </div>
+
+              <div className="settings-row settings-row-stack compact codex-resume-row">
+                <div className="settings-info">
+                  <h3>Codex Desktop 額度恢復續跑</h3>
+                  <p>貼上 Codex 任務 deep link，名稱只供你辨識；真正定位使用 thread ID。可同時註冊多個任務，視窗大小與位置不影響定位。</p>
+                  <p>續跑要求會排入 Codex 訊息佇列，待 Desktop 處理；送出不代表工作已開始或完成。暫停只停止後續送出，不會取消已排入的要求。</p>
+                </div>
+                <div className="settings-control codex-resume-control">
+                  <label className="settings-toggle-row">
+                    <span>啟用自動續跑</span>
+                    <span className="switch">
+                      <input
+                        type="checkbox"
+                        checked={!!codexResume.enabled}
+                        onChange={(e) => onPatchCodexResume({ enabled: e.target.checked })}
+                        disabled={!codexResumeMutationsEnabled}
+                      />
+                      <span className="slider"></span>
+                    </span>
+                  </label>
+                  <div className="settings-hint codex-resume-status" role="status">
+                    <strong>{codexResumeStateLabel}</strong>
+                    <span>{codexResume.targets?.length || 0} 個已註冊任務</span>
+                  </div>
+                  <input className="wizard-input" value={codexDeepLink} onChange={(e) => setCodexDeepLink(e.target.value)} placeholder="codex://threads/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" disabled={!codexResumeMutationsEnabled} />
+                  <input className="wizard-input" value={codexDisplayName} onChange={(e) => setCodexDisplayName(e.target.value)} placeholder="目前 Codex 任務名稱" disabled={!codexResumeMutationsEnabled} />
+                  <div className="settings-inline-controls">
+                    <button className="btn btn-primary" type="button" onClick={async () => {
+                      const registered = await onRegisterCodexResume(codexDeepLink, codexDisplayName);
+                      if (registered) { setCodexDeepLink(''); setCodexDisplayName(''); }
+                    }} disabled={codexResumeRegistering || !codexResumeMutationsEnabled || !codexDeepLink.trim() || !codexDisplayName.trim()}>
+                      {codexResumeRegistering ? '註冊中...' : '註冊任務'}
+                    </button>
+                  </div>
+                  <div className="codex-resume-targets">
+                    {(codexResume.targets || []).map((target) => <div className="codex-resume-target" key={target.thread_id}>
+                      <div><strong>{target.display_name}</strong><small>{target.state === 'waiting_for_reset' ? `等待額度恢復${target.reset_at_ms ? `（${formatTs(target.reset_at_ms)}）` : ''}` : target.state === 'resumed' ? '已送出續跑要求' : target.state === 'needs_attention' || target.state === 'partial_input_possible' ? `需要人工檢查${target.last_error_code ? `（${target.last_error_code}）` : ''}` : '監看中'}</small></div>
+                      <div className="settings-inline-controls">
+                        <button className="btn" type="button" disabled={!codexResumeMutationsEnabled} onClick={() => onPatchCodexResumeTarget(target.thread_id, { enabled: !target.enabled })}>{target.enabled ? '暫停' : '繼續監看'}</button>
+                        <button className="btn" type="button" onClick={() => {
+                          const nextName = window.prompt('輸入新的任務名稱', target.display_name);
+                          if (nextName !== null && nextName.trim() && nextName.trim() !== target.display_name) onPatchCodexResumeTarget(target.thread_id, { display_name: nextName });
+                        }} disabled={!codexResumeMutationsEnabled}>重新命名</button>
+                        <button className="btn" type="button" disabled={!codexResumeMutationsEnabled} onClick={() => onDeleteCodexResumeTarget(target.thread_id)}>註銷</button>
+                      </div>
+                    </div>)}
+                  </div>
+                  <small className="settings-help-text">只在精確額度錯誤與恢復時間成立後，透過本機 Codex CLI 對該 UUID 送出固定「繼續」。訊息排入佇列後，會自動開啟並切換到該 Codex 任務；不需要 Accessibility 權限。Mac 須保持醒著且已登入桌面。「已送出續跑要求」不代表工作已開始或完成；開啟失敗時會停止，不會重送。</small>
                 </div>
               </div>
             </section>}

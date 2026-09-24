@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "review_revision": "6d55c34224518e1fdfc4748851808ee77acc2ae8",
+  "source_matrix_digest": "321dcc56907aef68314812e3ce2b434a5fc1d032d1146df2a775aded9faa4ec9",
+  "final_finding_ids": [
+    "SOL-RR16-FR-001",
+    "SOL-RR16-IA-001",
+    "SOL-R16-INIT-FR-001",
+    "SOL-R16-INIT-IA-001",
+    "SOL-R16-INIT-IA-002",
+    "SOL-R16-INIT-IA-003"
+  ],
+  "contradictions": [
+    {
+      "finding_id": "SOL-RR16-FR-001",
+      "contradiction": "The startup migration fenced only version 8 dedicated leases while the real version 7 background runner owns a separate PID lock and may survive an unchecked LaunchAgent bootout.",
+      "root_cause": "Legacy process authority and new database authority had no shared quiescence proof, so migration could delete the shared resume state while a version 7 runner still held Desktop-input authority.",
+      "resolution": "Require Legacy Runner Quiescence Gate v1 before opening the migration transaction: checked fixed-label bootout and unloaded proof, then absent/dead legacy lock owner and exact stale-lock quarantine with parent fsync; live or unknown identity leaves data untouched and prevents version 8 runner bootstrap."
+    },
+    {
+      "finding_id": "SOL-RR16-IA-001",
+      "contradiction": "A verified health snapshot did not bind later resume mutations, while each real request can independently resolve a different Core and a live Core could overwrite another live manifest.",
+      "root_cause": "Runtime compatibility was treated as a UI enablement check rather than a request-scoped mutation authority carried through transport and revalidated before parsing.",
+      "resolution": "Require Runtime Mutation Binding v1 on every dedicated mutation, with exact expected snapshot retention, transport-side fresh manifest comparison, Core pre-parser manifest and immutable-runtime parity, zero mutation on drift, and live manifest-owner overwrite refusal."
+    },
+    {
+      "finding_id": "SOL-R16-INIT-FR-001",
+      "contradiction": "Runner quiescence alone did not exclude a still-live version 7 Core before the real openDb migration path.",
+      "root_cause": "Live manifest-owner detection remained after database open and was treated as a warning instead of pre-open authority.",
+      "resolution": "Require Legacy Core Owner Exclusion v1 before every openDb, aborting on live or unknown identity and recovering only an exact stale owner."
+    },
+    {
+      "finding_id": "SOL-R16-INIT-IA-001",
+      "contradiction": "The contract required migration before version 8 runner bootstrap but did not name the ordering owner or acknowledgement, while Tauri currently bootstraps first.",
+      "root_cause": "A desired order was documented without assigning the cross-process handshake to the actual packaged startup orchestrator.",
+      "resolution": "Make Tauri the sole packaged orchestrator and require exact new Core PID manifest-health parity plus schema-8 ready acknowledgement before idempotent runner bootstrap."
+    },
+    {
+      "finding_id": "SOL-R16-INIT-IA-002",
+      "contradiction": "The structurally valid Contract Matrix omitted the newly load-bearing quiescence and mutation-binding gates.",
+      "root_cause": "Matrix regeneration reused the prior invariant list and only refreshed artifact hashes.",
+      "resolution": "Add explicit invariant rows for legacy Core exclusion, legacy runner quiescence, Tauri upgrade ordering, runtime mutation binding and the expected-runtime header, each with complete occurrences and non-empty writer/readers."
+    },
+    {
+      "finding_id": "SOL-R16-INIT-IA-003",
+      "contradiction": "The expected-runtime mutation header was required by transport but absent from the browser preflight authority.",
+      "root_cause": "The request-bound header was added without tracing the existing exact CORS header allowlist.",
+      "resolution": "Permit exactly content-type plus x-devdiary-expected-core-target for trusted origins and reject extra headers or untrusted origins before body parsing."
+    }
+  ],
+  "status": "owner_resolved_pending_fresh_review"
+}

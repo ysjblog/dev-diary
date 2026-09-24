@@ -9,8 +9,7 @@ import { discoverProjectsFromRoots } from './services/projectDiscovery.js';
 import { taipeiDate } from './services/taipeiDate.js';
 import { parseAdditionalBrowserOrigins } from './services/browserOriginPolicy.js';
 import {
-  isRuntimeManifestStale,
-  readRuntimeManifest,
+  assertRuntimeManifestAvailableBeforeDb,
   removeRuntimeManifest,
   resolveRuntimeManifestPath,
   writeRuntimeManifest,
@@ -23,6 +22,8 @@ const REQUESTED_PORT = Number(process.env.DEVDIARY_PORT ?? 4317);
 const STARTED_AT = new Date().toISOString();
 const runtimeConfig = resolveRuntimeConfig();
 const additionalBrowserOrigins = parseAdditionalBrowserOrigins(process.env.DEVDIARY_DEV_BROWSER_ORIGINS);
+const manifestPath = resolveRuntimeManifestPath();
+assertRuntimeManifestAvailableBeforeDb(manifestPath);
 const db = openDb(runtimeConfig.dbPath);
 const projectRoots = runtimeConfig.projectRoots;
 const runtimeIdentity = {
@@ -52,6 +53,7 @@ const app = createServer(db, {
   dailyScheduler,
   runtime: runtimeIdentity,
   additionalBrowserOrigins,
+  runtimeManifestPath: manifestPath,
 });
 
 const SCHEDULER_INTERVAL_MS = 60_000;
@@ -65,7 +67,6 @@ const schedulerTimer = setInterval(() => {
 }, SCHEDULER_INTERVAL_MS);
 schedulerTimer.unref?.();
 
-const manifestPath = resolveRuntimeManifestPath();
 let manifestReady = false;
 
 function cleanupManifest(): void {
@@ -89,17 +90,6 @@ try {
     maxAttempts: 20,
   });
   runtimeIdentity.port = result.port;
-  // Inspect any leftover manifest before claiming it, so a crashed previous Core
-  // does not strand dev clients on a dead port.
-  const existingManifest = readRuntimeManifest(manifestPath);
-  if (existingManifest) {
-    const ownerPid = existingManifest.runtime?.pid ?? 'unknown';
-    if (isRuntimeManifestStale(existingManifest)) {
-      process.stdout.write(`Reclaiming stale Core runtime manifest (pid ${ownerPid} not alive)\n`);
-    } else if (existingManifest.runtime?.pid !== process.pid) {
-      process.stderr.write(`Warning: overwriting runtime manifest owned by live Core pid ${ownerPid}\n`);
-    }
-  }
   writeRuntimeManifest({
     path: manifestPath,
     host: HOST,

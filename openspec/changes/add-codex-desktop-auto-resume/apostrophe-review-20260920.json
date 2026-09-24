@@ -1,0 +1,7 @@
+{
+  "reviewer_id": "/root/apostrophe_review",
+  "verdict": "APPROVE",
+  "scope": "exact U+0027/U+2019 prefixes, preserve structure/time/raw digest/replay",
+  "findings": [],
+  "implementation_verified": false
+}

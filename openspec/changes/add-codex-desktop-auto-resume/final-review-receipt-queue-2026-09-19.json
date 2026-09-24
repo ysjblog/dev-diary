@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "stage": "final",
+  "reviewer_id": "/root/queue_final_review",
+  "review_revision": "6d55c34-queue-97023edfaeea",
+  "matrix_digest": "2ff57c117a5691a1e8da96c9b7803a8375fef23d1fbffb9e0c16538f3c2271c5",
+  "verdict": "REJECT",
+  "lens_results": {
+    "failure_recovery": "findings",
+    "integration_authority": "findings"
+  },
+  "findings": [
+    {
+      "id": "QF1",
+      "severity": "high",
+      "title": "Crash expiry clears unknown detached process lease",
+      "location": "design.md:82"
+    },
+    {
+      "id": "QF2",
+      "severity": "medium",
+      "title": "Proposal retains old exec transport rationale",
+      "location": "proposal.md:11"
+    }
+  ],
+  "receipt_digest": "504b5eb4b1f4d91d2d6c61eee88e9c0e5a20f1138a490fa49ade0101517c5d26"
+}

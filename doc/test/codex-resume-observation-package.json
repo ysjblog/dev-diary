@@ -1,0 +1,9 @@
+{
+  "source_matches": {
+    "core/src/services/codexResumeObservation.ts": true,
+    "core/src/services/codexResumeObservationWorker.mjs": true,
+    "core/src/backgroundRunner.ts": true
+  },
+  "signature_verified": true,
+  "distribution": "local ad-hoc manual approval; not notarized"
+}

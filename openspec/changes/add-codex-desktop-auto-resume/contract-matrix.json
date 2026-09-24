@@ -1,0 +1,573 @@
+{
+  "schema_version": 2,
+  "generated_revision": "6d55c34-queue-560b4f605520",
+  "input_manifest_digest": "ee626413e43096110d6762e276ea428bd4e9222ca6d3a4cd92c8a1d653ec55b8",
+  "artifact_inventory": [
+    {
+      "path": "core/src/backgroundRunner.ts",
+      "sha256": "f1e0c1c74c6c07ddaedee0393fee3b8dc67244db1ecf6687a75a319bd97dd0ac"
+    },
+    {
+      "path": "core/src/db/index.ts",
+      "sha256": "a8828e0c74ad8112420bd3981d413861a128a088e1e59665394a9f31c76bcf04"
+    },
+    {
+      "path": "core/src/services/codexDesktopResumeEngine.ts",
+      "sha256": "648bdae8389cc8b61f9f14dfeffdd21521c9d68090ef73f9a510bcf53ce24843"
+    },
+    {
+      "path": "core/src/services/codexDesktopResumeRepository.ts",
+      "sha256": "6daa3e5d41e564119a24c7a81dee00a2a9ea9c558afd5623d58dfe4dc8e6fc36"
+    },
+    {
+      "path": "core/src/services/codexDesktopSessionLookup.ts",
+      "sha256": "bb330f6e8c31807b855b5885bcf43ab38c7094b2209ad20f86122ffad975b971"
+    },
+    {
+      "path": "core/src/services/runtimeManifest.ts",
+      "sha256": "a6e331568509df0faeaeb0613885d7a6ceea97a54e22df504c30cb55f6d862ea"
+    },
+    {
+      "path": "core/test/backgroundRunner.test.ts",
+      "sha256": "f1e3d49e94a56267a8a65b5bbb59417b82e888c2e301393f62e8b9659e5c7d4d"
+    },
+    {
+      "path": "core/test/codexDesktopResumeApiV8.test.ts",
+      "sha256": "dfaedbef78b13bcf8c23e81a2a169392f7a9ac0cc28583684c2b44de2635eabd"
+    },
+    {
+      "path": "core/test/codexDesktopResumeEngine.test.ts",
+      "sha256": "fd56ed2e698535986a0264e9be93a86dfccd3dcb29ae0b640e6d2af4996237fe"
+    },
+    {
+      "path": "core/test/codexDesktopResumeRepository.test.ts",
+      "sha256": "f42dcb160b95e6f93541effbc19a8079084c87ab9aaac2ecca45c980093c3965"
+    },
+    {
+      "path": "core/test/codexDesktopSessionLookup.test.ts",
+      "sha256": "1e5c4088f871410176e1342d510008e08f7ecf482f6771708fd091ecf0b36d45"
+    },
+    {
+      "path": "core/test/runtimeManifest.test.ts",
+      "sha256": "0645ad60e251441fd79463cfafdb02c75856bbad18b969c82a208c592861f5c4"
+    },
+    {
+      "path": "doc/test/codex-resume-queue-repair.md",
+      "sha256": "da588855082f87220b9c6070f55d97175c3ae1a3f1722d737491fc5f78f54938"
+    },
+    {
+      "path": "openspec/changes/add-codex-desktop-auto-resume/design.md",
+      "sha256": "e1875ad13d7f196051c443931f30af9b349dd15b41414de08d98920562b642de"
+    },
+    {
+      "path": "openspec/changes/add-codex-desktop-auto-resume/proposal.md",
+      "sha256": "aa8a4b7c48f5e6ab1e143e409da3196a8b89c661340aeac60e7530c4d4d62a24"
+    },
+    {
+      "path": "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md",
+      "sha256": "1243c6f0fbf2c69ff54998de98d42bde3f7b2593e51bda40e97fd899b78ca716"
+    },
+    {
+      "path": "openspec/changes/add-codex-desktop-auto-resume/specs/dev-diary-macos-app/spec.md",
+      "sha256": "8250d078fea65306f87096d95cf466746e9da3d95a0d19eaa5f3ab532eb3b57a"
+    },
+    {
+      "path": "openspec/changes/add-codex-desktop-auto-resume/tasks.md",
+      "sha256": "cd7564150141d4fb48ea72039b57d2c2aa45b56dd4cc9aeefdba4abb4e4b80f6"
+    },
+    {
+      "path": "openspec/specs/dev-diary-macos-app/spec.md",
+      "sha256": "c32966786b9893c790f20b908172d83ffeb92d724357ae316d69acf5f5072c0a"
+    },
+    {
+      "path": "src/App.jsx",
+      "sha256": "27d4e5575421666a73ac2c5a7a006e970d481fb967282de53bd10bf7e94f799f"
+    },
+    {
+      "path": "src/api/appShell.test.js",
+      "sha256": "e987320b748d5d34075c2cb1cef0fe36bc3076792dd0a776464641db384d640e"
+    },
+    {
+      "path": "src-tauri/src/lib.rs",
+      "sha256": "899ba5a0b72c4fe080a3a54ec8db4868ae073f75b6eb4b3dd6481fdd4a800bef"
+    }
+  ],
+  "inventory_scope": {
+    "change": [
+      "openspec/changes/add-codex-desktop-auto-resume/design.md",
+      "openspec/changes/add-codex-desktop-auto-resume/proposal.md",
+      "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md",
+      "openspec/changes/add-codex-desktop-auto-resume/specs/dev-diary-macos-app/spec.md",
+      "openspec/changes/add-codex-desktop-auto-resume/tasks.md"
+    ],
+    "baseline": [
+      "core/src/backgroundRunner.ts",
+      "core/src/db/index.ts",
+      "core/src/services/codexDesktopResumeEngine.ts",
+      "core/src/services/codexDesktopResumeRepository.ts",
+      "core/src/services/codexDesktopSessionLookup.ts",
+      "core/src/services/runtimeManifest.ts",
+      "core/test/backgroundRunner.test.ts",
+      "core/test/codexDesktopResumeApiV8.test.ts",
+      "core/test/codexDesktopResumeEngine.test.ts",
+      "core/test/codexDesktopResumeRepository.test.ts",
+      "core/test/codexDesktopSessionLookup.test.ts",
+      "core/test/runtimeManifest.test.ts",
+      "doc/test/codex-resume-queue-repair.md",
+      "openspec/specs/dev-diary-macos-app/spec.md",
+      "src-tauri/src/lib.rs",
+      "src/App.jsx",
+      "src/api/appShell.test.js"
+    ]
+  },
+  "invariants": [
+    {
+      "id": "logical_segments",
+      "value": "sequential segments",
+      "search_terms": [
+        "sequential segments"
+      ],
+      "writers": [
+        "core/src/services/codexDesktopSessionLookup.ts",
+        "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md"
+      ],
+      "readers": [
+        "core/test/codexDesktopSessionLookup.test.ts",
+        "openspec/changes/add-codex-desktop-auto-resume/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md",
+          "line": 34
+        }
+      ]
+    },
+    {
+      "id": "uuid_v7",
+      "value": "UUIDv7",
+      "search_terms": [
+        "UUIDv7"
+      ],
+      "writers": [
+        "core/test/codexDesktopResumeEngine.test.ts",
+        "core/test/codexDesktopSessionLookup.test.ts",
+        "openspec/changes/add-codex-desktop-auto-resume/tasks.md"
+      ],
+      "readers": [
+        "core/src/services/codexDesktopResumeEngine.ts",
+        "openspec/changes/add-codex-desktop-auto-resume/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "core/test/codexDesktopResumeEngine.test.ts",
+          "line": 209
+        },
+        {
+          "file": "doc/test/codex-resume-queue-repair.md",
+          "line": 10
+        }
+      ]
+    },
+    {
+      "id": "desktop_cli_priority",
+      "value": "Codex Desktop bundled CLI",
+      "search_terms": [
+        "Codex Desktop bundled CLI"
+      ],
+      "writers": [
+        "core/src/backgroundRunner.ts",
+        "core/test/backgroundRunner.test.ts",
+        "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md"
+      ],
+      "readers": [
+        "core/test/backgroundRunner.test.ts",
+        "openspec/changes/add-codex-desktop-auto-resume/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "core/test/backgroundRunner.test.ts",
+          "line": 37
+        }
+      ]
+    },
+    {
+      "id": "ack_contract",
+      "value": "turn.started",
+      "search_terms": [
+        "turn.started"
+      ],
+      "writers": [
+        "core/src/services/codexDesktopResumeEngine.ts",
+        "core/test/codexDesktopResumeEngine.test.ts",
+        "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md"
+      ],
+      "readers": [
+        "core/test/codexDesktopResumeEngine.test.ts",
+        "openspec/changes/add-codex-desktop-auto-resume/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/design.md",
+          "line": 68
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md",
+          "line": 74
+        }
+      ]
+    },
+    {
+      "id": "no_ack_consumption",
+      "value": "codex_resume_not_acknowledged",
+      "search_terms": [
+        "codex_resume_not_acknowledged"
+      ],
+      "writers": [
+        "core/src/services/codexDesktopResumeEngine.ts",
+        "core/test/codexDesktopResumeEngine.test.ts",
+        "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md"
+      ],
+      "readers": [
+        "core/test/codexDesktopResumeEngine.test.ts",
+        "openspec/changes/add-codex-desktop-auto-resume/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "core/test/codexDesktopResumeRepository.test.ts",
+          "line": 81
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/design.md",
+          "line": 75
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md",
+          "line": 104
+        }
+      ]
+    },
+    {
+      "id": "core_owner_gate",
+      "value": "live_core_manifest_owner",
+      "search_terms": [
+        "live_core_manifest_owner"
+      ],
+      "writers": [
+        "core/src/services/runtimeManifest.ts",
+        "core/test/runtimeManifest.test.ts",
+        "openspec/changes/add-codex-desktop-auto-resume/design.md"
+      ],
+      "readers": [
+        "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md",
+        "openspec/specs/dev-diary-macos-app/spec.md"
+      ],
+      "occurrences": [
+        {
+          "file": "core/src/services/runtimeManifest.ts",
+          "line": 118
+        },
+        {
+          "file": "core/test/runtimeManifest.test.ts",
+          "line": 131
+        }
+      ]
+    },
+    {
+      "id": "background_schema_gate",
+      "value": "background_database_requires_core_initialization",
+      "search_terms": [
+        "background_database_requires_core_initialization"
+      ],
+      "writers": [
+        "core/src/db/index.ts",
+        "core/test/backgroundRunner.test.ts",
+        "openspec/changes/add-codex-desktop-auto-resume/design.md"
+      ],
+      "readers": [
+        "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md",
+        "openspec/specs/dev-diary-macos-app/spec.md"
+      ],
+      "occurrences": [
+        {
+          "file": "core/src/db/index.ts",
+          "line": 90
+        },
+        {
+          "file": "core/src/db/index.ts",
+          "line": 97
+        },
+        {
+          "file": "core/src/db/index.ts",
+          "line": 98
+        },
+        {
+          "file": "core/test/backgroundRunner.test.ts",
+          "line": 52
+        },
+        {
+          "file": "core/test/backgroundRunner.test.ts",
+          "line": 59
+        }
+      ]
+    },
+    {
+      "id": "launchagent_order",
+      "value": "core_is_spawned_before_the_background_launch_agent_is_installed",
+      "search_terms": [
+        "core_is_spawned_before_the_background_launch_agent_is_installed"
+      ],
+      "writers": [
+        "openspec/changes/add-codex-desktop-auto-resume/design.md",
+        "src-tauri/src/lib.rs"
+      ],
+      "readers": [
+        "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md",
+        "openspec/specs/dev-diary-macos-app/spec.md"
+      ],
+      "occurrences": [
+        {
+          "file": "src-tauri/src/lib.rs",
+          "line": 814
+        }
+      ]
+    },
+    {
+      "id": "background_lookup_budget",
+      "value": "CODEX_DESKTOP_BACKGROUND_LOOKUP_DEADLINE_MS",
+      "search_terms": [
+        "CODEX_DESKTOP_BACKGROUND_LOOKUP_DEADLINE_MS"
+      ],
+      "writers": [
+        "core/src/services/codexDesktopSessionLookup.ts",
+        "openspec/changes/add-codex-desktop-auto-resume/design.md"
+      ],
+      "readers": [
+        "core/src/services/codexDesktopResumeEngine.ts",
+        "core/test/codexDesktopResumeEngine.test.ts"
+      ],
+      "occurrences": [
+        {
+          "file": "core/src/services/codexDesktopResumeEngine.ts",
+          "line": 8
+        },
+        {
+          "file": "core/src/services/codexDesktopResumeEngine.ts",
+          "line": 126
+        },
+        {
+          "file": "core/src/services/codexDesktopResumeEngine.ts",
+          "line": 145
+        },
+        {
+          "file": "core/src/services/codexDesktopSessionLookup.ts",
+          "line": 12
+        },
+        {
+          "file": "core/src/services/codexDesktopSessionLookup.ts",
+          "line": 45
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/design.md",
+          "line": 64
+        }
+      ]
+    },
+    {
+      "id": "queue_transport",
+      "value": "queue --thread",
+      "search_terms": [
+        "queue --thread"
+      ],
+      "writers": [
+        "core/src/services/codexDesktopResumeEngine.ts"
+      ],
+      "readers": [
+        "openspec/changes/add-codex-desktop-auto-resume/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/design.md",
+          "line": 123
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/proposal.md",
+          "line": 11
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/proposal.md",
+          "line": 22
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/proposal.md",
+          "line": 66
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md",
+          "line": 67
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/tasks.md",
+          "line": 35
+        }
+      ]
+    },
+    {
+      "id": "same_store",
+      "value": "CODEX_HOME",
+      "search_terms": [
+        "CODEX_HOME"
+      ],
+      "writers": [
+        "core/src/backgroundRunner.ts"
+      ],
+      "readers": [
+        "openspec/changes/add-codex-desktop-auto-resume/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "core/src/services/codexDesktopResumeEngine.ts",
+          "line": 227
+        },
+        {
+          "file": "doc/test/codex-resume-queue-repair.md",
+          "line": 10
+        },
+        {
+          "file": "doc/test/codex-resume-queue-repair.md",
+          "line": 15
+        },
+        {
+          "file": "doc/test/codex-resume-queue-repair.md",
+          "line": 24
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/design.md",
+          "line": 66
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md",
+          "line": 67
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md",
+          "line": 79
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/tasks.md",
+          "line": 35
+        }
+      ]
+    },
+    {
+      "id": "honest_status",
+      "value": "已送出續跑要求",
+      "search_terms": [
+        "已送出續跑要求"
+      ],
+      "writers": [
+        "src/App.jsx"
+      ],
+      "readers": [
+        "openspec/changes/add-codex-desktop-auto-resume/design.md"
+      ],
+      "occurrences": [
+        {
+          "file": "doc/test/codex-resume-queue-repair.md",
+          "line": 30
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/design.md",
+          "line": 68
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/design.md",
+          "line": 109
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/proposal.md",
+          "line": 22
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md",
+          "line": 67
+        },
+        {
+          "file": "src/App.jsx",
+          "line": 3620
+        }
+      ]
+    },
+    {
+      "id": "manual_recovery",
+      "value": "completed_evidence_id",
+      "search_terms": [
+        "completed_evidence_id"
+      ],
+      "writers": [
+        "core/src/services/codexDesktopResumeRepository.ts"
+      ],
+      "readers": [
+        "core/test/codexDesktopResumeRepository.test.ts"
+      ],
+      "occurrences": [
+        {
+          "file": "core/src/services/codexDesktopResumeEngine.ts",
+          "line": 18
+        },
+        {
+          "file": "core/src/services/codexDesktopResumeEngine.ts",
+          "line": 90
+        },
+        {
+          "file": "core/src/services/codexDesktopResumeEngine.ts",
+          "line": 103
+        },
+        {
+          "file": "core/src/services/codexDesktopResumeEngine.ts",
+          "line": 119
+        },
+        {
+          "file": "core/src/services/codexDesktopResumeEngine.ts",
+          "line": 136
+        },
+        {
+          "file": "core/src/services/codexDesktopResumeEngine.ts",
+          "line": 182
+        },
+        {
+          "file": "core/src/services/codexDesktopResumeRepository.ts",
+          "line": 136
+        },
+        {
+          "file": "core/test/codexDesktopResumeEngine.test.ts",
+          "line": 168
+        },
+        {
+          "file": "core/test/codexDesktopResumeRepository.test.ts",
+          "line": 74
+        },
+        {
+          "file": "core/test/codexDesktopResumeRepository.test.ts",
+          "line": 79
+        },
+        {
+          "file": "core/test/codexDesktopResumeRepository.test.ts",
+          "line": 84
+        },
+        {
+          "file": "core/test/codexDesktopResumeRepository.test.ts",
+          "line": 88
+        },
+        {
+          "file": "core/test/codexDesktopResumeRepository.test.ts",
+          "line": 91
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/design.md",
+          "line": 74
+        }
+      ]
+    }
+  ],
+  "matrix_digest": "12ae62ff9d793259592bf86e7838ada640313f5889b13c16b97d522b0b0ff86b"
+}

@@ -1,0 +1,25 @@
+{
+  "simulatedClock": true,
+  "syntheticEvidenceOnly": true,
+  "testAdapterBindsVerifiedRealStore": true,
+  "beforeDue": "watching",
+  "beforeDueState": "waiting_for_reset",
+  "atDue": "resumed",
+  "secondTick": "watching",
+  "dispatchCalls": 1,
+  "dispatchResult": {
+    "accepted": true,
+    "code": "queued"
+  },
+  "simulatedTargetState": "resumed",
+  "liveRegistrationUnchanged": true,
+  "recordedAt": "2026-09-20T06:54:01.088Z",
+  "desktopObservation": {
+    "title": "範例任務 A",
+    "newTurnId": "0190abcd-ef00-7000-8000-000000000007",
+    "status": "inProgress",
+    "startedAt": 1789887243,
+    "error": null
+  },
+  "scopeLimit": "Simulated quota and clock in isolated memory DB; installed engine plus verified real-store dispatch adapter. Not an unattended real quota-reset observation."
+}

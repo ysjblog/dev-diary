@@ -16,14 +16,16 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 
 ## 進行中變更
 
-目前沒有進行中的 OpenSpec Change。
+| Change | 目的 | 狀態 |
+|---|---|---|
+| [`add-codex-desktop-auto-resume`](../../openspec/changes/add-codex-desktop-auto-resume/proposal.md) | 整合 macOS Codex Desktop 多任務 deep-link 額度恢復續跑；thread ID 精確定位、背景只送固定「繼續」 | v8 implementation and verification complete；active Change pending commit/archive closeout |
 
 舊 Delta 的「後續」段落已由後續 commit 覆蓋，或是明確 deferred/non-goal；它們不會被假裝成 active work。
 
 ## 目前架構
 
 - Desktop shell：Tauri；UI：React；Core：Node.js / TypeScript。
-- Core ↔ UI：loopback-only Local HTTP API，`/api/health` 提供 contract version、capabilities、runtime identity 與 stale/unreachable 狀態。
+- Core ↔ UI：loopback-only Local HTTP API，`/api/health` 提供 contract version、capabilities、runtime identity 與 stale/unreachable 狀態；Codex resume mutation另綁定該次verified runtime snapshot，target drift在body parsing前zero mutation。
 - System of record：本機 app-owned SQLite 與 app data folder；React 不直接讀 SQLite、project folder 或 agent logs。
 - Project access：只掃描明確設定的 roots、agent source paths 與 docs allowlist；project folder 與 Git 操作對 app 而言是 read-only。
 - Packaging：macOS Tauri app、bundled Node 22、manual-approval/ad-hoc-seal DMG、Applications drag-install metadata，以及 packaged startup 管理的 LaunchAgent runner；公開發布前會檢查現行 source／release notes 不含維護者機器專屬路徑。
@@ -35,7 +37,7 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 - **Dashboard**：range metrics、agent mix、project concentration、24 小時 hourly trend、latest-26-week heatmap、daily highlights 由 Core snapshot 提供。
 - **Projects Workspace**：project detail、active/idle tracking、三欄 Kanban、manual status lock、AI-gated sync、comments、summary/daily diary writes、Project Docs 與 read-only Git Status。
 - **Diary 與排程**：Claude/Codex/Antigravity/local Ollama draft providers、deterministic fallback、date-scoped diary；目標日固定、租約時鐘持續前進，長任務失去 owner/generation 時會 abort 並在交易內阻止後續 Project/Diary/Kanban/Highlight 寫入；每種輸出另有 provider success、fallback、failed、skipped 的可稽核 telemetry。只有目標日確實有 session 的專案產生 Daily diary，另有 scheduler preflight/Run now、sleep-like recovery tick 與關閉 app 後的 LaunchAgent background scan/diary gate。
-- **Export 與 runtime**：Markdown daily export、redacted structured backup、dynamic Core-port manifest、只信任具有存活 owner PID 的 canonical runtime identity、startup retry；packaged LaunchAgent 可執行支援檔固定在 `.app` 同層的 `/Applications/.DevDiaryLaunchAgents`，development 仍使用 Application Support，SQLite 與 logs 一律留在 app-data boundary。
+- **Export 與 runtime**：Markdown daily export、redacted structured backup、dynamic Core-port manifest、Core在open DB前拒絕live/unknown舊owner且不得覆寫live manifest、只信任具有存活 owner PID 的 canonical runtime identity、startup retry；Codex resume old-schema migration須先證明舊Core與LaunchAgent/runner停止，Tauri取得exact migration-ready acknowledgement後才bootstrap新版runner。packaged LaunchAgent 可執行支援檔固定在 `.app` 同層的 `/Applications/.DevDiaryLaunchAgents`，development 仍使用 Application Support，SQLite 與 logs 一律留在 app-data boundary。
 
 ## 資料與 API 契約
 
@@ -47,7 +49,7 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 | Scan / writes | `POST /api/scan`, `POST /api/projects/:id/scan`, comments、Kanban status、summary、date-scoped diary endpoints |
 | Agents / scheduler | detection、custom-agent probe/write、`/api/scheduler/daily/preflight`、`POST /api/scheduler/daily/run` |
 | Export | `/api/exports/daily` 與 `/api/exports/backup`；backup kind 是 `devdiary-redacted-backup` |
-| Durable records | `projects`, `sessions`, `token_usage`, `daily_logs`, `comments`, `kanban_cards`, `project_docs`, `app_settings`, `daily_scheduler_runs`, `project_reconciliation_runs`, `log_file_scan_cache` |
+| Durable records | `projects`, `sessions`, `token_usage`, `daily_logs`, `comments`, `kanban_cards`, `project_docs`, `app_settings`, `daily_scheduler_runs`, `project_reconciliation_runs`, `log_file_scan_cache`；進行中的 v8 Change 已新增 `codex_desktop_resume_state` 與 `codex_desktop_resume_targets` 專用表 |
 
 ## 測試與驗證
 
@@ -91,3 +93,7 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 - 2026-07-28：封存 `fix-scan-status-and-daily-diary-scheduler` 與 `release-v0-1-2-distribution`；current Feature Spec 已同步掃描／每日排程與 macOS Release provenance 契約。
 - 2026-07-23：完成一次性 OpenSpec migration；current truth 轉入 `openspec/specs/`，legacy Feature/Delta/review/MASTER 保存於 `docs/specs/legacy/`。
 - OpenSpec-native archive 從 `openspec/changes/archive/2026-08-10-harden-local-runtime-boundaries/` 起保存；更早的完整 legacy provenance 與舊 review state 由 [`MIGRATION-MAP.md`](legacy/MIGRATION-MAP.md) 對照。
+
+- 2026-09-23：額度續跑新增 queue 後自動開啟精確任務，已安裝並通過受控啟動測試；真實背景執行仍觀察到 Desktop resume 延遲，因此不保證無人操作及時啟動。證據見 `doc/test/codex-desktop-wake-verification-report.md`。
+
+- 2026-09-23：新增獨立本機續跑觀察與有限故障統計，General 診斷增量，不更改既有續跑觸發／派送／重播契約；驗證與安裝狀態見 `doc/test/codex-resume-observation.md`。整體無人操作可靠性仍待實際額度恢復驗證。

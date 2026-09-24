@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { BoundedFileReadError, boundedReadUtf8 } from '../src/services/boundedFileRead.js';
+import { BoundedFileReadError, boundedReadTailUtf8, boundedReadUtf8 } from '../src/services/boundedFileRead.js';
 
 const roots: string[] = [];
 const tempRoot = () => {
@@ -29,5 +29,13 @@ describe('bounded filesystem reads', () => {
     const startedAt = Date.now();
     expect(() => boundedReadUtf8(file, { workerPath: worker, timeoutMs: 50 })).toThrowError(BoundedFileReadError);
     expect(Date.now() - startedAt).toBeLessThan(2_000);
+  });
+
+  it('can read only a bounded tail for append-only session logs', () => {
+    const root = tempRoot();
+    const file = join(root, 'session.jsonl');
+    writeFileSync(file, 'head\n' + 'x'.repeat(2_000) + '\ntail\n');
+    expect(boundedReadTailUtf8(file, { maxBytes: 1_024 })).toContain('tail');
+    expect(() => boundedReadUtf8(file, { maxBytes: 1_024 })).toThrowError(BoundedFileReadError);
   });
 });

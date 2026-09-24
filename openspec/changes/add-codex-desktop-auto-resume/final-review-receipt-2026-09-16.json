@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "stage": "final",
+  "reviewer_id": "codex-sol:/root/resume_spec_final_closer",
+  "matrix_digest": "7c365db00a6f981bb355f9aaacedaf3e76e2d34250aaacc3c1eb6423baa5a4be",
+  "review_revision": "6d55c34-2f307f3618ae",
+  "lens_results": {
+    "failure_recovery": "pass",
+    "integration_authority": "pass"
+  },
+  "receipt_digest": "2a85cd8bd2ec57f8013e61e0ea3e839f6661b52620c71d6e3b5038f9bee29995"
+}

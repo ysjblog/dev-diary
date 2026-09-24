@@ -1,0 +1,97 @@
+{
+  "read_only": true,
+  "snapshot": {
+    "processes": [
+      {
+        "pid": 13208,
+        "ppid": 58251,
+        "state": "S",
+        "kind": "helper"
+      },
+      {
+        "pid": 24631,
+        "ppid": 58251,
+        "state": "S",
+        "kind": "helper"
+      },
+      {
+        "pid": 24696,
+        "ppid": 58251,
+        "state": "S",
+        "kind": "helper"
+      },
+      {
+        "pid": 24818,
+        "ppid": 58251,
+        "state": "S",
+        "kind": "helper"
+      },
+      {
+        "pid": 24889,
+        "ppid": 58251,
+        "state": "S",
+        "kind": "helper"
+      },
+      {
+        "pid": 58251,
+        "ppid": 1,
+        "state": "S",
+        "kind": "desktop"
+      },
+      {
+        "pid": 58276,
+        "ppid": 58251,
+        "state": "S",
+        "kind": "helper"
+      },
+      {
+        "pid": 58277,
+        "ppid": 58251,
+        "state": "S",
+        "kind": "helper"
+      },
+      {
+        "pid": 58278,
+        "ppid": 58251,
+        "state": "S",
+        "kind": "helper"
+      },
+      {
+        "pid": 58700,
+        "ppid": 58251,
+        "state": "S",
+        "kind": "codex"
+      },
+      {
+        "pid": 58711,
+        "ppid": 58251,
+        "state": "S",
+        "kind": "helper"
+      },
+      {
+        "pid": 68480,
+        "ppid": 58251,
+        "state": "S",
+        "kind": "helper"
+      },
+      {
+        "pid": 73523,
+        "ppid": 58251,
+        "state": "S",
+        "kind": "helper"
+      },
+      {
+        "pid": 78574,
+        "ppid": 58251,
+        "state": "S",
+        "kind": "helper"
+      }
+    ],
+    "process_status": "sampled",
+    "responses": 83,
+    "slow_responses": 0,
+    "queue_rejections": 0,
+    "log_files": 4,
+    "log_status": "sampled"
+  }
+}

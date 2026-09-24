@@ -3,12 +3,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  assertBackgroundRuntimeManifestCompatibleBeforeDb,
+  assertRuntimeManifestAvailableBeforeDb,
+  buildVerifiedRuntimeTargetSnapshot,
   defaultRuntimeManifestPath,
   isProcessAlive,
   isRuntimeManifestStale,
   readRuntimeManifest,
   removeRuntimeManifest,
   resolveRuntimeManifestPath,
+  verifyExpectedRuntimeTarget,
   writeRuntimeManifest,
 } from '../src/services/runtimeManifest.js';
 
@@ -119,5 +123,55 @@ describe('Runtime manifest', () => {
     expect(isRuntimeManifestStale({ service: 'devdiary-core', runtime: {} })).toBe(true);
     expect(isRuntimeManifestStale({ service: 'devdiary-core', runtime: { pid: DEAD_PID } }, { isAlive: () => false })).toBe(true);
     expect(isRuntimeManifestStale({ service: 'devdiary-core', runtime: { pid: 12345 } }, { isAlive: () => true })).toBe(false);
+  });
+
+  it('refuses a live or malformed owner before the database is opened, but removes an exact dead owner', () => {
+    const path = join(tempRoot(), 'core-runtime.json');
+    writeRuntimeManifest({ path, host: '127.0.0.1', port: 4321, pid: 12345, startedAt: '2026-06-30T00:00:00.000Z' });
+    expect(() => assertRuntimeManifestAvailableBeforeDb(path, { isAlive: () => true })).toThrow('live_core_manifest_owner');
+    writeFileSync(path, '{ malformed');
+    expect(() => assertRuntimeManifestAvailableBeforeDb(path, { isAlive: () => false })).toThrow('unknown_core_manifest_owner');
+    writeRuntimeManifest({ path, host: '127.0.0.1', port: 4321, pid: DEAD_PID, startedAt: '2026-06-30T00:00:00.000Z' });
+    assertRuntimeManifestAvailableBeforeDb(path, { isAlive: () => false });
+    expect(existsSync(path)).toBe(false);
+  });
+
+  it('allows the background runner only beside an exact current live Core manifest', () => {
+    const path = join(tempRoot(), 'core-runtime.json');
+    expect(() => assertBackgroundRuntimeManifestCompatibleBeforeDb(path)).not.toThrow();
+
+    writeRuntimeManifest({ path, host: '127.0.0.1', port: 4321, pid: 12345, startedAt: '2026-06-30T00:00:00.000Z' });
+    expect(() => assertBackgroundRuntimeManifestCompatibleBeforeDb(path, { isAlive: () => true })).not.toThrow();
+
+    const old = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+    old.api_contract_version = 'old-contract';
+    writeFileSync(path, JSON.stringify(old));
+    expect(() => assertBackgroundRuntimeManifestCompatibleBeforeDb(path, { isAlive: () => true }))
+      .toThrow('incompatible_core_manifest_owner');
+
+    writeFileSync(path, '{ malformed');
+    expect(() => assertBackgroundRuntimeManifestCompatibleBeforeDb(path, { isAlive: () => false }))
+      .toThrow('unknown_core_manifest_owner');
+  });
+
+  it('removes an exact current dead Core manifest before the background runner opens the database', () => {
+    const path = join(tempRoot(), 'core-runtime.json');
+    writeRuntimeManifest({ path, host: '127.0.0.1', port: 4321, pid: DEAD_PID, startedAt: '2026-06-30T00:00:00.000Z' });
+    assertBackgroundRuntimeManifestCompatibleBeforeDb(path, { isAlive: () => false });
+    expect(existsSync(path)).toBe(false);
+  });
+
+  it('builds a verified mutation snapshot from the exact current manifest bytes', () => {
+    const path = join(tempRoot(), 'core-runtime.json');
+    writeRuntimeManifest({ path, host: '127.0.0.1', port: 4321, pid: 12345, startedAt: '2026-06-30T00:00:00.000Z' });
+    const target = buildVerifiedRuntimeTargetSnapshot(path, {
+      host: '127.0.0.1', port: 4321, pid: 12345, startedAt: '2026-06-30T00:00:00.000Z',
+    });
+    expect(target?.origin).toBe('http://127.0.0.1:4321');
+    expect(target?.manifest_digest).toMatch(/^[0-9a-f]{64}$/);
+    writeFileSync(path, `${readFileSync(path, 'utf8')} `);
+    expect(verifyExpectedRuntimeTarget(path, {
+      host: '127.0.0.1', port: 4321, pid: 12345, startedAt: '2026-06-30T00:00:00.000Z',
+    }, target!)).toBe(false);
   });
 });

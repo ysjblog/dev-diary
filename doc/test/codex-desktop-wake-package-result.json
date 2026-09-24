@@ -1,0 +1,11 @@
+{
+  "source_matches": {
+    "src/services/codexDesktopWake.ts": true,
+    "src/services/codexDesktopResumeEngine.ts": true,
+    "src/backgroundRunner.ts": true
+  },
+  "dmg_sha256": "213362aa72f2a472b18002e2408d51386626cbea6e7ebf456d8e9fcdf74005a4",
+  "integrity": "pass",
+  "ad_hoc_signature": "pass",
+  "notarized": false
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "matrix_digest": "1d26c91e1d68b813eeb1bbef622d36b3ef3b6f458ec60d8e44ab947a91a20f46",
+  "review_revision": "6d55c34-b91642a7395b",
+  "reviewed_finding_ids": [
+    "F1"
+  ],
+  "changed_artifact_digest": "61a4c983bd9c36909b588e776f6b569a32a547f71796ce06027c1bee054c3ba9",
+  "landing_checks_passed": true,
+  "strict_validation_passed": true,
+  "author_preflight_receipt_digest": "baf5236acb7ff40a29f1af02e82a94709c081f93040826124037e5e6530f4b25",
+  "concern_tags": [
+    "execution-order",
+    "design-contract"
+  ],
+  "verify_strings": [
+    "控制權返回後拒絕逾期結果、不建立 claim",
+    "assertWithinDeadline();"
+  ],
+  "receipt_digest": "0fa7b6a14488b7e46ad93eb3c9d648742bb346e62eb9718fac9474572ec0e961"
+}

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "stage": "final",
+  "reviewer_id": "/root/wake_closer",
+  "review_revision": "wake-20260922-plan",
+  "matrix_digest": "52cb2b489bdf18ebdc6e37016219d3082a0b6f59d7c39433d6a324d462c90dca",
+  "lens_results": {
+    "integration_authority": "pass",
+    "failure_recovery": "pass"
+  },
+  "findings": [],
+  "receipt_digest": "45e48087cee44df06a2729d601ad9fb6bdb6eda9b38ee771a9662a0ce6eaee3c"
+}

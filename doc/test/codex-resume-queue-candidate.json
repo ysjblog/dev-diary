@@ -1,0 +1,9 @@
+{
+  "revision": "cbd02a4f70eec01fc98b00dfce4cde68826313e8b2edd361d1e9de6cab9eabb6",
+  "files": {
+    "core/src/services/codexDesktopResumeEngine.ts": "10f43c70ff708c85ca3a407ebddd79827d0ccef9c13329af9388f8c0d0088730",
+    "core/src/services/codexDesktopResumeRepository.ts": "6daa3e5d41e564119a24c7a81dee00a2a9ea9c558afd5623d58dfe4dc8e6fc36",
+    "core/src/backgroundRunner.ts": "f1e0c1c74c6c07ddaedee0393fee3b8dc67244db1ecf6687a75a319bd97dd0ac",
+    "src/App.jsx": "27d4e5575421666a73ac2c5a7a006e970d481fb967282de53bd10bf7e94f799f"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "2026-09-22T08": {
+    "responses": 4,
+    "under_1s": 4,
+    "queue_rejected": 11
+  },
+  "2026-09-22T09": {
+    "queue_rejected": 15
+  },
+  "2026-09-22T10": {
+    "queue_rejected": 18
+  },
+  "2026-09-22T11": {
+    "queue_rejected": 24
+  },
+  "2026-09-22T12": {
+    "queue_rejected": 19
+  },
+  "2026-09-22T13": {
+    "queue_rejected": 34
+  },
+  "2026-09-22T14": {
+    "queue_rejected": 16
+  },
+  "2026-09-22T15": {
+    "queue_rejected": 14
+  },
+  "2026-09-22T16": {
+    "queue_rejected": 20,
+    "responses": 66,
+    "over_60s": 6,
+    "under_1s": 59
+  }
+}

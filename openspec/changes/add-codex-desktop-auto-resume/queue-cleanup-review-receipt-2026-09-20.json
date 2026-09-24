@@ -1,0 +1,13 @@
+{
+  "verdict": "APPROVE",
+  "reviewer_id": "/root/queue_cleanup_check",
+  "review_revision": "6d55c34-queue-560b4f605520",
+  "matrix_digest": "12ae62ff9d793259592bf86e7838ada640313f5889b13c16b97d522b0b0ff86b",
+  "scope": "success after confirmed descendant cleanup only",
+  "findings": [
+    {
+      "severity": "low",
+      "note": "diagnosis is not dispatcher acceptance proof; actual dispatcher smoke and QA remain required"
+    }
+  ]
+}

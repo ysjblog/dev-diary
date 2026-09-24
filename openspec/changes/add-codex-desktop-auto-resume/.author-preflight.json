@@ -1,0 +1,15 @@
+{
+  "schema": "codex.openspec-author-preflight/v1",
+  "change": "add-codex-desktop-auto-resume",
+  "content_sha256": "f0013927f25f86b4a9ec2f0224e37c6bd5677db8f4c895f0c7d64eae65b3b851",
+  "tracked_files": [
+    "openspec/changes/add-codex-desktop-auto-resume/design.md",
+    "openspec/changes/add-codex-desktop-auto-resume/proposal.md",
+    "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md",
+    "openspec/changes/add-codex-desktop-auto-resume/specs/dev-diary-macos-app/spec.md",
+    "openspec/changes/add-codex-desktop-auto-resume/tasks.md",
+    "openspec/specs/dev-diary-macos-app/spec.md"
+  ],
+  "checked_at": "2026-09-22T16:35:31.028437+00:00",
+  "status": "pass"
+}

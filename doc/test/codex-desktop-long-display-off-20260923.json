@@ -1,0 +1,14 @@
+{
+  "window_local": {
+    "off": "2026-09-23T01:05:22+08:00",
+    "on": "2026-09-23T03:48:12+08:00"
+  },
+  "responses": {
+    "configRequirements/read": {
+      "count": 33,
+      "duration_min_ms": 1,
+      "duration_max_ms": 2
+    }
+  },
+  "limitation": "Passive historical observation; does not prove any task started or that all request classes were healthy."
+}

@@ -1,0 +1,6 @@
+{
+  "core/src/services/codexDesktopWake.ts": "9c410ae5637a2b233ff7fadc58e83b0b8609cab36781c03169b959b6d495da23",
+  "core/src/services/codexDesktopResumeEngine.ts": "9ceb4d8eb1d9629dfd217ef6f25d96f03863f7d49b53d3b09a7d61ff722c5fba",
+  "core/src/backgroundRunner.ts": "2900eb37f0c4549196f2e7c26301d94c46f00fbbfcfbbe45331b85980042fa86",
+  "src/App.jsx": "6d8f993c406f147251bebdf28dd007ecd82f4cdc6907979ad24ec99a5d2eb7f0"
+}

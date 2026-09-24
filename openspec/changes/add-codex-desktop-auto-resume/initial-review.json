@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "stage": "initial",
+  "reviewer_id": "0190abcd-ef00-7000-8000-00000000000a",
+  "review_revision": "6d55c34224518e1fdfc4748851808ee77acc2ae8",
+  "matrix_digest": "fd35da201f895df8a9f502f50d341fd569e8a02592f044f6537625beed467a82",
+  "required_lenses": ["failure_recovery", "integration_authority"],
+  "lens_results": {"failure_recovery": "pass", "integration_authority": "pass"},
+  "finding_ids": [],
+  "receipt_digest": "0c29993aafa46fdb540d256c5be637d96b8ccfb656a91d07e01616015b4aad44"
+}

@@ -1,0 +1,191 @@
+{
+  "timestamp": "2026-09-22T03:44:20.435Z",
+  "worker": "/root/wake_qa",
+  "results": [
+    {
+      "name": "queue receipt before exact opener argv",
+      "status": "PASS",
+      "detail": {
+        "accepted": true,
+        "code": "queued"
+      }
+    },
+    {
+      "name": "queue failure does not open",
+      "status": "PASS",
+      "detail": {
+        "accepted": false,
+        "code": "codex_resume_command_failed"
+      }
+    },
+    {
+      "name": "invalid uuid",
+      "status": "PASS",
+      "detail": {
+        "accepted": false,
+        "code": "invalid_codex_thread_id"
+      }
+    },
+    {
+      "name": "uppercase uuid",
+      "status": "PASS",
+      "detail": {
+        "accepted": false,
+        "code": "invalid_codex_thread_id"
+      }
+    },
+    {
+      "name": "alternate store",
+      "status": "PASS",
+      "detail": {
+        "accepted": false,
+        "code": "codex_resume_desktop_store_mismatch"
+      }
+    },
+    {
+      "name": "missing store",
+      "status": "PASS",
+      "detail": {
+        "accepted": false,
+        "code": "codex_resume_desktop_store_mismatch"
+      }
+    },
+    {
+      "name": "unknown queue cleanup prevents opener",
+      "status": "PASS",
+      "detail": {
+        "accepted": false,
+        "code": "codex_resume_queue_receipt_invalid",
+        "releaseLease": false
+      }
+    },
+    {
+      "name": "opener nonzero",
+      "status": "PASS",
+      "detail": {
+        "accepted": false,
+        "code": "codex_resume_queued_wake_failed"
+      }
+    },
+    {
+      "name": "opener missing",
+      "status": "PASS",
+      "detail": {
+        "accepted": false,
+        "code": "codex_resume_queued_wake_failed"
+      }
+    },
+    {
+      "name": "opener timeout",
+      "status": "PASS",
+      "detail": {
+        "accepted": false,
+        "code": "codex_resume_queued_wake_timeout",
+        "releaseLease": true
+      }
+    },
+    {
+      "name": "descendant cleanup",
+      "status": "PASS",
+      "detail": {
+        "accepted": false,
+        "code": "codex_resume_queued_wake_timeout",
+        "releaseLease": true
+      }
+    },
+    {
+      "name": "unknown process group remains quarantined",
+      "status": "PASS",
+      "detail": {
+        "accepted": false,
+        "code": "codex_resume_queued_wake_timeout_process_unterminated",
+        "releaseLease": false
+      }
+    },
+    {
+      "name": "engine success restart no replay",
+      "status": "PASS",
+      "detail": {
+        "first": "resumed",
+        "state": "resumed",
+        "quarantine": 0,
+        "calls": 2
+      }
+    },
+    {
+      "name": "engine failed opener restart no replay",
+      "status": "PASS",
+      "detail": {
+        "first": "needs_attention",
+        "state": "needs_attention",
+        "quarantine": 0,
+        "calls": 2
+      }
+    },
+    {
+      "name": "engine unknown quarantine restart",
+      "status": "PASS",
+      "detail": {
+        "first": "needs_attention",
+        "state": "needs_attention",
+        "quarantine": 1,
+        "calls": 0
+      }
+    },
+    {
+      "name": "engine timed out opener restart no replay",
+      "status": "PASS",
+      "detail": {
+        "first": "needs_attention",
+        "state": "needs_attention",
+        "quarantine": 0,
+        "calls": 2
+      }
+    }
+  ],
+  "counts": {
+    "pass": 16,
+    "fail": 0
+  },
+  "candidateHashes": {
+    "core/src/services/codexDesktopWake.ts": "9c410ae5637a2b233ff7fadc58e83b0b8609cab36781c03169b959b6d495da23",
+    "core/src/services/codexDesktopResumeEngine.ts": "9ceb4d8eb1d9629dfd217ef6f25d96f03863f7d49b53d3b09a7d61ff722c5fba",
+    "core/src/backgroundRunner.ts": "2900eb37f0c4549196f2e7c26301d94c46f00fbbfcfbbe45331b85980042fa86",
+    "src/App.jsx": "6d8f993c406f147251bebdf28dd007ecd82f4cdc6907979ad24ec99a5d2eb7f0"
+  },
+  "candidateMatch": true,
+  "limitations": [
+    "Real dormant Desktop wake and actual new turn not exercised; no real queue/open used."
+  ],
+  "head": "6d55c34224518e1fdfc4748851808ee77acc2ae8",
+  "command": "TZ=Asia/Taipei /Applications/DevDiary.app/Contents/Resources/core/node/bin/node --import ./core/node_modules/tsx/dist/loader.mjs /tmp/devdiary-wake-qa-run.mts",
+  "independence": "Fresh fixtures authored from public entry and documented requirements; no implementation tests executed. Interface/schema/source reading needed for fixture setup, then bounded source-to-sink review.",
+  "fixtureCorrections": [
+    "Initial 250 ms fixture budget too short for Node startup; used 1500 ms within supported budget.",
+    "Corrected expected opener contract to bundle-id argv -b com.openai.codex.",
+    "Advanced synthetic clock beyond 5-minute recent-past retry guard. No product change."
+  ],
+  "securityReview": {
+    "verdict": "PASS bounded review; no reportable findings",
+    "protectedAsset": "Exact registered task/store identity, at-most-once continuation, private prompt content, process lease",
+    "source": "Registered canonical UUID and root context; local configured executable",
+    "controls": [
+      "UUID and canonical Desktop store rejected before queue",
+      "shell:false and fixed queue/open argv; prompt fixed to \u7e7c\u7e8c; opener contains UUID only",
+      "Exact receipt required before opener; uncertain queue cleanup never opens",
+      "TERM then KILL group cleanup; absence uncertainty keeps releaseLease false",
+      "Consumed cursor and completed evidence persisted on failure; unknown cleanup quarantines lease",
+      "Environment allowlist excludes NODE_OPTIONS and arbitrary tokens; opener stdio ignored"
+    ],
+    "productionWiring": "core/src/backgroundRunner.ts:134 composes wake(queue) with default options; engine receives wrapper at 136 and ticks at 143",
+    "sourceReferences": [
+      "core/src/services/codexDesktopWake.ts:26",
+      "core/src/services/codexDesktopWake.ts:74",
+      "core/src/services/codexDesktopResumeEngine.ts:249",
+      "core/src/services/codexDesktopResumeEngine.ts:257",
+      "core/src/services/agentDetection.ts:153"
+    ],
+    "residual": "Same-user executable/config tampering outside threat boundary. Formal app activation actual turn is separate Owner evidence, not this QA result."
+  },
+  "status": "PASS"
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "stage": "initial",
+  "reviewer_id": "/root/wake_initial",
+  "review_revision": "wake-20260922-plan",
+  "matrix_digest": "52cb2b489bdf18ebdc6e37016219d3082a0b6f59d7c39433d6a324d462c90dca",
+  "lens_results": {
+    "integration_authority": "findings",
+    "failure_recovery": "pass"
+  },
+  "findings": [
+    {
+      "id": "WAKE-R1",
+      "severity": "medium",
+      "finding": "Product alternate store scenario conflicts with foreground Desktop store restriction."
+    }
+  ],
+  "original_review_matrix_digest": "5bb090b0d5eb9115145ffc8330f7d4eae61544244026d2a7ea5ac1f6a5fd212b",
+  "compatibility_note": "Initial findings carried to corrected matrix only for routing. Initial reviewer did not review corrected artifacts; fresh closer required.",
+  "receipt_digest": "052dc18fb8cd38b663234e8c2c48543b9b368fb7416edca3a27619211b2ff883"
+}

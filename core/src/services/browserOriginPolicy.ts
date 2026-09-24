@@ -11,6 +11,16 @@ const FORBIDDEN_ORIGIN = {
   message: 'Browser origin is not trusted for this local service.',
 } as const;
 
+const FORBIDDEN_REQUEST_HEADERS = {
+  error: 'forbidden_request_headers',
+  message: 'Browser preflight requested a header that is not trusted.',
+} as const;
+
+const ALLOWED_BROWSER_REQUEST_HEADERS = new Set([
+  'content-type',
+  'x-devdiary-expected-core-target',
+]);
+
 export class BrowserOriginConfigurationError extends Error {
   constructor() {
     super('Additional browser origins must be unique, exact loopback HTTP origins with an explicit valid port.');
@@ -68,11 +78,21 @@ export function createBrowserOriginMiddleware(trustedOrigins: ReadonlySet<string
       return res.status(403).json(FORBIDDEN_ORIGIN);
     }
 
+    if (req.method === 'OPTIONS') {
+      const requested = req.get('access-control-request-headers');
+      const names = requested === undefined
+        ? []
+        : requested.split(',').map((value) => value.trim().toLowerCase());
+      if (names.some((name) => !name || !ALLOWED_BROWSER_REQUEST_HEADERS.has(name))) {
+        return res.status(403).json(FORBIDDEN_REQUEST_HEADERS);
+      }
+    }
+
     if (origin) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Vary', 'Origin');
       res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'content-type');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-DevDiary-Expected-Core-Target');
     }
     if (req.method === 'OPTIONS') return res.status(204).end();
     return next();

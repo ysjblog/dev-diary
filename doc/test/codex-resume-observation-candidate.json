@@ -1,0 +1,8 @@
+{
+  "files": {
+    "core/src/services/codexResumeObservation.ts": "a47a23ab1f779afc28e0f9342ac642cdf7e16b6ceeb40552d1dadf2e30be9a51",
+    "core/src/services/codexResumeObservationWorker.mjs": "52a5304ed1efcc9469a0451b2f4541f549eb28585356a58c0f2beca1f03a56e4",
+    "core/src/backgroundRunner.ts": "1ad50491eb65c586a8a1eff1d1b5862673205dc7396cbf67891ca69bdf97ff29",
+    "core/test/codexResumeObservation.test.ts": "3b19eea1ff225058562797ac903a4279481cfce9bc02019d077d0e64a67dfceb"
+  }
+}

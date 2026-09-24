@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "stage": "initial",
+  "reviewer_id": "/root/queue_initial_review",
+  "review_revision": "6d55c34-queue-97023edfaeea",
+  "matrix_digest": "2ff57c117a5691a1e8da96c9b7803a8375fef23d1fbffb9e0c16538f3c2271c5",
+  "source_review_revision": "6d55c34-queue-ad2504a64fc6",
+  "source_matrix_digest": "4b154095dde46cf27ed136db28430c346a7a58a88a72e256c893bc5423e32244",
+  "compatibility_note": "Original initial REJECT findings Q1-Q4 are carried to the corrected matrix for routing only. Reviewer did not review this corrected revision; fresh final reviewer must do so.",
+  "lens_results": {
+    "failure_recovery": "findings",
+    "integration_authority": "findings"
+  },
+  "findings": [
+    {
+      "id": "Q1",
+      "severity": "high",
+      "title": "Explicit recovery allowlist; legacy not_ack unknown"
+    },
+    {
+      "id": "Q2",
+      "severity": "high",
+      "title": "Direct child close insufficient for process group absence"
+    },
+    {
+      "id": "Q3",
+      "severity": "medium",
+      "title": "Proposal old transport contradicts queue"
+    },
+    {
+      "id": "Q4",
+      "severity": "medium",
+      "title": "Old completion boxes and stale review authority"
+    }
+  ],
+  "receipt_digest": "9565d733e06ad8f7becc8494578421d05c7a2a71b790a531d9a12913c010b25d"
+}

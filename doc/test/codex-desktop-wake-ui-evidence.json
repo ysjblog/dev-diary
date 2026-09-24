@@ -1,0 +1,16 @@
+{
+  "timestamp": "2026-09-22",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "mode": "desktop-only",
+  "capture_tool": "mcp__cua_repl",
+  "verifier": "root",
+  "screenshot": ".codex/screenshots/codex-foreground-wake-20260922.png",
+  "sha256": "24b7b787216a24bc0f8b2834cbb7f6a8ac24c34de157e54ad71318508b56aef4",
+  "source_sha256": "6d8f993c406f147251bebdf28dd007ecd82f4cdc6907979ad24ec99a5d2eb7f0",
+  "runtime": "isolated SQLite at loopback 4329 via Vite 5173",
+  "visible_result": "foreground-switch, awake/logged-in and no-replay disclosure fully visible without overlap",
+  "host_attestation": "not available; not fabricated"
+}

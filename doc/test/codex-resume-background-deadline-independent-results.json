@@ -1,0 +1,69 @@
+{
+  "timestamp": "2026-09-18T05:41:28.240Z",
+  "before": {
+    "lookup": "bb330f6e8c31807b855b5885bcf43ab38c7094b2209ad20f86122ffad975b971",
+    "engine": "83f44b6ee2616b2adbb562798f8f2407e12e7d6819d800ef5838d7c9d98bd513"
+  },
+  "after": {
+    "lookup": "bb330f6e8c31807b855b5885bcf43ab38c7094b2209ad20f86122ffad975b971",
+    "engine": "83f44b6ee2616b2adbb562798f8f2407e12e7d6819d800ef5838d7c9d98bd513"
+  },
+  "dispatchCalls": 0,
+  "rows": [
+    {
+      "name": "foreground_5s_rejects_slow_scan",
+      "result": "PASS",
+      "elapsed_ms": 5628
+    },
+    {
+      "name": "background_30s_accepts_slow_scan",
+      "result": "PASS",
+      "elapsed_ms": 6453
+    },
+    {
+      "name": "background_over30s_final_io_rejected",
+      "result": "PASS",
+      "elapsed_ms": 30106
+    },
+    {
+      "name": "invalid_budget_rejected",
+      "result": "PASS",
+      "elapsed_ms": 0
+    },
+    {
+      "name": "engine_exact_proof_recovers_slow_scan",
+      "result": "PASS",
+      "elapsed_ms": 12898
+    },
+    {
+      "name": "engine_wrong_inode_stays_stopped",
+      "result": "PASS",
+      "elapsed_ms": 6
+    },
+    {
+      "name": "engine_cross_root_duplicate_stays_stopped",
+      "result": "PASS",
+      "elapsed_ms": 1
+    },
+    {
+      "name": "engine_cross_store_duplicate_stays_stopped",
+      "result": "PASS",
+      "elapsed_ms": 1
+    },
+    {
+      "name": "engine_symlink_store_stays_stopped",
+      "result": "PASS",
+      "elapsed_ms": 1
+    },
+    {
+      "name": "no_claim_no_dispatch",
+      "result": "PASS",
+      "elapsed_ms": 0
+    },
+    {
+      "name": "source_revision_unchanged",
+      "result": "PASS",
+      "elapsed_ms": 1
+    }
+  ]
+}

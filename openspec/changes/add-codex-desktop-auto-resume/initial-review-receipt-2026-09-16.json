@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "stage": "initial",
+  "reviewer_id": "codex-sol:/root/resume_spec_initial_review",
+  "matrix_digest": "7c365db00a6f981bb355f9aaacedaf3e76e2d34250aaacc3c1eb6423baa5a4be",
+  "review_revision": "6d55c34-2f307f3618ae",
+  "lens_results": {
+    "failure_recovery": "findings",
+    "integration_authority": "findings"
+  },
+  "source_review_revision": "6d55c34-e3b0c44298fc",
+  "source_matrix_digest": "9a4a8f44ebfb03179555f05a84cdf3b8769a2a717a40d92ac14976e312e22866",
+  "compatibility_note": "The initial reviewer required a corrected and expanded matrix; this receipt preserves that finding result while binding the consolidated fix to the corrected matrix.",
+  "receipt_digest": "327cec3066e837716c35c74f5d9ff98f7beeee1884b4b6750c8875c78902e411"
+}

@@ -3606,6 +3606,31 @@
       color: var(--warn);
       font-size: 11px;
     }
+    .codex-resume-control {
+      width: min(520px, 100%);
+    }
+.codex-resume-status {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 9px 10px;
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-sm);
+      background: rgba(0, 0, 0, 0.16);
+}
+
+.codex-resume-targets { display: grid; gap: 8px; width: 100%; }
+.codex-resume-target { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--border-color, rgba(127,127,127,.22)); border-radius: 10px; }
+.codex-resume-target > div:first-child { display: grid; gap: 3px; min-width: 0; }
+.codex-resume-target strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.codex-resume-target small { opacity: .72; }
+    .codex-resume-status strong {
+      color: var(--fg-2);
+    }
+    .settings-help-text {
+      color: var(--muted);
+      line-height: 1.45;
+    }
     .scheduler-status-panel {
       display: flex;
       flex-direction: column;

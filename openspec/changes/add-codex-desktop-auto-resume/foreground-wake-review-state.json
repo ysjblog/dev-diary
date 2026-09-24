@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "openspec_level": "o3",
+  "routing_signals": [
+    "external_write"
+  ],
+  "review_revision": "wake-20260922-plan",
+  "contract_matrix_path": "/tmp/devdiary-wake-matrix.json",
+  "contract_matrix_digest": "52cb2b489bdf18ebdc6e37016219d3082a0b6f59d7c39433d6a324d462c90dca",
+  "contract_matrix_root": ".",
+  "initial_full_complete": true,
+  "initial_review_receipt_path": "/tmp/devdiary-wake-initial-receipt.json",
+  "initial_review_receipt_digest": "052dc18fb8cd38b663234e8c2c48543b9b368fb7416edca3a27619211b2ff883",
+  "pending_concern_tags": [
+    "design-contract"
+  ],
+  "pending_finding_ids": [
+    "WAKE-R1"
+  ],
+  "author_fix_receipt_path": "/tmp/devdiary-wake-author-fix.json",
+  "author_fix_receipt_digest": "3963ec3b69a8ca36c94af57748b4b55a7e4e53063fb319c59d4db120d7cdde22",
+  "changed_artifact_digest": "69e9b5734c31593f46d42d7be01ce6aafbd214190e30a27936b3e6245079b78e",
+  "final_full_used": true,
+  "converged": true,
+  "final_review_receipt_path": "/tmp/devdiary-wake-final-receipt.json",
+  "final_review_receipt_digest": "45e48087cee44df06a2729d601ad9fb6bdb6eda9b38ee771a9662a0ce6eaee3c",
+  "new_cross_file_findings": 0,
+  "public_copy_note": "Checkout root redacted to a repository-relative path; original local review state remains in the temporary review artifacts. Historical review, not observation feature approval."
+}

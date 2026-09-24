@@ -1,4 +1,4 @@
-export const CORE_API_CONTRACT_VERSION = 6;
+export const CORE_API_CONTRACT_VERSION = 8;
 
 export const CORE_API_CAPABILITIES = [
   'dashboard.snapshot',
@@ -21,6 +21,7 @@ export const CORE_API_CAPABILITIES = [
   'agents.custom.ollama-settings',
   'scheduler.daily.telemetry-v2',
   'projects.reconciliation',
+  'codex.desktop-resume.multi-target-v2',
 ] as const;
 
 export interface RuntimeHealthOptions {
@@ -45,7 +46,7 @@ export function buildRuntimeHealth(options: RuntimeHealthOptions = {}) {
       pid: options.pid ?? process.pid,
       started_at: options.startedAt ?? capturedAt,
     },
-    capabilities: [...CORE_API_CAPABILITIES],
+    capabilities: [...CORE_API_CAPABILITIES].sort(),
     storage: {
       active_db_kind: options.dbPath === ':memory:' ? 'memory' : 'sqlite',
     },

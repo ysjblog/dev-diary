@@ -1,0 +1,79 @@
+{
+  "schema_version": 2,
+  "generated_revision": "wake-20260922-plan",
+  "input_manifest_digest": "ae0fe7e1f95323b9b0a9b9eea98db78c875bf2b4022fbad6af928a1ac2289739",
+  "artifact_inventory": [
+    {
+      "path": "core/src/backgroundRunner.ts",
+      "sha256": "f1e0c1c74c6c07ddaedee0393fee3b8dc67244db1ecf6687a75a319bd97dd0ac"
+    },
+    {
+      "path": "core/src/services/codexDesktopResumeEngine.ts",
+      "sha256": "827b7ad357590eb2418b955833a2a4280aa7327b5ea5c958248fca26fe07d5e2"
+    },
+    {
+      "path": "openspec/changes/add-codex-desktop-auto-resume/design.md",
+      "sha256": "295b9bb31f63fac8ec96f6923e53dd5eb0920d4441acf23314aabc34344d48a3"
+    },
+    {
+      "path": "openspec/changes/add-codex-desktop-auto-resume/proposal.md",
+      "sha256": "31ff3f88fed0fd91b229b4b54c5ddcf3bbaa560513e824c67f7673f2a4c0a51a"
+    },
+    {
+      "path": "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md",
+      "sha256": "69e9b5734c31593f46d42d7be01ce6aafbd214190e30a27936b3e6245079b78e"
+    },
+    {
+      "path": "openspec/changes/add-codex-desktop-auto-resume/specs/dev-diary-macos-app/spec.md",
+      "sha256": "8250d078fea65306f87096d95cf466746e9da3d95a0d19eaa5f3ab532eb3b57a"
+    },
+    {
+      "path": "openspec/changes/add-codex-desktop-auto-resume/tasks.md",
+      "sha256": "d2d7f60cbe40499d4edef6be8e5ce5a785e8b610bdbb85beb76a74c0e206b604"
+    },
+    {
+      "path": "openspec/specs/dev-diary-macos-app/spec.md",
+      "sha256": "c32966786b9893c790f20b908172d83ffeb92d724357ae316d69acf5f5072c0a"
+    }
+  ],
+  "inventory_scope": {
+    "change": [
+      "openspec/changes/add-codex-desktop-auto-resume/design.md",
+      "openspec/changes/add-codex-desktop-auto-resume/proposal.md",
+      "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md",
+      "openspec/changes/add-codex-desktop-auto-resume/specs/dev-diary-macos-app/spec.md",
+      "openspec/changes/add-codex-desktop-auto-resume/tasks.md"
+    ],
+    "baseline": [
+      "core/src/backgroundRunner.ts",
+      "core/src/services/codexDesktopResumeEngine.ts",
+      "openspec/specs/dev-diary-macos-app/spec.md"
+    ]
+  },
+  "invariants": [
+    {
+      "id": "wake",
+      "value": "Accepted queue requests open the registered Desktop task",
+      "search_terms": [
+        "Accepted queue requests open the registered Desktop task"
+      ],
+      "writers": [
+        "core/src/services/codexDesktopResumeEngine.ts"
+      ],
+      "readers": [
+        "core/src/backgroundRunner.ts"
+      ],
+      "occurrences": [
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/specs/add-codex-desktop-auto-resume/spec.md",
+          "line": 122
+        },
+        {
+          "file": "openspec/changes/add-codex-desktop-auto-resume/tasks.md",
+          "line": 17
+        }
+      ]
+    }
+  ],
+  "matrix_digest": "52cb2b489bdf18ebdc6e37016219d3082a0b6f59d7c39433d6a324d462c90dca"
+}

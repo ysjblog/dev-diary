@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "review_revision": "6d55c34224518e1fdfc4748851808ee77acc2ae8",
+  "matrix_digest": "321dcc56907aef68314812e3ce2b434a5fc1d032d1146df2a775aded9faa4ec9",
+  "reviewer_id": "0190abcd-ef00-7000-8000-000000000008",
+  "stage": "final",
+  "status": "inconclusive",
+  "reason": "The fresh independent closer remained running without a verdict through three bounded five-minute waits. It was stopped after fifteen minutes to prevent an unbounded reviewer run.",
+  "repository_mutation_detected": false,
+  "implementation_authorized": false
+}

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "openspec_level": "o3",
+  "routing_signals": [
+    "external_write",
+    "workflow_state",
+    "data_migration"
+  ],
+  "review_provider": "codex",
+  "review_revision": "6d55c34-b91642a7395b",
+  "contract_matrix_path": "openspec/changes/add-codex-desktop-auto-resume/contract-matrix.json",
+  "contract_matrix_digest": "1d26c91e1d68b813eeb1bbef622d36b3ef3b6f458ec60d8e44ab947a91a20f46",
+  "contract_matrix_root": ".",
+  "initial_full_complete": true,
+  "final_full_used": true,
+  "converged": true,
+  "new_cross_file_findings": 0,
+  "full_closer_count": 1,
+  "consolidated_author_fixes": 1,
+  "initial_review_receipt_path": "openspec/changes/add-codex-desktop-auto-resume/initial-review-receipt-2026-09-18.json",
+  "initial_review_receipt_digest": "5a73a6b356981d292f9ac5aec8d179b641a744e5409f5065537bd8de54ec4be8",
+  "pending_finding_ids": [
+    "F1"
+  ],
+  "pending_concern_tags": [
+    "execution-order",
+    "design-contract"
+  ],
+  "author_fix_complete": true,
+  "author_fix_receipt_path": "openspec/changes/add-codex-desktop-auto-resume/author-fix-receipt-2026-09-18.json",
+  "author_fix_receipt_digest": "0fa7b6a14488b7e46ad93eb3c9d648742bb346e62eb9718fac9474572ec0e961",
+  "changed_artifact_digest": "61a4c983bd9c36909b588e776f6b569a32a547f71796ce06027c1bee054c3ba9",
+  "final_review_receipt_path": "openspec/changes/add-codex-desktop-auto-resume/final-review-receipt-2026-09-18.json",
+  "final_review_receipt_digest": "e7da3e307729b42d2f4fe46bc70825641833b6e5ca75cff9e8141f55de250215"
+}

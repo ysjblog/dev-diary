@@ -1,0 +1,18 @@
+{
+  "verdict": "APPROVE",
+  "reviewer_id": "/root/queue_rootcause_check",
+  "review_revision": "6d55c34-queue-10cda0af9028",
+  "matrix_digest": "75b48685ac43a7c395b054b298530196b3e7d232da0265deed94750326029c37",
+  "scope": [
+    "QF1",
+    "QF2"
+  ],
+  "lens_results": {
+    "failure_recovery": "pass",
+    "integration_authority": "pass"
+  },
+  "findings": [],
+  "strict_validation_passed": true,
+  "author_preflight_passed": true,
+  "historical_final_reject_preserved": true
+}

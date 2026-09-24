@@ -92,6 +92,19 @@ test('settings UI does not expose Kanban AI auto-add tuning controls', () => {
   assert.doesNotMatch(appSource, /Max cards/);
 });
 
+test('Codex resume UI manages multiple exact deep-link targets without Accessibility or window positioning', () => {
+  assert.match(appSource, /Codex Desktop 額度恢復續跑/);
+  assert.match(appSource, /codex:\/\/threads\/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/);
+  assert.match(appSource, /目前 Codex 任務名稱/);
+  assert.match(appSource, /重新命名/);
+  assert.match(appSource, /註銷/);
+  assert.match(appSource, /會自動開啟並切換到該 Codex 任務/);
+  assert.match(appSource, /Mac 須保持醒著且已登入桌面/);
+  assert.doesNotMatch(appSource, /需要 macOS Accessibility 權限/);
+  assert.match(appSource, /const codexResumeMutationsEnabled = runtimeStatus\?\.status === 'connected'/);
+  assert.ok((appSource.match(/disabled=\{!codexResumeMutationsEnabled\}/g) || []).length >= 5);
+});
+
 test('token trend axis labels render outside the stretch-scaled SVG', () => {
   assert.match(trendChartSource, /preserveAspectRatio="none"/);
   assert.match(trendChartSource, /trend-axis-layer/);

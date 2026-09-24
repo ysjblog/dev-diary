@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "matrix_digest": "7c365db00a6f981bb355f9aaacedaf3e76e2d34250aaacc3c1eb6423baa5a4be",
+  "review_revision": "6d55c34-2f307f3618ae",
+  "reviewed_finding_ids": [
+    "matrix-completeness",
+    "runtime-authority-scope",
+    "no-ack-replay-test",
+    "segment-non-overlap-overclaim"
+  ],
+  "changed_artifact_digest": "048be3bf0359f79c99720b2857e204743f4579008193eeccecd7740018b4a290",
+  "landing_checks_passed": true,
+  "strict_validation_passed": true,
+  "author_preflight_receipt_digest": "27622d30b2e6395dcd0c762a95c3c8c263dbb3889825b92cdf8c16ed028cff6e",
+  "concern_tags": [
+    "readers-writers",
+    "execution-order",
+    "design-contract"
+  ],
+  "verify_strings": [
+    "開始時間可解析且互異",
+    "Core 在 open DB 前拒絕 live/unknown manifest owner",
+    "LaunchAgent 只在 Core spawn 成功後安裝",
+    "active-writer lock"
+  ],
+  "receipt_digest": "6984410d84ae54b0173eaee28a9072b6ee15b7e2b44108eed6376ea4734b286c"
+}

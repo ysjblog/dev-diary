@@ -1,8 +1,12 @@
+import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import Database from 'better-sqlite3';
 import { describe, expect, it, vi } from 'vitest';
-import { openDb } from '../src/db/index.js';
+import { openBackgroundDb, openDb } from '../src/db/index.js';
 import { seedDatabase } from '../src/db/seed.js';
 import { backgroundIntervalMs, backgroundStartupDelayMs, formatBackgroundCycleLog, runBackgroundCycle } from '../src/services/backgroundRunner.js';
-import { sleepUntilNextBackgroundCycle } from '../src/backgroundRunner.js';
+import { resolveCodexDesktopCliPath, sleepUntilNextBackgroundCycle } from '../src/backgroundRunner.js';
 import { AntigravitySessionGate } from '../src/services/antigravitySession.js';
 import { createConfiguredScanProvider } from '../src/services/scans.js';
 import { getSettings, updateSettings } from '../src/services/settings.js';
@@ -30,6 +34,47 @@ function mockScanProvider() {
 }
 
 describe('Background LaunchAgent runner', () => {
+  it('prefers the Codex Desktop bundled CLI over an older configured standalone CLI', () => {
+    const root = mkdtempSync(join(tmpdir(), 'devdiary-codex-cli-priority-'));
+    const desktop = join(root, 'desktop-codex');
+    const configured = join(root, 'configured-codex');
+    writeFileSync(desktop, '#!/bin/sh\n');
+    writeFileSync(configured, '#!/bin/sh\n');
+    chmodSync(desktop, 0o700);
+    chmodSync(configured, 0o700);
+    expect(resolveCodexDesktopCliPath(configured, desktop, [])).toBe(desktop);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('does not create or migrate a database before Core has initialized the current schema', () => {
+    const root = mkdtempSync(join(tmpdir(), 'devdiary-background-db-gate-'));
+    const missing = join(root, 'missing.sqlite');
+    expect(() => openBackgroundDb(missing)).toThrow('background_database_requires_core_initialization');
+    expect(existsSync(missing)).toBe(false);
+
+    const legacy = join(root, 'legacy.sqlite');
+    const legacyDb = new Database(legacy);
+    legacyDb.exec('CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL); INSERT INTO schema_meta VALUES (\'schema_version\', \'7\');');
+    legacyDb.close();
+    expect(() => openBackgroundDb(legacy)).toThrow('background_database_requires_core_initialization');
+    const check = new Database(legacy, { readonly: true });
+    expect((check.prepare("SELECT value FROM schema_meta WHERE key='schema_version'").get() as { value: string }).value).toBe('7');
+    expect(check.prepare("SELECT 1 FROM schema_meta WHERE key='codex_desktop_resume_migration'").get()).toBeUndefined();
+    check.close();
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('opens a database read-write only after Core schema and migration authority are present', () => {
+    const root = mkdtempSync(join(tmpdir(), 'devdiary-background-db-ready-'));
+    const path = join(root, 'ready.sqlite');
+    const coreDb = openDb(path);
+    coreDb.close();
+    const backgroundDb = openBackgroundDb(path);
+    expect(backgroundDb.prepare("SELECT value FROM schema_meta WHERE key='schema_version'").get()).toEqual({ value: '8' });
+    backgroundDb.close();
+    rmSync(root, { recursive: true, force: true });
+  });
+
   describe('function 邏輯', () => {
     it('enabled cycle 先 scan 再寫 AI diary', async () => {
       const db = freshDb();

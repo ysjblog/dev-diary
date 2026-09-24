@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "openspec_level": "o3",
+  "routing_signals": [
+    "external_write"
+  ],
+  "review_revision": "recovery-20260921-plan",
+  "contract_matrix_path": "/tmp/devdiary-recovery-matrix.json",
+  "contract_matrix_digest": "4d6064c368d03ab81369bcaa15b523cb08910d8e9cca295318884bc1311fcbda",
+  "contract_matrix_root": ".",
+  "initial_review_history": {
+    "reviewer": "/root/recovery_initial",
+    "matrix_digest": "4e16e957d8ebaf396735075ea7d7c5f1165b789c511e0f0dd1996b7107d9a00f",
+    "verdict": "reject",
+    "findings": [
+      "R1",
+      "R2",
+      "R3"
+    ]
+  },
+  "bookkeeping_limit": "Router requires initial receipt to match post-fix matrix; historical digest is retained without relabelling it as a review of edited artifacts.",
+  "final_review_history": {
+    "reviewer": "/root/recovery_closer",
+    "matrix_digest": "4d6064c368d03ab81369bcaa15b523cb08910d8e9cca295318884bc1311fcbda",
+    "verdict": "reject",
+    "findings": [
+      "R4"
+    ],
+    "resolved": [
+      "R2",
+      "R3"
+    ]
+  },
+  "root_cause_resolution": "Single pair cannot represent alternating per-reset budgets. Use monotone cumulative count across all stale reset values until strictly newer future reset, preserving maximum reset.",
+  "bounded_R4_resolution": {
+    "reviewer": "/root/recovery_initial",
+    "verdict": "approve",
+    "design_sha256": "d07aa202a72f0eb7d6a988a60ca817da9dc27051d055ac3419196657cba78f0a"
+  },
+  "current_source_hashes": {
+    "core/src/services/codexQuotaEvidence.ts": "f43e05618943c8581396dd4b8f06686d250d1bddd236d19966f25226902e567a",
+    "core/src/services/codexDesktopResumeEngine.ts": "827b7ad357590eb2418b955833a2a4280aa7327b5ea5c958248fca26fe07d5e2"
+  },
+  "independent_runtime": {
+    "reviewer": "/root/recovery_initial",
+    "passed": 10,
+    "failed": 0,
+    "artifact": "doc/test/codex-recovery-independent-results.json"
+  },
+  "bounded_completion": "timing/segment repair installed and observed automatic turn start; dormant-thread guarantee remains unproven"
+}

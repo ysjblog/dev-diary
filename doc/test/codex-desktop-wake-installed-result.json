@@ -1,0 +1,9 @@
+{
+  "checked_at": "2026-09-22T16:35:30.101100+00:00",
+  "installed_source_matches": true,
+  "signature": "pass",
+  "background_running": true,
+  "global_enabled": true,
+  "registrations_preserved": true,
+  "unattended_reliability": "not_ready_desktop_resume_delay"
+}

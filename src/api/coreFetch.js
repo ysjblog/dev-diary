@@ -51,3 +51,37 @@ export async function coreApiUrl(path, runtime = globalThis, { invoke = defaultI
 export async function coreFetch(path, init) {
   return fetch(await coreApiUrl(path), init);
 }
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value && typeof value === 'object') return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
+  return JSON.stringify(value);
+}
+
+function expectedTargetHeader(snapshot) {
+  if (!snapshot || snapshot.source !== 'verified_manifest') throw new Error('Core runtime 尚未完成驗證，不能修改自動續跑設定。');
+  const bytes = new TextEncoder().encode(canonicalJson(snapshot));
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+}
+
+export async function coreFetchWithVerifiedMutationTarget(snapshot, path, init = {}, dependencies = {}) {
+  const runtime = dependencies.runtime || globalThis;
+  const invoke = dependencies.invoke || defaultInvoke;
+  const fetchImpl = dependencies.fetchImpl || fetch;
+  const mutationUrl = await coreApiUrl(path, runtime, { invoke });
+  const healthUrl = await coreApiUrl('/api/health', runtime, { invoke });
+  if (/^https?:\/\//i.test(mutationUrl) && new URL(mutationUrl).origin !== snapshot?.origin) {
+    throw new Error('Core runtime 已變更，不能送出自動續跑設定。');
+  }
+  const healthResponse = await fetchImpl(healthUrl, { method: 'GET' });
+  if (!healthResponse.ok) throw new Error('Core runtime 重新驗證失敗，不能送出自動續跑設定。');
+  const health = await healthResponse.json();
+  if (canonicalJson(health?.verified_core_target) !== canonicalJson(snapshot)) {
+    throw new Error('Core runtime 已變更，不能送出自動續跑設定。');
+  }
+  const headers = new Headers(init.headers || {});
+  headers.set('x-devdiary-expected-core-target', expectedTargetHeader(snapshot));
+  return fetchImpl(mutationUrl, { ...init, headers });
+}

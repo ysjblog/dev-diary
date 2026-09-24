@@ -1,0 +1,42 @@
+[
+  {
+    "at": "2026-09-22T08:42:17.911Z",
+    "event": "thread_stream_view_activity_changed",
+    "active": "true",
+    "rendererWindowFocused": "true",
+    "rendererWindowVisible": "true",
+    "resumeState": "needs_resume",
+    "streamRole": "null\n"
+  },
+  {
+    "at": "2026-09-22T08:42:17.912Z",
+    "event": "maybe_resume_started",
+    "previousResumeState": "needs_resume",
+    "rendererWindowFocused": "true",
+    "rendererWindowVisible": "true",
+    "vmEvent": "thread_resume_requested"
+  },
+  {
+    "at": "2026-09-22T16:32:34.078Z",
+    "event": "thread_stream_view_activity_changed",
+    "active": "false",
+    "rendererWindowFocused": "true",
+    "rendererWindowVisible": "true",
+    "resumeState": "resuming",
+    "streamRole": "owner\n"
+  },
+  {
+    "at": "2026-09-22T16:33:08.450Z",
+    "event": "response_routed",
+    "durationMs": "279",
+    "errorCode": "null",
+    "method": "thread/resume"
+  },
+  {
+    "at": "2026-09-22T16:33:08.868Z",
+    "event": "maybe_resume_success",
+    "rendererWindowFocused": "true",
+    "rendererWindowVisible": "true",
+    "vmEvent": "thread_resumed"
+  }
+]

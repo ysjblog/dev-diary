@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "stage": "final",
+  "reviewer_id": "0190abcd-ef00-7000-8000-000000000009",
+  "review_revision": "6d55c34224518e1fdfc4748851808ee77acc2ae8",
+  "matrix_digest": "17b028fdf1b08b6f8e65fcd18c23cd373e057a3f7cfe8e97291bd5613b9d1faa",
+  "author_preflight_digest": "729e8f4c7c349dee8474cbe774950d8b7ea1142359748bd7633de5e64766510e",
+  "required_lenses": [
+    "failure_recovery",
+    "integration_authority"
+  ],
+  "lens_results": {
+    "failure_recovery": "pass",
+    "integration_authority": "pass"
+  },
+  "finding_ids": [],
+  "new_cross_file_findings": 0,
+  "verdict": "approve",
+  "receipt_digest": "b7831af13366b1079e5f02a6f6f70676e41f64f610318f48d80936b3f3885b16"
+}

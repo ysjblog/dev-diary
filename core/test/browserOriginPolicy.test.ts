@@ -81,11 +81,35 @@ describe('browser origin policy', () => {
 
     const optionsRes = response();
     const optionsNext = vi.fn() as unknown as NextFunction;
-    middleware(request({ origin: 'tauri://localhost' }, 'OPTIONS'), optionsRes, optionsNext);
+    middleware(request({
+      origin: 'tauri://localhost',
+      'access-control-request-headers': 'Content-Type, X-DevDiary-Expected-Core-Target',
+    }, 'OPTIONS'), optionsRes, optionsNext);
 
     expect(optionsNext).not.toHaveBeenCalled();
     expect(optionsRes.status).toHaveBeenCalledWith(204);
     expect(optionsRes.end).toHaveBeenCalledOnce();
+    expect(optionsRes.setHeader).toHaveBeenCalledWith(
+      'Access-Control-Allow-Headers',
+      'Content-Type, X-DevDiary-Expected-Core-Target',
+    );
+  });
+
+  it('rejects any extra requested CORS header before parser or route dispatch', () => {
+    const middleware = createBrowserOriginMiddleware(buildTrustedBrowserOrigins());
+    const res = response();
+    const next = vi.fn() as unknown as NextFunction;
+    middleware(request({
+      origin: 'tauri://localhost',
+      'access-control-request-headers': 'content-type, x-devdiary-expected-core-target, x-extra',
+    }, 'OPTIONS'), res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'forbidden_request_headers',
+      message: 'Browser preflight requested a header that is not trusted.',
+    });
   });
 
   it('parses comma transport whitespace but rejects empty, duplicate, built-in-collision and non-origin inputs', () => {

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "stage": "final",
+  "reviewer_id": "/root/background_budget_final",
+  "matrix_digest": "1d26c91e1d68b813eeb1bbef622d36b3ef3b6f458ec60d8e44ab947a91a20f46",
+  "review_revision": "6d55c34-b91642a7395b",
+  "lens_results": {
+    "failure_recovery": "pass",
+    "integration_authority": "pass"
+  },
+  "receipt_digest": "e7da3e307729b42d2f4fe46bc70825641833b6e5ca75cff9e8141f55de250215"
+}

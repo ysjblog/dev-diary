@@ -1,0 +1,204 @@
+{
+  "schema_version": 1,
+  "review_revision": "6d55c34224518e1fdfc4748851808ee77acc2ae8",
+  "root_cause": "The prior review chain was invalidated whenever author fixes regenerated artifact hashes. Subsequent review also found that identity acknowledgement was not adjacent to the irreversible input, quota evidence still permitted an underspecified parser, clipboard races and partial input lacked terminal handling, and route authority/test evidence remained ambiguous.",
+  "initial_finding_ids": [
+    "SOL-O3-001",
+    "SOL-O3-002",
+    "SOL-O3-003",
+    "SOL-O3-004",
+    "SOL-O3-005",
+    "SOL-O3-006",
+    "SOL-O3-007"
+  ],
+  "closer_finding_ids": [
+    "CLOSER-AUTHORITY-CHAIN",
+    "CLOSER-ACTION-LOCK",
+    "CLOSER-REREGISTER-REPLAY",
+    "CLOSER-SETTINGS-BYPASS",
+    "CLOSER-LEGACY-TEST",
+    "CLOSER-EVIDENCE-FORMULA"
+  ],
+  "rollover_finding_ids": [
+    "O3-FR-001",
+    "O3-IA-001",
+    "O3-IA-003",
+    "O3-FR-002",
+    "O3-FR-003",
+    "O3-IA-002"
+  ],
+  "second_rollover_finding_ids": [
+    "SOL-RR-IA-004",
+    "SOL-RR-IA-005",
+    "SOL-RR-FR-004",
+    "SOL-RR-FR-005",
+    "SOL-RR-IA-006",
+    "SOL-RR-IA-007",
+    "SOL-RR-IA-008"
+  ],
+  "third_rollover_finding_ids": [
+    "SOL-RR3-FR-001",
+    "SOL-RR3-FR-002",
+    "SOL-RR3-IA-001",
+    "SOL-RR3-FR-003"
+  ],
+  "fourth_rollover_finding_ids": [
+    "SOL-RR4-FR-001",
+    "SOL-RR4-FR-002",
+    "SOL-RR4-IA-001",
+    "SOL-RR4-IA-002",
+    "SOL-RR4-IA-003"
+  ],
+  "fifth_rollover_finding_ids": [
+    "SOL-RR5-IA-001",
+    "SOL-RR5-FR-001",
+    "SOL-RR5-FR-002",
+    "SOL-RR5-IA-002",
+    "SOL-RR5-FR-003",
+    "SOL-RR5-IA-003",
+    "SOL-RR5-IA-004"
+  ],
+  "sixth_rollover_finding_ids": [
+    "SOL-RR6-FR-001",
+    "SOL-RR6-FR-002",
+    "SOL-RR6-FR-003",
+    "SOL-RR6-IA-001",
+    "SOL-RR6-IA-002",
+    "SOL-RR6-IA-003"
+  ],
+  "seventh_rollover_finding_ids": [
+    "SOL-RR7-IA-001",
+    "SOL-RR7-IA-002",
+    "SOL-RR7-FR-001",
+    "SOL-RR7-FR-002"
+  ],
+  "eighth_rollover_finding_ids": [
+    "SOL-RR8-FR-001",
+    "SOL-RR8-FR-002",
+    "SOL-RR8-IA-001",
+    "SOL-RR8-IA-002",
+    "SOL-RR8-FR-003",
+    "SOL-RR8-IA-003"
+  ],
+  "ninth_rollover_finding_ids": [
+    "SOL-O3-FR-001",
+    "SOL-O3-IA-001",
+    "SOL-O3-IA-002",
+    "SOL-O3-FR-002"
+  ],
+  "tenth_rollover_finding_ids": [
+    "SOL-RR10-FR-001",
+    "SOL-RR10-FR-002",
+    "SOL-RR10-IA-001",
+    "SOL-RR10-IA-002",
+    "SOL-RR10-FR-003"
+  ],
+  "eleventh_rollover_finding_ids": [
+    "SOL-RR11-IA-001",
+    "SOL-RR11-FR-001",
+    "SOL-RR11-FR-002"
+  ],
+  "twelfth_rollover_finding_ids": [
+    "SOL-RR12-IA-001",
+    "SOL-RR12-FR-001",
+    "SOL-RR12-IA-002"
+  ],
+  "thirteenth_rollover_finding_ids": [
+    "SOL-O3-FR-001",
+    "SOL-O3-IA-001"
+  ],
+  "fourteenth_rollover_finding_ids": [
+    "SOL-FINAL-FR-001",
+    "SOL-FINAL-IA-001"
+  ],
+  "fifteenth_rollover_finding_ids": [
+    "SOL-INITIAL-FR-001"
+  ],
+  "sixteenth_rollover_finding_ids": [
+    "SOL-RR16-FR-001",
+    "SOL-RR16-IA-001"
+  ],
+  "sixteenth_initial_finding_ids": [
+    "SOL-R16-INIT-FR-001",
+    "SOL-R16-INIT-IA-001",
+    "SOL-R16-INIT-IA-002",
+    "SOL-R16-INIT-IA-003"
+  ],
+  "resolution": [
+    "Persist this root-cause record and rebuild the matrix and review state from current artifacts rather than reusing stale receipts.",
+    "Use a child-verifiable O_EXCL/O_NOFOLLOW action lock with PID, token, generation and immutable action deadline at each irreversible input.",
+    "Persist registration_cursor at current EOF so unregister and re-register cannot replay old evidence.",
+    "Reject codex_desktop_resume on general settings and modify dev-diary-macos-app compatibility to contract version 8.",
+    "Require unconditional legacy re-registration in spec and tests.",
+    "Use one evidence formula including file identity and complete-line end-byte offset.",
+    "Require a second exact thread acknowledgement, clipboard fence, byte restore, same focused-element validation and action-lock validation in one child critical section immediately before text.",
+    "Accept only event_msg error payloads with exact usage_limit_exceeded enum and one bounded documented reset clause; reject transcript, token-count, free-text and unrelated reset fields.",
+    "Make partial_input_possible terminal with warning, no composer-text cleanup, submit or replay when text succeeds but Return is not safely authorized; fenced terminal, lock and DB cleanup still run.",
+    "Abort without overwriting newer clipboard content when post-acknowledgement changeCount changes.",
+    "List every v2 mutation route explicitly and label all old single-target verification as historical baseline rather than current evidence.",
+    "Define reset grammar v1, message byte bounds, and versioned evidence canonical bytes with fixed vectors.",
+    "Limit clipboard guarantees to detected changeCount races and disclose the residual non-atomic window.",
+    "Require lease slack and lock-before-token stale recovery order.",
+    "Separate sole user/API route authority from fenced internal state-machine writers.",
+    "Allow only canonical validated thread ID as trusted local target key while excluding raw clipboard/deep-link material and redacting logs/screenshots.",
+    "Mark the adjacent old QA report historical v7 and non-reproducible for v8 completion.",
+    "Close the spawn-before-lock crash window with persisted startup nonce/deadline, child-owned O_EXCL publication, parent DB PID binding and same-path recovery cancellation tombstone.",
+    "Persist registration-time IANA timezone, include it in evidence canonical bytes and fail closed on timezone drift.",
+    "Define one conservative route-by-action-state matrix: every resume write requires globally clean idle state.",
+    "Treat every text dispatch failure, timeout, partial write or unknown effect as partial_input_possible unless zero effect is proven.",
+    "Replace cancellation tombstones with an IPC-blocked child: parent durably binds the synchronous spawn PID before sending authenticated GO, so every authorized child has durable identity.",
+    "Persist monotonic action_phase before each irreversible dispatch and make recovery terminal state depend on that phase.",
+    "Persist registration, evidence and high-watermark cursors as file-identity/end-offset tuples.",
+    "Fix timezone authority to bundled Node 22 Intl canonical round-trip and fail closed on aliases, offsets, UTC or runtime drift.",
+    "Synchronize MASTER to multi-target O3 review-pending state.",
+    "Isolate resume authority in dedicated SQLite tables with pure reads and explicit transactional migration.",
+    "Use same-fd fstat and persisted full-prefix checkpoints plus line-start floor; disclose byte-identical reconstruction as residual local-trust risk.",
+    "Define atomic observe/claim/terminal cursor transitions and durable terminal-record finish authority.",
+    "Bind timezone ID plus Node/ICU/tz fingerprint, excluding fixed-offset-equivalent zones.",
+    "Add a post-text pre-Return exact ID fence and disclose that Accessibility cannot provide OS-atomic target dispatch.",
+    "Define literal NUL, lossless BigInt decimal and one complete normative preimage/digest vector.",
+    "Replace the bounded anchor with a persisted full-prefix digest and require bounded same-fd full-prefix verification before every actionable claim.",
+    "Make Authority and Outcome Table v1 the sole actor, transaction, prerequisite, write-set and outcome authority, including the parent's only phase transition from claimed to child_authorized.",
+    "Split pre-text acknowledgement or restore failure from post-text failure: the latter is always partial_input_possible with no Return or replay.",
+    "Remove circular claim fences and reconcile pure observation, controller recovery and dedicated-table thread-ID storage through the single authority table.",
+    "Define compatibility as manifest-health exact parity with integer version at least 8 and required capabilities; cover v7, v8, future v9+, missing capability and mismatch across every reader and manifest writer.",
+    "Redact the historical QA tool path and require a privacy scan over current doc/test evidence.",
+    "Add lock publication, normal cleanup and dead-PID cleanup as explicit rows in the sole authority table, with a fixed schema and conservative crash-cut outcomes.",
+    "Keep runtimeManifest.ts as the sole manifest writer and define one target-snapshot transport from Vite or Tauri through coreFetch to the shared React parity validator; explicit and fallback targets cannot mutate resume state.",
+    "Split clipboard changeCount scenarios by persisted text phase so every post-text mismatch is partial_input_possible with no Return or replay.",
+    "Extend full-prefix proof through candidate.line_end, reparse evidence from verified bytes and atomically bind candidate prefix/raw digests and offsets into the claim while disclosing proof-to-commit TOCTOU.",
+    "Separate renewable lease_expires_at_ms from immutable action_deadline_ms and define the exact typed lock-to-DB comparison set so renewal cannot invalidate lock ownership.",
+    "Add a sole-authority no-child startup-timeout recovery transaction for claimed, null-PID, elapsed-deadline, absent-lock crashes, conservatively completing evidence with no replay.",
+    "Split API authority into global PATCH, target registration, target PATCH and target DELETE; make complete exact lookup, timezone authority and same-fd EOF checkpoint mandatory registration prerequisites.",
+    "Define exact verified and unverified target snapshot variants and preserve successful non-resume health when transport metadata is missing or invalid.",
+    "Clarify partial-input cleanup means no composer-text alteration or Return/replay while durable terminal, exact lock and DB token cleanup still execute.",
+    "Expand Impact, ownership and verification mapping to DB schema/migration, manifest, Vite, Tauri, coreFetch, settings, UI and their tests.",
+    "Hold the selected registration source fd through commit and immediately before insert re-read final zero-to-EOF bytes, rehash, reparse every complete metadata record and reconfirm unique exact identity; reject equal-length rewrites with zero mutation.",
+    "Make pre-claim quarantine and dead-PID lock-anomaly quarantine the only needs-attention writers for their failure families, preserve or complete evidence as specified, and add a trusted explicit acknowledgement route that atomically renames rather than deletes an isolated regular lock.",
+    "Define the domain-separated target-key digest with a fixed vector and map every lock field to constrained SQLite columns plus TypeScript and Rust bounds; exclude renewable lease expiry and forbid free-form terminal JSON.",
+    "Define Terminal Recovery Matrix v1 over every persisted phase and exact, wrong, missing, malformed or conflicting terminal record so only exact submitted proof becomes resumed and every possible post-text uncertainty becomes partial-input-possible without replay.",
+    "Give a child no terminal writer authority until a valid matching lock exists; absent lock publication failure exits and is conservatively finished from child_authorized after the bound PID is dead.",
+    "Make lock quarantine target-scoped and idempotent by persisting destination basename plus source identity before rename, then reconciling fixed and destination cardinality after rename, fsync, database busy or crash.",
+    "Split terminal lease and attempt tokens into separately constrained all-or-none columns and exact-match each to its authoritative active binding.",
+    "Keep all resume database and action-lock validation in Node and TypeScript; Rust only reads and transports the runtime manifest snapshot.",
+    "Limit equal-length registration rewrite guarantees to the final reparse observation window, disclose registration hash-to-commit TOCTOU, and require the first actionable prefix proof to quarantine changed registration bytes before Desktop input.",
+    "Add Clean Composer Gate v1: prove an empty stable composer with zero selection, marked text and pending attachment/upload/dictation payload before text, then prove exact fixed continuation and zero other payload twice before Return; unknown post-text state is partial input with no Return.",
+    "Require directory fsync on every exact quarantine destination reconciliation before database completion, preserving moving intent across rename-success/fsync-failure and fsync-success/database-busy cuts.",
+    "Bind each child to a random derived process title persisted with PID and token in database, lock and terminal fields; recovery distinguishes PID reuse by exact fixed-argv title readback and never signals or waits for a different process.",
+    "Define AX Predicate Table v1 as the sole closed composer authority with bounded traversal, exact allow and deny tuples, required attributes and fail-closed unknown states before text and Return.",
+    "Parse real fixed-argv ps output with one shared bounded byte parser that accepts the bundled Node 22 trailing-space vector without generic trim and treats malformed output as unknown identity.",
+    "Persist an all-or-none quarantine completion marker so response-loss retries return a read-only stable success, while every new lock anomaly clears stale completion evidence.",
+    "Add a sole-authority overdue exact-child termination path with fresh title and binding proof before bounded TERM and KILL, while unknown identity fails closed into explicit manual recovery without clearing authority.",
+    "Require a fresh complete cross-root uniqueness proof before registration commit and every actionable claim, matching the held or registered file identity, while disclosing the remaining cross-file proof-to-commit race.",
+    "Make process-title parsing independent of argv padding by requiring the correctly counted 48-byte title grammar followed only by zero to 207 ASCII spaces within a 256-byte stdout bound, while fixing the child spawn executable, script and argv contract.",
+    "Bind timezone authority to the actual active Core Node runtime and its persisted Node, ICU and tz fingerprints rather than assuming the existing Tauri or LaunchAgent resolver always selects Node 22.",
+    "Correct the process title arithmetic with a normative byte-length assertion: sixteen prefix bytes plus thirty-two lowercase hex bytes equals a forty-eight-byte canonical title, leaving at most two hundred seven padding spaces before the terminal LF.",
+    "Gate every old-schema migration on a checked fixed-label LaunchAgent unload plus proof that the legacy background-runner lock owner is absent or dead, quarantine only an exact stale app-owned lock, and bootstrap the version 8 runner only after migration commits.",
+    "Bind every dedicated resume mutation to the exact verified health snapshot with transport-side fresh manifest comparison and a Core pre-parser fresh manifest plus immutable runtime parity check; reject target drift before body parsing and refuse live manifest-owner overwrite.",
+    "Move live Core owner exclusion before openDb so a version 7 Core cannot continue writing shared state while migration runs; unknown manifest identity preserves legacy data and aborts.",
+    "Make Tauri the sole packaged upgrade-order owner and require exact Core PID manifest-health parity plus schema version 8 migration-ready acknowledgement before idempotent version 8 runner bootstrap.",
+    "Inventory every newly load-bearing legacy Core, legacy runner, Tauri upgrade and runtime mutation gate in the Contract Matrix with complete occurrences and writer-reader mappings.",
+    "Extend trusted browser preflight authority with the exact expected-Core-target request header while rejecting extra headers and untrusted origins before parsing."
+  ],
+  "status": "resolved_pending_fresh_review"
+}

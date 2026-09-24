@@ -1,0 +1,121 @@
+{
+  "timestamp": "2026-09-23T04:28:45.479Z",
+  "node": "v22.23.1",
+  "root": "/tmp/devdiary-observation-qa-final-VXVbYl",
+  "head": "6d55c34224518e1fdfc4748851808ee77acc2ae8",
+  "before": {
+    "core/src/services/codexResumeObservation.ts": "a47a23ab1f779afc28e0f9342ac642cdf7e16b6ceeb40552d1dadf2e30be9a51",
+    "core/src/services/codexResumeObservationWorker.mjs": "52a5304ed1efcc9469a0451b2f4541f549eb28585356a58c0f2beca1f03a56e4",
+    "core/src/backgroundRunner.ts": "1ad50491eb65c586a8a1eff1d1b5862673205dc7396cbf67891ca69bdf97ff29"
+  },
+  "after": {
+    "core/src/services/codexResumeObservation.ts": "a47a23ab1f779afc28e0f9342ac642cdf7e16b6ceeb40552d1dadf2e30be9a51",
+    "core/src/services/codexResumeObservationWorker.mjs": "52a5304ed1efcc9469a0451b2f4541f549eb28585356a58c0f2beca1f03a56e4",
+    "core/src/backgroundRunner.ts": "1ad50491eb65c586a8a1eff1d1b5862673205dc7396cbf67891ca69bdf97ff29"
+  },
+  "revisionStable": true,
+  "results": [
+    {
+      "name": "fresh start and private persisted state",
+      "result": "PASS"
+    },
+    {
+      "name": "existing old fake events rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "restart pending no replay",
+      "result": "PASS"
+    },
+    {
+      "name": "deadline snapshot exact and idempotent",
+      "result": "PASS"
+    },
+    {
+      "name": "delayed tick event deadline late",
+      "result": "PASS"
+    },
+    {
+      "name": "delayed tick event deadline exact",
+      "result": "PASS"
+    },
+    {
+      "name": "delayed tick event deadline before",
+      "result": "PASS"
+    },
+    {
+      "name": "source truncate",
+      "result": "PASS"
+    },
+    {
+      "name": "source replace",
+      "result": "PASS"
+    },
+    {
+      "name": "source symlink",
+      "result": "PASS"
+    },
+    {
+      "name": "source escape",
+      "result": "PASS"
+    },
+    {
+      "name": "source huge",
+      "result": "PASS"
+    },
+    {
+      "name": "source malformed",
+      "result": "PASS"
+    },
+    {
+      "name": "source partial",
+      "result": "PASS"
+    },
+    {
+      "name": "source fake_uuid",
+      "result": "PASS"
+    },
+    {
+      "name": "partial baseline excludes suffix",
+      "result": "PASS"
+    },
+    {
+      "name": "diagnostic path file preserves dispatcher",
+      "result": "PASS"
+    },
+    {
+      "name": "state symlink does not modify victim",
+      "result": "PASS"
+    },
+    {
+      "name": "bad persisted state does not resolve paths",
+      "result": "PASS"
+    },
+    {
+      "name": "dispatcher thrown error preserved once",
+      "result": "PASS"
+    },
+    {
+      "name": "real worker 4 log limit statistics and privacy",
+      "result": "PASS"
+    },
+    {
+      "name": "FIFO refuses within timeout",
+      "result": "PASS"
+    },
+    {
+      "name": "100 finished records and 256KiB cap",
+      "result": "PASS"
+    },
+    {
+      "name": "home-contained traversal with valid session_meta refused",
+      "result": "PASS"
+    },
+    {
+      "name": "empty and dot locator segments refused",
+      "result": "PASS"
+    }
+  ],
+  "total": 25,
+  "failed": 0
+}

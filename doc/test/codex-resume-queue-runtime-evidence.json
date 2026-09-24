@@ -1,0 +1,30 @@
+{
+  "observed_date": "2026-09-19",
+  "legacy_dispatch": {
+    "accepted": false,
+    "exit_code": 1,
+    "elapsed_ms": 394,
+    "diagnostic": "active_writer_conflict",
+    "raw_stderr_persisted": false
+  },
+  "public_queue": {
+    "exit_code": 0,
+    "elapsed_ms": 70,
+    "receipt_class": "queued_message_for_exact_thread",
+    "desktop_new_turn_started_at": 1789798370,
+    "desktop_observed_status": "inProgress",
+    "target_digest": "d7faed50446a8d5c538d6d05a97eccfdc9f543f9638c54fb315de3772dde0227",
+    "later_turn_result": {
+      "status": "failed",
+      "reason": "usage_limit_exceeded",
+      "completed_at": 1789798716
+    }
+  },
+  "offline_queue": {
+    "valid_fixture_exit_code": 0,
+    "missing_fixture_exit_code": 1,
+    "isolated_codex_home": true,
+    "credentials_copied": false
+  },
+  "scope": "Manual transport diagnostics prove enqueue and a new Desktop turn; later quota failure means no task completion claim. Installed DevDiary still old until new package verified."
+}

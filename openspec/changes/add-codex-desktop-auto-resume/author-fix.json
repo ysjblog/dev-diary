@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "stage": "author-fix",
+  "reviewer_id": "owner",
+  "matrix_digest": "04a443794305d824acc031c8e19ca1d41eafe22c6f1bd2d8bac799ff4b7e1dd6",
+  "review_revision": "6d55c34224518e1fdfc4748851808ee77acc2ae8",
+  "reviewed_finding_ids": [
+    "SOL-R16-INIT-FR-001",
+    "SOL-R16-INIT-IA-001",
+    "SOL-R16-INIT-IA-002",
+    "SOL-R16-INIT-IA-003"
+  ],
+  "changed_artifact_digest": "9fc89d3fc8eee1171f1ecc381577439a30c9cd53e10dbbefdbe8af846eba2d5d",
+  "landing_checks_passed": true,
+  "strict_validation_passed": true,
+  "author_preflight_receipt_digest": "4e45b83465f16c39d2a29fdad984156599cc17161783a02d049333d383afbaf7",
+  "receipt_digest": "ec719643a80bfbae33a0364c3ffbec2ffd744cbbb6f7ecbd5b7facf3e5434652"
+}

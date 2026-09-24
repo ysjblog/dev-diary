@@ -1,14 +1,19 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { accessSync, constants, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { openDb } from './db/index.js';
+import { openBackgroundDb } from './db/index.js';
 import { seedDatabase } from './db/seed.js';
 import { defaultAppDataDir, resolveRuntimeConfig } from './runtimeConfig.js';
 import { backgroundStartupDelayMs, formatBackgroundCycleLog, runBackgroundCycle } from './services/backgroundRunner.js';
 import { AntigravitySessionGate } from './services/antigravitySession.js';
+import { CODEX_DESKTOP_RESUME_TICK_MS, createCodexCliResumeDispatcher, createCodexDesktopResumeEngine } from './services/codexDesktopResumeEngine.js';
+import { createCodexDesktopWakeDispatcher } from './services/codexDesktopWake.js';
+import { createCodexResumeObserver } from './services/codexResumeObservation.js';
+import { resolveCanonicalActivityDataRoots } from './services/agentDetection.js';
 import { getSettings, updateSettings, type SettingsRuntimeDefaults } from './services/settings.js';
 import type { DB } from './db/index.js';
 import { taipeiDate } from './services/taipeiDate.js';
+import { assertBackgroundRuntimeManifestCompatibleBeforeDb, resolveRuntimeManifestPath } from './services/runtimeManifest.js';
 
 type Mode = 'run' | 'once';
 
@@ -73,6 +78,17 @@ export function sleepUntilNextBackgroundCycle(ms: number, isStopping: () => bool
   });
 }
 
+export function resolveCodexDesktopCliPath(
+  configured: string | null | undefined,
+  desktopBundled = '/Applications/ChatGPT.app/Contents/Resources/codex',
+  fallbacks = ['/opt/homebrew/bin/codex', '/usr/local/bin/codex'],
+): string | undefined {
+  const candidates = [desktopBundled, configured, ...fallbacks].filter((value): value is string => Boolean(value));
+  return candidates.find((value) => {
+    try { accessSync(value, constants.X_OK); return statSync(value).isFile(); } catch { return false; }
+  });
+}
+
 export async function waitForNextBackgroundDue(
   db: DB,
   runtime: () => SettingsRuntimeDefaults,
@@ -92,12 +108,59 @@ async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const runtimeConfig = resolveRuntimeConfig();
   const appDir = defaultAppDataDir();
+  assertBackgroundRuntimeManifestCompatibleBeforeDb(resolveRuntimeManifestPath());
   const releaseLock = acquireLock(appDir);
-  const db = openDb(runtimeConfig.dbPath);
+  let db: DB;
+  try {
+    db = openBackgroundDb(runtimeConfig.dbPath);
+  } catch (error) {
+    releaseLock();
+    throw error;
+  }
   const runtime = () => ({
     activeDbPath: runtimeConfig.dbPath,
     projectRoots: runtimeConfig.projectRoots,
   });
+  const codexRoots = () => {
+    const agent = getSettings(db, runtime()).agents.find((item) => item.id === 'codex-cli');
+    return agent ? resolveCanonicalActivityDataRoots('codex-cli', agent.sources) : [];
+  };
+  const codexDispatcher = async (threadId: string, context: { codexHome: string }) => {
+    const settings = getSettings(db, runtime());
+    const configured = settings.agents.find((item) => item.id === 'codex-cli')?.sources.executable.configured_path;
+    // Desktop sessions must be resumed by the CLI shipped with the running
+    // Desktop app when available. A user-configured standalone CLI can lag the
+    // Desktop session format even when both installations share login state.
+    const binary = resolveCodexDesktopCliPath(configured);
+    return binary ? createCodexDesktopWakeDispatcher(createCodexCliResumeDispatcher(binary))(threadId, context) : { accepted: false, code: 'codex_cli_not_found' };
+  };
+  const codexObservation = createCodexResumeObserver({
+    directory: join(appDir, 'codex-resume-diagnostics'),
+    resolveSource: (digest) => {
+      const row = db.prepare('SELECT thread_id,session_locator FROM codex_desktop_resume_targets WHERE target_key_digest=?')
+        .get(digest) as { thread_id: string; session_locator: string } | undefined;
+      const match = row && /^r([0-9]+)\/(.+)$/.exec(row.session_locator);
+      const root = match ? codexRoots()[Number(match[1])] : undefined;
+      return row && match && root ? { root, locator: match[2]!, threadId: row.thread_id } : null;
+    },
+  });
+  const codexDesktopResume = createCodexDesktopResumeEngine(db, codexRoots, codexObservation.wrap(codexDispatcher));
+  let resumeTickRunning = false;
+  let resumeTimer: NodeJS.Timeout | null = null;
+  const runResumeTick = async (): Promise<void> => {
+    if (resumeTickRunning) return;
+    resumeTickRunning = true;
+    try {
+      try { codexObservation.tick(); } catch {
+        process.stderr.write('DevDiary resume observation tick failed; continuation behavior unchanged.\n');
+      }
+      await codexDesktopResume.tick();
+    } catch {
+      // A lightweight companion tick must never terminate the full background runner.
+    } finally {
+      resumeTickRunning = false;
+    }
+  };
   let stopping = false;
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     process.once(signal, () => {
@@ -118,7 +181,10 @@ async function main(): Promise<void> {
     // 單一長生命週期的斷路器,在多輪 cycle 之間共用 cooldown:agy session 失效後
     // 不會每輪重複 probe / 彈登入視窗。
     const antigravityGate = new AntigravitySessionGate();
+    await runResumeTick();
     if (options.mode === 'run') {
+      resumeTimer = setInterval(() => { void runResumeTick(); }, CODEX_DESKTOP_RESUME_TICK_MS);
+      resumeTimer.unref?.();
       await sleepUntilNextBackgroundCycle(backgroundStartupDelayMs(), () => stopping);
       // A manual scan may have completed while the runner was waiting to
       // start. Re-read the persisted due time before the first cycle too.
@@ -134,6 +200,7 @@ async function main(): Promise<void> {
       await waitForNextBackgroundDue(db, runtime, () => stopping);
     } while (!stopping);
   } finally {
+    if (resumeTimer) clearInterval(resumeTimer);
     db.close();
     releaseLock();
   }

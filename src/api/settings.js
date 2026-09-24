@@ -1,4 +1,4 @@
-import { coreFetch } from './coreFetch.js';
+import { coreFetch, coreFetchWithVerifiedMutationTarget } from './coreFetch.js';
 
 const DEFAULT_AGENT_CARDS = [
   { id: 'claude-code', name: 'Claude Code', version: 'Settings', status: 'connected', active: true, path: '由 Settings backend 管理' },
@@ -6,7 +6,7 @@ const DEFAULT_AGENT_CARDS = [
   { id: 'antigravity-cli', name: 'Antigravity CLI', version: 'Settings', status: 'connected', active: true, path: '由 Settings backend 管理' },
 ];
 
-export const REQUIRED_CORE_API_CONTRACT_VERSION = 6;
+export const REQUIRED_CORE_API_CONTRACT_VERSION = 8;
 export const REQUIRED_CORE_CAPABILITIES = [
   'kanban.ai-sync',
   'scheduler.daily.preflight',
@@ -19,6 +19,7 @@ export const REQUIRED_CORE_CAPABILITIES = [
   'agents.custom.ollama-settings',
   'scheduler.daily.telemetry-v2',
   'projects.reconciliation',
+  'codex.desktop-resume.multi-target-v2',
 ];
 
 export const DEFAULT_AGENT_MODEL_OPTIONS = {
@@ -159,6 +160,36 @@ export async function patchSettings(patch) {
   });
   return jsonOrThrow(res);
 }
+
+export async function fetchCodexDesktopResume() {
+  return jsonOrThrow(await coreFetch('/api/codex/desktop-resume'));
+}
+
+export async function registerCodexDesktopResume(snapshot, deepLink, displayName) {
+  const res = await coreFetchWithVerifiedMutationTarget(snapshot, '/api/codex/desktop-resume/targets', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ deep_link: deepLink, display_name: displayName }),
+  });
+  return jsonOrThrow(res);
+}
+
+export async function patchCodexDesktopResume(snapshot, patch) {
+  return jsonOrThrow(await coreFetchWithVerifiedMutationTarget(snapshot, '/api/codex/desktop-resume', {
+    method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch),
+  }));
+}
+
+export async function patchCodexDesktopResumeTarget(snapshot, threadId, patch) {
+  return jsonOrThrow(await coreFetchWithVerifiedMutationTarget(snapshot, `/api/codex/desktop-resume/targets/${encodeURIComponent(threadId)}`, {
+    method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch),
+  }));
+}
+
+export async function deleteCodexDesktopResumeTarget(snapshot, threadId) {
+  return jsonOrThrow(await coreFetchWithVerifiedMutationTarget(snapshot, `/api/codex/desktop-resume/targets/${encodeURIComponent(threadId)}`, { method: 'DELETE' }));
+}
+
 
 export async function fetchAgentDetection() {
   const res = await coreFetch('/api/agents/detect');
@@ -384,6 +415,7 @@ export function settingsToForm(settings) {
     scanFallbackMode: 'none',
     dailySchedulerEnabled: settings?.daily_scheduler?.enabled ?? false,
     dailySchedulerRunTime: settings?.daily_scheduler?.run_time_local || '18:00',
+    codexDesktopResumeEnabled: settings?.codex_desktop_resume?.enabled ?? false,
     agents: Array.isArray(settings?.agents)
       ? settings.agents.map((agent) => ({
         id: agent.id,

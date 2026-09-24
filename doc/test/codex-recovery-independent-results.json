@@ -1,0 +1,105 @@
+{
+  "reviewer": "/root/recovery_initial",
+  "timestamp": "2026-09-21T04:26:31.055Z",
+  "node": "v22.23.1",
+  "publicEntry": "parser / registration / repository / engine with callback only",
+  "sourceHashes": {
+    "core/src/services/codexQuotaEvidence.ts": "f43e05618943c8581396dd4b8f06686d250d1bddd236d19966f25226902e567a",
+    "core/src/services/codexDesktopResumeEngine.ts": "827b7ad357590eb2418b955833a2a4280aa7327b5ea5c958248fca26fe07d5e2",
+    "core/src/services/codexDesktopSessionLookup.ts": "bb330f6e8c31807b855b5885bcf43ab38c7094b2209ad20f86122ffad975b971",
+    "core/src/services/codexDesktopResumeRepository.ts": "6daa3e5d41e564119a24c7a81dee00a2a9ea9c558afd5623d58dfe4dc8e6fc36",
+    "core/src/db/index.ts": "a8828e0c74ad8112420bd3981d413861a128a088e1e59665394a9f31c76bcf04"
+  },
+  "sourceStable": true,
+  "passed": 10,
+  "failed": 0,
+  "scenarios": [
+    {
+      "name": "parser recent-past exact date and midnight bounds",
+      "status": "PASS",
+      "detail": {
+        "assertions": 4
+      }
+    },
+    {
+      "name": "initial grace exact boundary and no repeated send",
+      "status": "PASS",
+      "detail": {
+        "dispatches": 1
+      }
+    },
+    {
+      "name": "five-minute boundary and A A A B A cap survives DB reopen",
+      "status": "PASS",
+      "detail": {
+        "cumulativeDispatches": [
+          1,
+          2,
+          3,
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "name": "successive segments carry budget and reject copied consumed lines",
+      "status": "PASS",
+      "detail": {
+        "cumulativeDispatches": [
+          1,
+          2,
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "name": "overlapping segment containing copied non-last event fails closed",
+      "status": "PASS",
+      "detail": {
+        "additionalDispatches": 0
+      }
+    },
+    {
+      "name": "paused prevents segment adoption and dispatch",
+      "status": "PASS",
+      "detail": {
+        "dispatches": 0,
+        "state": "watching"
+      }
+    },
+    {
+      "name": "quarantine prevents segment adoption and dispatch",
+      "status": "PASS",
+      "detail": {
+        "dispatches": 0,
+        "state": "needs_attention"
+      }
+    },
+    {
+      "name": "unknown prevents segment adoption and dispatch",
+      "status": "PASS",
+      "detail": {
+        "dispatches": 0,
+        "state": "needs_attention"
+      }
+    },
+    {
+      "name": "cross-root duplicate prevents dispatch",
+      "status": "PASS",
+      "detail": {
+        "dispatches": 0
+      }
+    },
+    {
+      "name": "strictly newer future reset starts a fresh retry cycle",
+      "status": "PASS",
+      "detail": {
+        "dispatches": 2,
+        "retryCount": 0
+      }
+    }
+  ],
+  "realSends": 0,
+  "realDatabaseAccess": false
+}

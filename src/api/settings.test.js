@@ -11,6 +11,7 @@ import {
   fetchDailyMarkdownExport,
   fetchRedactedBackupExport,
   createCustomAgent,
+  deleteCodexDesktopResumeTarget,
   deleteCustomAgent,
   formToSettingsPatch,
   classifyRuntimeHealth,
@@ -19,6 +20,7 @@ import {
   patchCustomAgent,
   patchSettings,
   probeCustomAgent,
+  registerCodexDesktopResume,
   runDailySchedulerNow,
   schedulerPreflightSummary,
   selectedFolderToProjectDocFolder,
@@ -239,6 +241,7 @@ test('settingsAgentsToCards includes removable custom agents from settings snaps
 
 test('agent detection and daily scheduler API helpers call Core endpoints', async () => {
   const calls = [];
+  const target = { origin: 'http://127.0.0.1:4317', source: 'verified_manifest', manifest_digest: 'a'.repeat(64), runtime: { host: '127.0.0.1', port: 4317, pid: 123, started_at: '2026-06-30T00:00:00.000Z' }, api_contract_version: 8, capabilities: ['codex.desktop-resume.multi-target-v2'] };
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, options = {}) => {
     calls.push({ url, options });
@@ -246,7 +249,7 @@ test('agent detection and daily scheduler API helpers call Core endpoints', asyn
       ok: true,
       headers: { get: () => null },
       async json() {
-        return { ok: true };
+        return url === '/api/health' ? { ok: true, verified_core_target: target } : { ok: true };
       },
       async text() {
         return 'exported';
@@ -259,6 +262,9 @@ test('agent detection and daily scheduler API helpers call Core endpoints', asyn
   await fetchDailySchedulerStatus();
   await fetchDailySchedulerPreflight();
   await runDailySchedulerNow();
+  const threadId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  await registerCodexDesktopResume(target, `codex://threads/${threadId}`, '目前任務');
+  await deleteCodexDesktopResumeTarget(target, threadId);
   await fetchDailyMarkdownExport({ date: '2026-06-30', includeComments: true });
   await fetchRedactedBackupExport({ includeComments: false });
   await probeCustomAgent({ display_name: 'Local Test Agent', executable_path: '/tmp/local-agent' });
@@ -274,6 +280,10 @@ test('agent detection and daily scheduler API helpers call Core endpoints', asyn
     ['/api/scheduler/daily', 'GET'],
     ['/api/scheduler/daily/preflight', 'GET'],
     ['/api/scheduler/daily/run', 'POST'],
+    ['/api/health', 'GET'],
+    ['/api/codex/desktop-resume/targets', 'POST'],
+    ['/api/health', 'GET'],
+    [`/api/codex/desktop-resume/targets/${threadId}`, 'DELETE'],
     ['/api/exports/daily?date=2026-06-30&include_comments=true', 'GET'],
     ['/api/exports/backup?include_comments=false', 'GET'],
     ['/api/agents/custom/probe', 'POST'],
@@ -291,16 +301,16 @@ test('classifyRuntimeHealth identifies connected, stale, and unreachable Core ru
   assert.deepEqual(
     classifyRuntimeHealth({
       ok: true,
-      api_contract_version: 6,
+      api_contract_version: 8,
       runtime: { host: '127.0.0.1', port: 4317, started_at: '2026-06-30T00:00:00.000Z', pid: 123 },
-      capabilities: ['kanban.ai-sync', 'scheduler.daily.preflight', 'scheduler.daily.run', 'agents.detect', 'agents.custom.probe', 'agents.custom.write', 'exports.daily', 'exports.backup', 'agents.custom.ollama-settings', 'scheduler.daily.telemetry-v2', 'projects.reconciliation'],
+      capabilities: ['kanban.ai-sync', 'scheduler.daily.preflight', 'scheduler.daily.run', 'agents.detect', 'agents.custom.probe', 'agents.custom.write', 'exports.daily', 'exports.backup', 'agents.custom.ollama-settings', 'scheduler.daily.telemetry-v2', 'projects.reconciliation', 'codex.desktop-resume.multi-target-v2'],
       checked_at: '2026-06-30T00:00:01.000Z',
     }),
     {
       status: 'connected',
       message: 'Core API 已連線',
       port: 4317,
-      contractVersion: 6,
+      contractVersion: 8,
       checkedAt: '2026-06-30T00:00:01.000Z',
       missingCapabilities: [],
       startedAt: '2026-06-30T00:00:00.000Z',
@@ -314,12 +324,12 @@ test('classifyRuntimeHealth identifies connected, stale, and unreachable Core ru
 
   const missingRoute = classifyRuntimeHealth({
     ok: true,
-    api_contract_version: 5,
+    api_contract_version: 6,
     runtime: { port: 4317 },
     capabilities: ['agents.detect'],
   });
   assert.equal(missingRoute.status, 'stale');
-  assert.deepEqual(missingRoute.missingCapabilities, ['kanban.ai-sync', 'scheduler.daily.preflight', 'scheduler.daily.run', 'agents.detect', 'agents.custom.probe', 'agents.custom.write', 'exports.daily', 'exports.backup', 'agents.custom.ollama-settings', 'scheduler.daily.telemetry-v2', 'projects.reconciliation'].filter((item) => item !== 'agents.detect'));
+  assert.deepEqual(missingRoute.missingCapabilities, ['kanban.ai-sync', 'scheduler.daily.preflight', 'scheduler.daily.run', 'agents.detect', 'agents.custom.probe', 'agents.custom.write', 'exports.daily', 'exports.backup', 'agents.custom.ollama-settings', 'scheduler.daily.telemetry-v2', 'projects.reconciliation', 'codex.desktop-resume.multi-target-v2'].filter((item) => item !== 'agents.detect'));
 
   const unreachable = classifyRuntimeHealth(null, new Error('fetch failed'));
   assert.equal(unreachable.status, 'unreachable');

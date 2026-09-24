@@ -1,0 +1,16 @@
+{
+  "at": "2026-09-22T03:41:39.136Z",
+  "result": {
+    "accepted": true,
+    "code": "queued"
+  },
+  "real_sends": 1,
+  "claimed_start": false,
+  "pre_status": "notLoaded",
+  "pre_turn": "0190abcd-ef00-7000-8000-000000000006",
+  "observed_turn": "0190abcd-ef00-7000-8000-000000000004",
+  "observed_status": "inProgress",
+  "observed_started_at": 1790048499,
+  "post_queue_count": 0,
+  "proof": "source dispatcher direct controlled live test, not installed scheduler trigger"
+}

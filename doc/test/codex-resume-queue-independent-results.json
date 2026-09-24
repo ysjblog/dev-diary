@@ -1,0 +1,273 @@
+{
+  "verdict": "BLOCKED",
+  "reviewer_id": "/root/queue_runtime_qa",
+  "review_revision": "cbd02a4f70eec01fc98b00dfce4cde68826313e8b2edd361d1e9de6cab9eabb6",
+  "head": "6d55c34224518e1fdfc4748851808ee77acc2ae8",
+  "matrix_digest": "76dc71c070379537e5b9dfa3643a6578468a283b577a1dbc4ea8117dc4c1c14f",
+  "timestamp": "2026-09-20T05:02:41.726084+00:00",
+  "lens_results": {
+    "candidateHashes": {
+      "result": "PASS",
+      "count": 4,
+      "freshFinalMatch": true
+    },
+    "isolatedRealCLI": {
+      "result": "PASS",
+      "accepted": true,
+      "code": "queued",
+      "firstDispatchQueueRows": 1,
+      "authFilePresent": false,
+      "realTargetMessagesSent": 0,
+      "receiptContractProbe": "second isolated direct CLI invocation also exit0; synthetic target only"
+    },
+    "publicDispatcher": {
+      "result": "PASS",
+      "passed": 10,
+      "total": 10,
+      "scenarios": [
+        {
+          "scenario": "exact",
+          "expectedAccepted": true,
+          "result": {
+            "accepted": true,
+            "code": "queued"
+          },
+          "pass": true,
+          "elapsedMs": 328,
+          "argv": [
+            "queue",
+            "--thread",
+            "01996777-1234-7123-8123-123456789abc",
+            "--message",
+            "繼續"
+          ],
+          "homeMatches": true,
+          "postGroupProbe": "ESRCH"
+        },
+        {
+          "scenario": "wrong-target",
+          "expectedAccepted": false,
+          "result": {
+            "accepted": false,
+            "code": "codex_resume_queue_receipt_invalid"
+          },
+          "pass": true,
+          "elapsedMs": 323,
+          "argv": [
+            "queue",
+            "--thread",
+            "01996777-1234-7123-8123-123456789abc",
+            "--message",
+            "繼續"
+          ],
+          "homeMatches": true,
+          "postGroupProbe": "ESRCH"
+        },
+        {
+          "scenario": "malformed-message",
+          "expectedAccepted": false,
+          "result": {
+            "accepted": false,
+            "code": "codex_resume_queue_receipt_invalid"
+          },
+          "pass": true,
+          "elapsedMs": 321,
+          "argv": [
+            "queue",
+            "--thread",
+            "01996777-1234-7123-8123-123456789abc",
+            "--message",
+            "繼續"
+          ],
+          "homeMatches": true,
+          "postGroupProbe": "ESRCH"
+        },
+        {
+          "scenario": "missing-newline",
+          "expectedAccepted": false,
+          "result": {
+            "accepted": false,
+            "code": "codex_resume_queue_receipt_invalid"
+          },
+          "pass": true,
+          "elapsedMs": 321,
+          "argv": [
+            "queue",
+            "--thread",
+            "01996777-1234-7123-8123-123456789abc",
+            "--message",
+            "繼續"
+          ],
+          "homeMatches": true,
+          "postGroupProbe": "ESRCH"
+        },
+        {
+          "scenario": "extra-output",
+          "expectedAccepted": false,
+          "result": {
+            "accepted": false,
+            "code": "codex_resume_queue_receipt_invalid"
+          },
+          "pass": true,
+          "elapsedMs": 326,
+          "argv": [
+            "queue",
+            "--thread",
+            "01996777-1234-7123-8123-123456789abc",
+            "--message",
+            "繼續"
+          ],
+          "homeMatches": true,
+          "postGroupProbe": "ESRCH"
+        },
+        {
+          "scenario": "receipt-nonzero",
+          "expectedAccepted": false,
+          "result": {
+            "accepted": false,
+            "code": "codex_resume_command_failed"
+          },
+          "pass": true,
+          "elapsedMs": 323,
+          "argv": [
+            "queue",
+            "--thread",
+            "01996777-1234-7123-8123-123456789abc",
+            "--message",
+            "繼續"
+          ],
+          "homeMatches": true,
+          "postGroupProbe": "ESRCH"
+        },
+        {
+          "scenario": "receipt-signal",
+          "expectedAccepted": false,
+          "result": {
+            "accepted": false,
+            "code": "codex_resume_command_failed"
+          },
+          "pass": true,
+          "elapsedMs": 359,
+          "argv": [
+            "queue",
+            "--thread",
+            "01996777-1234-7123-8123-123456789abc",
+            "--message",
+            "繼續"
+          ],
+          "homeMatches": true,
+          "postGroupProbe": "ESRCH"
+        },
+        {
+          "scenario": "receipt-hung-parent",
+          "expectedAccepted": false,
+          "result": {
+            "accepted": false,
+            "code": "codex_resume_ack_timeout",
+            "releaseLease": true
+          },
+          "pass": true,
+          "elapsedMs": 2127,
+          "argv": [
+            "queue",
+            "--thread",
+            "01996777-1234-7123-8123-123456789abc",
+            "--message",
+            "繼續"
+          ],
+          "homeMatches": true,
+          "postGroupProbe": "ESRCH"
+        },
+        {
+          "scenario": "descendant-cleanup",
+          "expectedAccepted": true,
+          "result": {
+            "accepted": true,
+            "code": "queued"
+          },
+          "pass": true,
+          "elapsedMs": 478,
+          "argv": [
+            "queue",
+            "--thread",
+            "01996777-1234-7123-8123-123456789abc",
+            "--message",
+            "繼續"
+          ],
+          "homeMatches": true,
+          "postGroupProbe": "ESRCH"
+        },
+        {
+          "scenario": "unknown-group",
+          "expectedAccepted": false,
+          "result": {
+            "accepted": false,
+            "code": "codex_resume_queue_receipt_invalid_process_unterminated",
+            "releaseLease": false
+          },
+          "pass": true,
+          "elapsedMs": 529,
+          "argv": [
+            "queue",
+            "--thread",
+            "01996777-1234-7123-8123-123456789abc",
+            "--message",
+            "繼續"
+          ],
+          "homeMatches": true,
+          "postGroupProbe": "ESRCH"
+        }
+      ],
+      "descendantReadyObserved": true,
+      "descendantFinalProbe": "ESRCH",
+      "unknownGroupMethod": "process.kill negative-pgid signal0 EPERM fault injection; no implementation inspection"
+    },
+    "screenshotReview": {
+      "result": "PASS",
+      "source": ".codex/screenshots/queue-resume-20260920.png",
+      "observations": [
+        "已送出續跑要求 visible",
+        "Explicit queue awaiting Desktop; sent does not mean started or complete",
+        "Pause stops future sends and does not cancel queued requests",
+        "Desktop layout legible without visible clipping"
+      ],
+      "limit": "Owner supplied screenshot independently inspected; not independently captured or browser-operated"
+    },
+    "independentBrowser": {
+      "result": "BLOCKED",
+      "attempts": [
+        "mcp__playwright__browser_navigate localhost5173 rejected",
+        "mcp__cua_repl getTab existing iab localhost5173 rejected"
+      ],
+      "reason": "[HOOK:OWNER-SAFETY-DENY] Worker prohibited action: external_write",
+      "consoleErrors": "not observable",
+      "networkErrors": "not observable"
+    }
+  },
+  "findings": [
+    {
+      "severity": "P1-evidence-gap",
+      "title": "Required independent browser observation unavailable",
+      "location": "QA UI acceptance",
+      "evidence": "Both navigation and existing-tab read rejected by Worker hook; screenshot-only review passed",
+      "suggestedFix": "Owner reconcile required gate with policy: obtain permitted independent read-only UI evidence or explicitly retain BLOCKED; no product patch indicated",
+      "concernTags": [
+        "required-evidence",
+        "tool-policy"
+      ],
+      "verifyString": "independentBrowser.result == PASS"
+    }
+  ],
+  "residual_risks": [
+    "No installed app or production result verified",
+    "No real Desktop task started or completed",
+    "Unknown group quarantine verified through public return releaseLease:false, not persistence integration",
+    "Browser interaction and console/network inspection unavailable"
+  ],
+  "artifacts": [
+    "/tmp/devdiary-queue-qa-real.mts",
+    "/tmp/devdiary-queue-qa-adversarial.mts",
+    "/tmp/devdiary-queue-qa-results.json",
+    "/tmp/devdiary-queue-qa-adversarial.log"
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "head": "6d55c34224518e1fdfc4748851808ee77acc2ae8",
+  "candidate": {
+    "core/src/services/codexQuotaEvidence.ts": "f43e05618943c8581396dd4b8f06686d250d1bddd236d19966f25226902e567a",
+    "core/src/services/codexDesktopResumeEngine.ts": "827b7ad357590eb2418b955833a2a4280aa7327b5ea5c958248fca26fe07d5e2",
+    "core/test/codexRecoveryTimingSegments.test.ts": "24845558b17a509896f24264ac8eae963e6c0e8144582bef1c9c4fcce42fa61b"
+  },
+  "red": {
+    "cases": 14,
+    "failed": 11,
+    "passed": 3
+  },
+  "core_tests": 395,
+  "ui_tests": 82,
+  "typecheck": "pass",
+  "build": "pass",
+  "lint": "not configured",
+  "diff": "pass",
+  "owner_smoke": {
+    "source": "read-only live SQLite backup, source engine on temporary copy",
+    "real_sends": 0,
+    "intercepted_dispatch_calls": 0,
+    "formerly_blocked_target": "waiting_for_reset",
+    "locator_changed": true
+  },
+  "independent_qa": {
+    "passed": 10,
+    "failed": 0,
+    "real_sends": 0,
+    "artifact": "doc/test/codex-recovery-independent-results.json"
+  },
+  "dormant_thread_wake": "not proven; queue receipt is not execution",
+  "installed": {
+    "location": "Applications/DevDiary.app",
+    "source_hashes_match": true,
+    "signature": "pass",
+    "background_running": true,
+    "registration_timestamps_preserved": true,
+    "target1": {
+      "error": null,
+      "queue_accepted_at": "2026-09-21T12:28:45.431+08:00",
+      "turn_started_at": "2026-09-21T12:28:53+08:00",
+      "turn_status": "inProgress",
+      "trigger": "automatic background monitoring after installation"
+    },
+    "target2": {
+      "state": "watching",
+      "error": null
+    },
+    "manual_sends": 0
+  },
+  "rust_tests": 23,
+  "package": {
+    "path": "src-tauri/target/release/bundle/dmg/DevDiary_0.1.4_aarch64.dmg",
+    "sha256": "85319729e6f375d12d9f38943244ab7b9adf0247796af157e66226e4ffc81aa2",
+    "integrity": "pass",
+    "adhoc_signature": "pass",
+    "notarized": false,
+    "source_hashes_match": true,
+    "runtime_parser_same_day_reset": "pass"
+  },
+  "candidate_digest": "4d838e701c121d9258b8ece2680d9236676a693c8f3915e02a3beae1a03ca532"
+}

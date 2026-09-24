@@ -1,0 +1,13 @@
+{
+  "pass": true,
+  "real_worker": true,
+  "restart": true,
+  "start": true,
+  "timeout": true,
+  "no_replay": true,
+  "private_content_absent": true,
+  "states": [
+    "new_turn_observed",
+    "not_observed"
+  ]
+}

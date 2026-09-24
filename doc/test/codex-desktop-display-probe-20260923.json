@@ -1,0 +1,25 @@
+{
+  "started_at": "2026-09-22T16:55:36.628008+00:00",
+  "persistent_power_changes": false,
+  "messages_sent": 0,
+  "display_sleep_request": 0,
+  "off_requested_at": "2026-09-22T16:55:36.664276+00:00",
+  "wake_requested_at": "2026-09-22T16:56:21.666629+00:00",
+  "wake_returncode": 0,
+  "ended_at": "2026-09-22T16:56:26.916905+00:00",
+  "thread_read_ms": 167,
+  "usage_query_ms": 927,
+  "thread_rpc_ms": [
+    0,
+    1,
+    2,
+    7,
+    36
+  ],
+  "usage_rpc_ms": 802,
+  "result": "screen_off_did_not_reproduce_stall",
+  "limitations": [
+    "Other Codex tasks were active; this is not a long idle/no-active-turn reproduction.",
+    "No permanent power settings changed; no messages sent."
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "checked_at": "2026-09-24T09:43:34.995719+08:00",
+  "read_only": true,
+  "observations": [
+    {
+      "requested_at_ms": 1790155325440,
+      "observed_at_ms": 1790155342247,
+      "dispatch": "accepted",
+      "observation": "new_turn_observed",
+      "lifecycle": [
+        {
+          "at": "2026-09-23T09:22:14.559Z",
+          "event": "task_started"
+        },
+        {
+          "at": "2026-09-23T11:13:30.095Z",
+          "event": "task_complete"
+        }
+      ]
+    }
+  ],
+  "screen_off_interval_local": [
+    "2026-09-23T14:30:46+08:00",
+    "2026-09-23T17:36:13+08:00"
+  ],
+  "background_running": true,
+  "monitoring_enabled": true,
+  "target_count": 2,
+  "both_targets_watching_no_error": true,
+  "diagnostic_warnings": 0,
+  "separate_diary_scan_failures_since_install": 20,
+  "limitation": "One observed successful screen-off continuation, not universal reliability or project completion."
+}

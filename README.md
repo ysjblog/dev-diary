@@ -17,6 +17,7 @@ DevDiary 是一個 local-first 的 macOS 開發日記 App。它會整理你用 C
 - **AI 重新總結**：可以指定預設 Diary Agent，讓 AI 依照專案或日期重新整理 Markdown 摘要；失敗時會保留 deterministic fallback，不會破壞手動內容。
 - **Kanban 自動建議**：從 session、commit、TODO 訊號與 AI 建議中產生卡片；你手動移動過的卡片會被保護，不會被自動流程覆蓋狀態。
 - **本機背景排程**：可設定每日時間自動跑 Daily Scheduler；macOS App 打包版也會安裝 LaunchAgent，讓 App 關閉時仍可定期掃描。
+- **Codex Desktop 額度恢復續跑**：可在 `Settings > Automation` 用 deep link 註冊多個 Codex Desktop 任務；只有精確額度中斷且恢復時間已到時，背景 runner 才會按任務 UUID 送出固定的「繼續」。
 - **匯出資料**：支援匯出每日 Markdown diary，以及 redacted JSON backup。匯出會盡量遮蔽 secret-like 內容。
 
 ## 下載 Mac App
@@ -50,6 +51,23 @@ DevDiary_0.1.4_aarch64.dmg
 5. 回到 Dashboard 或 Workspace，按 `Scan Now` 或單一專案的 rescan，讓 DevDiary 讀取最近的開發紀錄。
 
 DevDiary 只會透過 Core API 讀取你設定的本機資料夾；不會直接從 React UI 讀檔，也不會對 project folder 執行 mutating command。
+
+### Codex Desktop 額度恢復續跑
+
+這是 DevDiary 內的 companion workflow，不會修改 Codex App，也不會在 Codex App 內新增 Resume 按鈕。使用方式：
+
+1. 在 Codex Desktop 的目標任務複製 deep link，格式是 `codex://threads/<UUID>`。
+2. 到 `Settings > Automation`，貼上 deep link，並把目前任務名稱填入「目前 Codex 任務名稱」；名稱只供清單顯示，真正定位使用 deep link 內的 UUID。
+3. 按「註冊任務」。需要監看更多任務就重複貼上與註冊；清單可個別暫停、繼續監看、重新命名或註銷，也可用最上方開關暫停全部。
+4. DevDiary 只在註冊後看到 Codex 的結構化額度用完事件、合法恢復時間已到，而且本機 session 仍唯一且完整時，透過本機 Codex CLI 的 `queue` 對該 UUID 排入固定「繼續」。其他中斷不會觸發。
+
+恢復時間後先保留 60 秒緩衝；若 Codex 仍回報最近一小時內的已過恢復時間，收到新錯誤後等 5 分鐘重試，同一恢復週期最多三次。重開 DevDiary 或 Codex 換紀錄檔不會重設次數；達上限會要求人工檢查。經驗證的同任務新紀錄檔可接續監看，重疊、來源不完整或派送結果不明時仍停止。
+
+「已送出續跑要求」只表示訊息已排入佇列，仍需 Codex Desktop 處理，不代表工作已開始或完成。收到精確 queue 回條後，背景程序會透過固定的 Codex app 識別與任務連結，自動開啟並切換到該任務。開啟失敗會要求人工檢查，不會重送；macOS 接受開啟連結也不等於任務已開始。暫停只阻止後續要求，不會取消已排入的訊息。背景程序若在派送中異常結束且無法確認子程序已停止，系統會保留全域鎖定並要求人工處理，不會在鎖定時間到期後直接重送。
+
+正常可寫入且未達容量上限時，新的續跑要求另有本機診斷紀錄，保存在 `~/Library/Application Support/DevDiary/codex-resume-diagnostics/observations.json`：分開記錄送出結果、新執行紀錄是否出現，以及十分鐘觀察期限內未見開始或來源無法驗證。背景程序重啟後會接續未完成觀察；安裝前的要求不追補。「看到新執行」不代表已完成，也不能單憑時間關聯證明是哪個輸入啟動。逾時或來源異常會保存最多16個白名單程序的PID／狀態及有限Desktop日誌統計，不保存對話、任務名稱、原始日誌、來源路徑或命令列，不外傳、不重送。最多保留100筆、同時觀察32筆、檔案上限256KiB、僅擁有者可讀寫；每輪最多觀察兩筆，忙碌或重啟可能使快照晚於期限，仍只採信期限內的開始事件。超過觀察容量時會略過新增診斷並留下固定警告；診斷不可用時背景錯誤日誌會留下固定警告，續跑行為維持原樣。這項蒐證不能自行修復Codex內部停滯。
+
+此功能會切換 Codex Desktop 畫面，但不使用 Accessibility、座標、剪貼簿或按鍵注入；視窗不必固定大小或位置。Mac 必須保持醒著且已登入可用桌面；不提供防休眠或自動解鎖。只接受目前使用者預設 `.codex` 的 canonical Desktop 資料目錄，其他 CLI store 會在送出前拒絕。Codex CLI 必須仍可在本機正常使用並維持登入；若 CLI/session 格式改變或執行結果不明，任務會顯示「需要人工檢查」且不會自動重播。
 
 ## 怎麼串 AI
 

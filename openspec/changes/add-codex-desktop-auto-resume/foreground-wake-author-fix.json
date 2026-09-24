@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "matrix_digest": "52cb2b489bdf18ebdc6e37016219d3082a0b6f59d7c39433d6a324d462c90dca",
+  "review_revision": "wake-20260922-plan",
+  "reviewed_finding_ids": [
+    "WAKE-R1"
+  ],
+  "changed_artifact_digest": "69e9b5734c31593f46d42d7be01ce6aafbd214190e30a27936b3e6245079b78e",
+  "landing_checks_passed": true,
+  "strict_validation_passed": true,
+  "author_preflight_receipt_digest": "3971440c867d510e4af0187494da544928136a952cea7e17794b20b84bd762cb",
+  "verifyString": "the foreground-assisted product dispatcher rejects it before queue or open",
+  "receipt_digest": "3963ec3b69a8ca36c94af57748b4b55a7e4e53063fb319c59d4db120d7cdde22"
+}

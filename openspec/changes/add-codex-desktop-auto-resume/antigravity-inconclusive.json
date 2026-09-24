@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "review_revision": "6d55c34224518e1fdfc4748851808ee77acc2ae8",
+  "matrix_digest": "fb0baad27682f445f9bc7ff94b76bcfdf0b57b8dcbfb9e8c67550380fde8b700",
+  "provider": "antigravity",
+  "provider_version": "1.1.27",
+  "preflight": "healthy",
+  "status": "inconclusive",
+  "retry": {
+    "workspace_attachment": "The project was explicitly attached with --add-dir and became readable.",
+    "status": "inconclusive",
+    "reason": "The response consumed 111810 tokens but reviewed the intentionally unimplemented v7-to-v8 gap as if it were a defect in the proposed specification, used an unsupported critical severity, and did not answer whether the specification itself closes the requested recovery lens. The second lens was not launched to avoid repeating the cost and scope error."
+  },
+  "lens_results": {
+    "failure_recovery": {
+      "status": "inconclusive",
+      "reason": "The read-only plan-mode call returned only an intention to inspect files, incorrectly reported that the relative Change directory was absent, and emitted no structured review result."
+    },
+    "integration_authority": {
+      "status": "inconclusive",
+      "reason": "A separate read-only plan-mode call with the absolute project and Change paths returned only an intention to inspect files and emitted no structured review result."
+    }
+  },
+  "repository_mutation_detected": false,
+  "next_action": "The user explicitly authorized a Codex fallback after this corrected Antigravity attempt remained unsuitable. Route a fresh bounded Codex review; do not treat this Antigravity response as a clean or findings-bearing round."
+}

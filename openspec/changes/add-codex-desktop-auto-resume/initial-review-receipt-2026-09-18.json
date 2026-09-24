@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "stage": "initial",
+  "reviewer_id": "/root/background_budget_initial",
+  "matrix_digest": "1d26c91e1d68b813eeb1bbef622d36b3ef3b6f458ec60d8e44ab947a91a20f46",
+  "review_revision": "6d55c34-b91642a7395b",
+  "lens_results": {
+    "failure_recovery": "findings",
+    "integration_authority": "pass"
+  },
+  "source_review_revision": "6d55c34-8c32bb5607cb",
+  "source_matrix_digest": "d3c11da50675d7571e5e26a396dad5db9a19630beed9f8c54c484277a7d385c2",
+  "compatibility_note": "Preserves initial F1 finding while binding the consolidated deadline fix to corrected artifact inventory.",
+  "receipt_digest": "5a73a6b356981d292f9ac5aec8d179b641a744e5409f5065537bd8de54ec4be8"
+}

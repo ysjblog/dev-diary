@@ -1,0 +1,46 @@
+{
+  "observedAt": "2026-09-20T23:11:53.467393+08:00",
+  "backgroundRunning": true,
+  "targets": [
+    {
+      "name": "範例任務 A",
+      "state": "waiting_for_reset",
+      "consumedOriginalEvents": [
+        {
+          "timestamp": "2026-09-20T07:09:32.087Z",
+          "type": "event_msg",
+          "errorInfo": "usage_limit_exceeded"
+        }
+      ],
+      "nextReset": "2026-09-21T02:03:00+08:00",
+      "registrationPreserved": true
+    },
+    {
+      "name": "範例任務 B",
+      "state": "waiting_for_reset",
+      "consumedOriginalEvents": [
+        {
+          "timestamp": "2026-09-20T07:09:30.971Z",
+          "type": "event_msg",
+          "errorInfo": "usage_limit_exceeded"
+        }
+      ],
+      "nextReset": "2026-09-21T02:03:00+08:00",
+      "registrationPreserved": true
+    }
+  ],
+  "desktopNewTurns": [
+    {
+      "title": "範例任務 A",
+      "startedAt": 1789916379,
+      "status": "failed",
+      "reason": "usage_limit_exceeded"
+    },
+    {
+      "title": "範例任務 B",
+      "startedAt": 1789916429,
+      "status": "failed",
+      "reason": "usage_limit_exceeded"
+    }
+  ]
+}

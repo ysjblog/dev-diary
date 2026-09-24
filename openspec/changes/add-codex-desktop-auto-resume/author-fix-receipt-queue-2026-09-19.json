@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "review_revision": "6d55c34-queue-97023edfaeea",
+  "matrix_digest": "2ff57c117a5691a1e8da96c9b7803a8375fef23d1fbffb9e0c16538f3c2271c5",
+  "reviewed_finding_ids": [
+    "Q1",
+    "Q2",
+    "Q3",
+    "Q4"
+  ],
+  "changed_artifact_digest": "ec7797f5a6d8c8b3faac43de3935986a6717dcd1183a4ac5aad45c225f36cd2c",
+  "landing_checks_passed": true,
+  "strict_validation_passed": true,
+  "author_preflight_receipt_digest": "b517b3a4f636c840e2f01557b1f849e1ecb7fcad7c7770d05792723d17dfc157",
+  "verify_strings": [
+    "Legacy codex_resume_not_acknowledged is outcome-unknown and MUST NOT enter the generic monitoring-recovery allowlist.",
+    "Direct-child close alone MUST NOT establish process-group termination; an unproven live descendant keeps the lease quarantined.",
+    "唯一有效派送命令為 codex queue --thread <UUID> --message 繼續；成功只表示續跑要求已被接受。",
+    "本次 queue 修復的 runtime、UI 與 independent QA 必須重新取得 revision-bound 證據；舊完成勾選與舊 converged receipt 不得代用。"
+  ],
+  "receipt_digest": "61e214b4034afa959035db933987663704c3f973c4977618ebd93c66c2404361"
+}

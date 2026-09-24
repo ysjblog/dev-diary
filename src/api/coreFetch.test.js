@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { coreApiUrl } from './coreFetch.js';
+import { coreApiUrl, coreFetchWithVerifiedMutationTarget } from './coreFetch.js';
 
 const TAURI_RUNTIME = { __TAURI_INTERNALS__: {}, location: { protocol: 'tauri:', hostname: 'tauri.localhost' } };
 const BROWSER_RUNTIME = { location: { protocol: 'http:', hostname: 'localhost' } };
@@ -43,4 +43,18 @@ test('coreApiUrl falls back to the historical default when Rust returns garbage'
 test('coreApiUrl normalizes paths without a leading slash', async () => {
   const invoke = async () => 'http://127.0.0.1:4318';
   assert.equal(await coreApiUrl('api/health', TAURI_RUNTIME, { invoke }), 'http://127.0.0.1:4318/api/health');
+});
+
+test('verified mutation transport stops before forwarding when fresh health identity drifts', async () => {
+  const snapshot = { origin: 'http://127.0.0.1:4317', source: 'verified_manifest', manifest_digest: 'a'.repeat(64), runtime: { host: '127.0.0.1', port: 4317, pid: 123, started_at: '2026-06-30T00:00:00.000Z' }, api_contract_version: 8, capabilities: ['codex.desktop-resume.multi-target-v2'] };
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    return { ok: true, async json() { return { verified_core_target: { ...snapshot, manifest_digest: 'b'.repeat(64) } }; } };
+  };
+  await assert.rejects(
+    coreFetchWithVerifiedMutationTarget(snapshot, '/api/codex/desktop-resume', { method: 'PATCH' }, { fetchImpl, runtime: BROWSER_RUNTIME }),
+    /Core runtime 已變更/,
+  );
+  assert.deepEqual(calls, ['/api/health']);
 });
