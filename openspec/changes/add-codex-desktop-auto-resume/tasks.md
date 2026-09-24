@@ -76,3 +76,8 @@ None.
 2026-09-23：foreground wake 已實作、409 Core／82 UI／23 Rust、type/build、Owner fixture、獨立16/16、安全接線及桌面畫面檢查通過；受控 notLoaded 任務當下成功開始；新版 App 已備份替換、hash/signature/背景程序與監看恢復確認。後續真實排程在09-22 16:42已切換並要求resume，但Desktop至09-23 00:33才完成resume；6.4的可靠無人操作啟動仍未完成，不能把open接受算成開始。
 
 2026-09-24：修正 evidence 讀取撞上 Codex 同時寫入時被誤判 `session_integrity_changed` 而永久停止（改為最多重讀3次，仍不穩定則本輪跳過、不寫狀態不派送；真實截斷／改寫仍停止），新增 `core/test/codexDesktopResumeReadRace.test.ts` 5案；advisor 審查 APPROVE。fresh：430 Core／83 UI／24 Rust、Core typecheck、`npm run build`、diff secret scan 通過。09-23 17:22 另有一次螢幕關閉下真實恢復開始（`doc/test/codex-resume-status-20260924.json`），但只一次，6.4 可靠性仍未證明；此修正尚未打包安裝；3.1／3.4 仍待最終 artifacts 的 O3 審查與獨立黑箱 QA。
+
+## Background rescan cadence amendment
+- [x] 7.1 Review the throttled-rescan spec/design delta before implementation. (advisor: first pass REJECT, revised delta APPROVE 2026-09-25; converged, no unlanded required fixes; adopted non-blocking notes: roots fingerprint in the key, memory limited to this tick's eligible rows, extra guard tests)
+- [x] 7.2 Add rescan-cadence regression tests first, then implement the engine gate. (`core/test/codexDesktopResumeRescanCadence.test.ts` 10 tests; red 4/9 before, green 10/10 after)
+- [ ] 7.3 Run full Core/UI/Rust tests, typecheck, build, package and confirm the installed runner uses the new cadence.

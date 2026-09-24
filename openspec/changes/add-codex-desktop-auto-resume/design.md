@@ -149,3 +149,14 @@ The opener has a 5-second deadline, detached process group, ignored output, SIGT
 Increase the claim/action lease from 30 to 45 seconds to cover queue 15s + cleanup 4s + open 5s + cleanup 4s with margin. Keep startup deadline 15s. Schema, API state enum and completed-evidence semantics are unchanged. Legacy resumed rows are not reopened on upgrade. Existing pause/mutation exclusion remains for the complete queue+open action.
 
 Safety/runtime limits: macOS must be awake with a usable logged-in graphical session and Codex credentials valid. No OS sleep prevention, unlocking, automatic approval, quota bypass or task-completion guarantee. Standalone CLI stores other than the local Desktop store are intentionally rejected for this foreground transport. Runtime verification must distinguish macOS open acceptance from an actual new turn and check exactly one queued input; a preloaded-task-only probe cannot prove cold activation. Missing controlled dormant-target evidence blocks a claim of proven unattended cold wake.
+
+## Background rescan cadence (2026-09-25)
+
+實測每次 cross-root 唯一性掃描約 2.3 秒（約 2,350 個 session 檔），每 30 秒對每個目標各跑一次，長期約佔一顆 CPU 的 15%。改為只在「沒有可行動事件」且「5 分鐘內剛完整掃過、且目標未被使用者改動」時跳過掃描；其餘一律走原本完整流程。
+
+- 記憶：engine closure 內 `Map<thread_id,{key,at}>`，key = 全域 `codex_desktop_resume_state.revision` + `session_locator` + `registration_file_dev/ino` + `registered_at_ms`；每次走完整路徑前記下 attempt（成功或失敗都記）。Repository 的 register／patch（改名、暫停、啟用）／delete 都會 `revision+1`，engine 自己的寫入不動 revision，所以使用者任何改動都強制下一 tick 重新驗證（spec 第 102 行），而 engine 每 tick 寫 `waiting_for_reset` 不會讓 key 失效。不寫 DB、不改 schema；不在目標清單內的 thread 於 tick 開頭清掉。
+- 判斷順序（固定）：timezone 檢查 → 是否可節流（state 為 watching/waiting_for_reset/resumed、key 相同、`0 <= now-at < CODEX_DESKTOP_RESUME_RESCAN_MS=300_000`）。不可節流就直接走原流程，不先讀檔；因此持續 unstable 的檔案最慢 5 分鐘後仍會完整掃描，時鐘倒退也會立即完整掃描。
+- 可節流時才先 `evidenceFor` 讀已註冊 segment：`session_read_unstable` 本輪跳過；其他 error、due、`quota_retry_exhausted` 同一 tick 落入原流程；無 candidate 或 event 在未來不寫；due 未到只寫 `waiting_for_reset`，並以 `enabled=1`、三種可節流 state、claim 欄位全 NULL、`lock_quarantine_required=0`、`updated_at_ms=?` fencing。
+- 共用：新增純函式 `classifyCandidate` 回傳 none／future／exhausted／waiting(due)／due(claim cursor)，原流程與節流路徑共用，避免兩邊邏輯分岔。
+- `needs_attention/session_uniqueness_unproven` 仍每 tick 完整掃描（原恢復行為不變）。adopt／recover 後 locator 或 identity 改變時 key 自然失效，下一 tick 再完整掃描一次。
+- Trade-off：另一個 root 出現重複檔或 Codex 換到新 segment，最慢 5 分鐘才被發現；期間只有顯示狀態可能落後，任何派送前都會先重新完整掃描。多目標時每 5 分鐘那一 tick 需 N×約 2.3 秒；單次走訪收集多個 thread 或以 stat 快取 metadata 是可能的後續優化，本次不做。

@@ -160,3 +160,26 @@ The quota parser SHALL accept only the official prefixes `You've hit your usage 
 #### Scenario: Desktop emits a right-curly apostrophe
 - **WHEN** a post-registration event_msg/task_complete/usage_limit_exceeded event uses You’ve and contains one valid due reset time
 - **THEN** the engine consumes that original event once and may dispatch the registered target; subsequent ticks MUST NOT replay it.
+
+### Requirement: Background rescans are throttled only while nothing is actionable
+The runner SHALL keep, in process memory only, the time of the last full cross-root rescan attempt per target together with the global target revision and the target's registered locator, file identity and registration time observed at that attempt. For each target it SHALL keep the existing timezone check first. It SHALL then run the unchanged full path (rescan with all uniqueness, identity and deadline checks, then segment adoption or recovery, evidence, retry and claim fencing) unless all of the following hold: the target is watching, waiting_for_reset or resumed; a remembered attempt exists; the remembered revision, locator, file identity and registration time equal the current ones; and 0 <= now - attempt time < 5 minutes. Any user mutation (register, rename, pause, re-enable, unregister) increments the revision and therefore forces the next tick to revalidate session identity. A clock that moves backwards forces a full rescan. Only when the throttle conditions hold SHALL the runner read the registered segment with the existing stable-read, file identity, registration prefix and action checkpoint checks: an unstable read skips the tick without writes; an invalid read, a due candidate or a retry-exhaustion decision SHALL fall through to the full path in the same tick; no candidate or a future event SHALL write nothing; a valid candidate whose computed due time has not arrived MAY only record waiting_for_reset with that due time, fenced on enabled, safe state, idle claim fields, no quarantine and unchanged updated_at_ms. A skipped rescan MUST NOT claim, dispatch, adopt a segment, recover attention or write quarantine. needs_attention/session_uniqueness_unproven targets keep a full rescan on every tick. The full-path and throttled decisions SHALL share one candidate classification. A newer segment or a cross-root duplicate may therefore be noticed up to 5 minutes later; until then only the displayed state can lag and nothing is dispatched without a fresh full rescan.
+
+#### Scenario: Nothing is actionable between rescans
+- **WHEN** a watching target's registered segment has no new quota evidence and it was fully rescanned less than 5 minutes ago with unchanged revision and registration
+- **THEN** the tick reads only that segment, performs no cross-root walk, and the next full rescan happens once 5 minutes have elapsed
+
+#### Scenario: Due evidence appears between rescans
+- **WHEN** a valid quota event in the registered segment becomes due before the 5-minute rescan
+- **THEN** the same tick performs the full rescan and dispatches only if uniqueness is re-proved; a duplicate copy in another root still stops dispatch
+
+#### Scenario: Codex rotates to a newer segment between rescans
+- **WHEN** the quota event is written only to a newer segment
+- **THEN** it is adopted and handled no later than the next 5-minute full rescan, with the existing segment transfer checks
+
+#### Scenario: User re-enables a target inside the window
+- **WHEN** the user pauses and re-enables a target less than 5 minutes after its last full rescan
+- **THEN** the next tick revalidates session identity with a full rescan
+
+#### Scenario: Clock moves backwards or the session keeps changing
+- **WHEN** the wall clock moves before the remembered attempt, or the registered segment reads unstable on every tick
+- **THEN** a full rescan still runs, at the latest once 5 minutes have elapsed since the last attempt

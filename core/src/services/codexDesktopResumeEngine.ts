@@ -11,6 +11,9 @@ import { buildSafeChildEnv } from './agentDetection.js';
 const LEASE_MS = 45_000;
 const EXEC_ACK_TIMEOUT_MS = 15_000;
 export const CODEX_DESKTOP_RESUME_TICK_MS = 30_000;
+// A full cross-root uniqueness walk costs seconds per target; while nothing is
+// actionable it runs at most this often (see the rescan cadence requirement).
+export const CODEX_DESKTOP_RESUME_RESCAN_MS = 300_000;
 
 interface TargetRow {
   thread_id: string; target_key_digest: string; display_name: string; session_locator: string;
@@ -118,6 +121,24 @@ function evidenceFor(row: TargetRow, roots: string[]) {
   }
   return { file, saved, consumedFloor, candidate: candidates.filter((item) => item.id !== row.completed_evidence_id).at(-1) ?? null };
 }
+type Evidence = Exclude<ReturnType<typeof evidenceFor>, { error: string }>;
+type CandidatePlan =
+  | { kind: 'none' } | { kind: 'exhausted' } | { kind: 'waiting'; due: number }
+  | { kind: 'due'; candidate: NonNullable<Evidence['candidate']>; claimCursor: string };
+// Shared by the full and throttled paths so both classify evidence identically.
+function classifyCandidate(observed: Evidence, at: number): CandidatePlan {
+  const candidate = observed.candidate;
+  if (!candidate || candidate.event > at) return { kind: 'none' };
+  const recentPast = candidate.reset <= candidate.event;
+  const previousReset = observed.saved.quota_retry_reset_at_ms ?? 0;
+  const previousCount = observed.saved.quota_retry_count ?? 0;
+  if (recentPast && previousCount >= 3) return { kind: 'exhausted' };
+  const due = recentPast ? candidate.event + 300_000 : candidate.reset + 60_000;
+  if (due > at) return { kind: 'waiting', due };
+  return { kind: 'due', candidate, claimCursor: JSON.stringify({ ...candidate.cursor,
+    quota_retry_reset_at_ms: Math.max(previousReset,candidate.reset),
+    quota_retry_count: recentPast ? previousCount + 1 : candidate.reset > previousReset ? 0 : previousCount }) };
+}
 function safeTarget(row: TargetRow, allowRecovery = false): boolean {
   return row.enabled === 1 && row.lock_quarantine_required === 0
     && [row.current_evidence_id, row.current_evidence_cursor, row.attempt_token, row.startup_nonce,
@@ -164,6 +185,9 @@ function adoptSegment(db: DB, row: TargetRow, proof: ReturnType<typeof resolveCo
 }
 
 export function createCodexDesktopResumeEngine(db: DB, roots: () => string[], dispatcher: ResumeDispatcher, now: () => number = Date.now) {
+  // Process memory only: when each target was last fully rescanned, and under
+  // which user revision, roots and registration.
+  const rescans = new Map<string, { key: string; at: number }>();
   const tick = async (): Promise<string> => {
     let global = db.prepare(`SELECT enabled,active_target_digest,lease_expires_at_ms FROM codex_desktop_resume_state WHERE id=1`).get() as { enabled: number; active_target_digest: string | null; lease_expires_at_ms: number | null };
     if (global.active_target_digest && global.lease_expires_at_ms !== null && global.lease_expires_at_ms <= now()) {
@@ -191,6 +215,8 @@ export function createCodexDesktopResumeEngine(db: DB, roots: () => string[], di
     const rows = db.prepare(`SELECT * FROM codex_desktop_resume_targets WHERE enabled=1 AND
       (state IN ('watching','waiting_for_reset','resumed') OR (state='needs_attention' AND last_error_code='session_uniqueness_unproven'))
       ORDER BY registered_at_ms,thread_id`).all() as TargetRow[];
+    for (const threadId of rescans.keys()) if (!rows.some(row => row.thread_id === threadId)) rescans.delete(threadId);
+    const { revision } = db.prepare('SELECT revision FROM codex_desktop_resume_state WHERE id=1').get() as { revision: number };
     for (let row of rows) {
       if (!safeTarget(row,true)) continue;
       if (row.timezone_authority !== runtimeTimezoneAuthority()) {
@@ -198,6 +224,25 @@ export function createCodexDesktopResumeEngine(db: DB, roots: () => string[], di
         continue;
       }
       const currentRoots = roots();
+      const rescanKey = JSON.stringify([revision, currentRoots, row.session_locator, row.registration_file_dev, row.registration_file_ino, row.registered_at_ms]);
+      const lastRescan = rescans.get(row.thread_id);
+      const sinceRescan = lastRescan ? now() - lastRescan.at : -1;
+      if (row.state !== 'needs_attention' && lastRescan?.key === rescanKey && sinceRescan >= 0 && sinceRescan < CODEX_DESKTOP_RESUME_RESCAN_MS) {
+        const observed = evidenceFor(row, currentRoots);
+        if ('error' in observed && observed.error === 'session_read_unstable') continue;
+        const plan = 'error' in observed ? null : classifyCandidate(observed, now());
+        if (plan?.kind === 'none') continue;
+        if (plan?.kind === 'waiting') {
+          db.prepare(`UPDATE codex_desktop_resume_targets SET state='waiting_for_reset',reset_at_ms=?,updated_at_ms=?
+            WHERE thread_id=? AND updated_at_ms=? AND enabled=1 AND state IN ('watching','waiting_for_reset','resumed') AND lock_quarantine_required=0
+              AND current_evidence_id IS NULL AND current_evidence_cursor IS NULL AND attempt_token IS NULL AND startup_nonce IS NULL
+              AND startup_deadline_ms IS NULL AND action_deadline_ms IS NULL AND action_phase IS NULL`)
+            .run(plan.due, now(), row.thread_id, row.updated_at_ms);
+          continue;
+        }
+        // Invalid reads, due evidence and retry exhaustion take the full path below.
+      }
+      rescans.set(row.thread_id, { key: rescanKey, at: now() });
       try {
         const proof = resolveCodexDesktopRegistration(row.thread_id, row.display_name, currentRoots, { deadlineMs: CODEX_DESKTOP_BACKGROUND_LOOKUP_DEADLINE_MS });
         if (proof.session_locator !== row.session_locator || proof.registration_file_dev !== row.registration_file_dev || proof.registration_file_ino !== row.registration_file_ino) {
@@ -224,25 +269,18 @@ export function createCodexDesktopResumeEngine(db: DB, roots: () => string[], di
         db.prepare(`UPDATE codex_desktop_resume_targets SET state='needs_attention',last_error_code=?,updated_at_ms=? WHERE thread_id=?`).run(observed.error, now(), row.thread_id);
         continue;
       }
-      if (!observed.candidate) continue;
-      const candidate = observed.candidate;
-      if (candidate.event > now()) continue;
-      const recentPast = candidate.reset <= candidate.event;
-      const previousReset = observed.saved.quota_retry_reset_at_ms ?? 0;
-      const previousCount = observed.saved.quota_retry_count ?? 0;
-      if (recentPast && previousCount >= 3) {
+      const plan = classifyCandidate(observed, now());
+      if (plan.kind === 'none') continue;
+      if (plan.kind === 'exhausted') {
         db.prepare("UPDATE codex_desktop_resume_targets SET state='needs_attention',last_error_code='quota_retry_exhausted',updated_at_ms=? WHERE thread_id=? AND updated_at_ms=? AND enabled=1")
           .run(now(),row.thread_id,row.updated_at_ms);
         continue;
       }
-      const due = recentPast ? candidate.event + 300_000 : candidate.reset + 60_000;
-      if (due > now()) {
-        db.prepare(`UPDATE codex_desktop_resume_targets SET state='waiting_for_reset',reset_at_ms=?,updated_at_ms=? WHERE thread_id=?`).run(due, now(), row.thread_id);
+      if (plan.kind === 'waiting') {
+        db.prepare(`UPDATE codex_desktop_resume_targets SET state='waiting_for_reset',reset_at_ms=?,updated_at_ms=? WHERE thread_id=?`).run(plan.due, now(), row.thread_id);
         continue;
       }
-      const claimCursor = JSON.stringify({ ...candidate.cursor,
-        quota_retry_reset_at_ms: Math.max(previousReset,candidate.reset),
-        quota_retry_count: recentPast ? previousCount + 1 : candidate.reset > previousReset ? 0 : previousCount });
+      const { candidate, claimCursor } = plan;
       const owner = randomBytes(16).toString('hex'); const lease = randomBytes(16).toString('hex'); const attempt = randomBytes(16).toString('hex'); const nonce = randomBytes(16).toString('hex');
       const claimed = db.transaction(() => {
         const live = db.prepare('SELECT * FROM codex_desktop_resume_targets WHERE thread_id=?').get(row.thread_id) as TargetRow | undefined;
