@@ -24,3 +24,8 @@
 - **觸發情境**：發布到公開 repo 前，用固定佔位值取代測試／文件裡的真實 UUID、名稱等私人資料。
 - **正確做法**：佔位值要保留原值的格式特徵（例如 UUID 要含 a–f 字母、維持版本位與長度），替換後一定重跑完整測試套件再 push。
 - **為什麼**：第一次用純數字佔位 UUID，`toUpperCase()` 變成無效操作，「拒絕大寫 UUID」的測試因此失去意義而固定失敗；只掃描隱私、不重跑測試就會把壞掉的測試推上公開 repo。
+
+## 2026-09-25 — Delta Requirement 放在 Open Questions 之後會在 archive 時被靜默丟棄
+- 症狀：`openspec validate --strict` 通過，但 `openspec show --deltas-only` 少了兩條 ADDED Requirement；archive 後 current spec 也不會有它們。
+- 規則：delta spec 的 `### Requirement:` 一律放在 `## ADDED/MODIFIED Requirements` 標題下；archive 前必用 `--deltas-only` 核對數量。MODIFIED 必須貼完整新文字，否則舊的 capability 條件會被刪掉。
+- 另：flaky 偵測 grep 不能用 " failed"（會命中測試名稱），要比對 `Tests +[0-9]+ failed`。
