@@ -4,36 +4,29 @@
   "routing_signals": [
     "external_write"
   ],
-  "review_provider": "codex",
-  "review_revision": "6d55c34-queue-97023edfaeea",
+  "review_provider": "claude-advisor",
+  "review_revision": "65cd244-docs-closeout-20260925",
   "contract_matrix_path": "openspec/changes/add-codex-desktop-auto-resume/contract-matrix.json",
   "contract_matrix_digest": "2ff57c117a5691a1e8da96c9b7803a8375fef23d1fbffb9e0c16538f3c2271c5",
   "contract_matrix_root": ".",
   "initial_full_complete": true,
   "final_full_used": true,
-  "converged": false,
+  "converged": true,
   "new_cross_file_findings": 2,
-  "full_closer_count": 1,
+  "full_closer_count": 3,
   "consolidated_author_fixes": 1,
   "initial_review_receipt_path": "openspec/changes/add-codex-desktop-auto-resume/initial-review-receipt-queue-2026-09-19.json",
   "initial_review_receipt_digest": "9565d733e06ad8f7becc8494578421d05c7a2a71b790a531d9a12913c010b25d",
-  "pending_finding_ids": [
-    "QF1",
-    "QF2"
-  ],
-  "pending_concern_tags": [
-    "execution-order",
-    "design-contract",
-    "field-type",
-    "readers-writers",
-    "data-facts"
-  ],
+  "pending_finding_ids": [],
+  "pending_concern_tags": [],
   "author_fix_complete": true,
   "author_fix_receipt_path": "openspec/changes/add-codex-desktop-auto-resume/author-fix-receipt-queue-2026-09-19.json",
   "author_fix_receipt_digest": "61e214b4034afa959035db933987663704c3f973c4977618ebd93c66c2404361",
-  "changed_artifact_digest": "ec7797f5a6d8c8b3faac43de3935986a6717dcd1183a4ac5aad45c225f36cd2c",
-  "final_review_receipt_path": "openspec/changes/add-codex-desktop-auto-resume/final-review-receipt-queue-2026-09-19.json",
-  "final_review_receipt_digest": "504b5eb4b1f4d91d2d6c61eee88e9c0e5a20f1138a490fa49ade0101517c5d26",
+  "changed_artifact_digest": "1a94d2ca59b1e0be44bddcc708950789e7ff751f3aa1a34b510eb098ccbde50d",
+  "final_review_receipt_path": "openspec/changes/add-codex-desktop-auto-resume/final-closer-receipt-2026-09-25.json",
+  "final_review_receipt_digest": "ab72d62c32bfd7950f917c724a75d2715c013b733b88f72d3b211b660c93aca0",
   "root_cause_resolution_receipt_path": "openspec/changes/add-codex-desktop-auto-resume/root-cause-resolution-receipt-2026-09-20.json",
-  "implementation_authority": "bounded root-cause check approved QF1/QF2 at 6d55c34-queue-10cda0af9028; historical full review receipts retained"
+  "implementation_authority": "bounded root-cause check approved QF1/QF2 at 6d55c34-queue-10cda0af9028; historical full review receipts retained; 2026-09-25 fresh O3 closer APPROVE confirmed QF1/QF2 resolved in code",
+  "trustworthy": true,
+  "unlandedFixes": []
 }

@@ -69,6 +69,8 @@ DevDiary 只會透過 Core API 讀取你設定的本機資料夾；不會直接�
 
 此功能會切換 Codex Desktop 畫面，但不使用 Accessibility、座標、剪貼簿或按鍵注入；視窗不必固定大小或位置。Mac 必須保持醒著且已登入可用桌面；不提供防休眠或自動解鎖。只接受目前使用者預設 `.codex` 的 canonical Desktop 資料目錄，其他 CLI store 會在送出前拒絕。Codex CLI 必須仍可在本機正常使用並維持登入；若 CLI/session 格式改變或執行結果不明，任務會顯示「需要人工檢查」且不會自動重播。
 
+實測限制：安裝版三次真實觸發中，兩次在 10 秒內開始，一次因 Codex Desktop 自己延後處理，約 8 小時後才開始；送出成功只代表已排入 Codex 佇列（送出失敗會顯示「需要人工檢查」），無法保證 Codex 何時開始。
+
 ## 怎麼串 AI
 
 DevDiary 目前支援兩類 AI 設定：
@@ -199,6 +201,7 @@ npm run typecheck
 更多 current-state 細節請看：
 
 - [`docs/specs/MASTER.md`](docs/specs/MASTER.md)
-- [`docs/specs/dev-diary-macos-app.md`](docs/specs/dev-diary-macos-app.md)
+- [`openspec/specs/dev-diary-macos-app/spec.md`](openspec/specs/dev-diary-macos-app/spec.md)
+- [`openspec/specs/add-codex-desktop-auto-resume/spec.md`](openspec/specs/add-codex-desktop-auto-resume/spec.md)
 
 背景服務使用 macOS `Standard` 資源分類，保留系統的輕量CPU／I/O限制，避免 `Background` 的較嚴格限制使掃描超過既有120秒截止。此調整不提供防休眠，也不改動Codex續跑判定。

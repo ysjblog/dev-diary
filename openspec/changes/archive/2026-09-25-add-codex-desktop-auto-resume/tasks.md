@@ -23,6 +23,8 @@ reasons: external_write,workflow_state,data_migration
 | Continuation uses fixed exact UUID CLI dispatch | CLI dispatcher/global lease | exact argv/ack/crash-no-replay tests |
 | Users can safely manage multiple targets | dedicated API/React UI | API/UI/runtime black-box |
 | New local-provider UI rejects an old Core runtime | health/manifest/pre-parser/client | drift/CORS/version tests |
+| Background rescans are throttled only while nothing is actionable | engine rescan key/`classifyCandidate` | rescan-cadence regressions and installed runner CPU sampling |
+| Resume diagnostics observe without changing dispatch outcome | `codexResumeObservation` wrap/tick | observation regressions and bounded diagnostics file checks |
 
 ## Test Preparation
 
@@ -42,10 +44,10 @@ reasons: external_write,workflow_state,data_migration
 
 ## Verification
 
-- [ ] 3.1 Pass strict OpenSpec, fresh Author Preflight and O3 review after final artifacts.
+- [x] 3.1 Pass strict OpenSpec, fresh Author Preflight and O3 review after final artifacts. (2026-09-25: first closer REJECT — two requirements parsed outside ADDED and MODIFIED runtime gate dropped earlier capabilities; author fixes moved them, restored the full v8 capability gate, specified the diagnostics observer and stable-read skip; fresh closer APPROVE with wording notes applied; strict valid, preflight ok, deltas-only 10 ADDED + 1 MODIFIED; `final-closer-receipt-2026-09-25.json`)
 - [x] 3.2 Pass all Core/UI/Rust tests, Core typecheck, production build, diff/security checks.
 - [x] 3.3 Pass temp DB/session/fake CLI API-to-dispatch runtime smoke without contacting real Codex.
-- [ ] 3.4 Capture desktop-only localhost UI and complete independent black-box QA.
+- [x] 3.4 Capture desktop-only localhost UI and complete independent black-box QA. (2026-09-25: cold independent Worker, isolated Core 4417/Vite 5184 with temp DB/manifest/fake HOME and fake UUIDs, 1280×820; 11/11 PASS incl. multi-target register/reject/rename/pause/global pause/unregister, seeded waiting/needs-attention display, stale v7 runtime fail-closed with 0 mutation requests, cross-origin 403; `doc/test/codex-desktop-auto-resume-closeout-qa-20260925.md`/`.json`)
 
 ## Rollback
 
@@ -71,7 +73,7 @@ None.
 - [x] 6.1 Complete O3 integration-authority/failure-recovery review and fresh closer for the foreground wake amendment.
 - [x] 6.2 Define Level 4 wake, ordering, timeout, store mismatch and no-replay tests; implement bounded opener and wire the background consumer.
 - [x] 6.3 Run Owner smoke, independent QA, full tests/type/build/security/diff and desktop disclosure verification.
-- [ ] 6.4 Verify controlled registered-target wake with actual start evidence, package and report precise installed/runtime limits.
+- [x] 6.4 Verify controlled registered-target wake with actual start evidence, package and report precise installed/runtime limits. (2026-09-25: maintainer accepted closing on real installed evidence — 09-21 start in 8 s, 09-23 display-off start in 9 s, 09-22 start delayed about 8 h by Codex Desktop — with limits in `doc/test/codex-desktop-unattended-start-closeout-20260925.md` and README; not a guaranteed-start claim)
 
 2026-09-23：foreground wake 已實作、409 Core／82 UI／23 Rust、type/build、Owner fixture、獨立16/16、安全接線及桌面畫面檢查通過；受控 notLoaded 任務當下成功開始；新版 App 已備份替換、hash/signature/背景程序與監看恢復確認。後續真實排程在09-22 16:42已切換並要求resume，但Desktop至09-23 00:33才完成resume；6.4的可靠無人操作啟動仍未完成，不能把open接受算成開始。
 

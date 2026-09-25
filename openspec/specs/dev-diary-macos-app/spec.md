@@ -348,17 +348,32 @@ The system SHALL capture one immutable `Asia/Taipei` target-date instant for eac
 
 ### Requirement: New local-provider UI rejects an old Core runtime
 
-The system SHALL advertise Core API contract version 6 and capabilities `agents.custom.ollama-settings`, `projects.reconciliation`, and `scheduler.daily.telemetry-v2`. The UI SHALL require version 6 and all three capabilities before enabling or submitting the new provider/reconciliation controls. Version 5, a missing capability, or a stale runtime manifest MUST be classified as stale with no settings mutation.
+The system SHALL advertise Core API contract version at least 8 and the complete UI-required capability set, which includes at least `agents.custom.ollama-settings`, `projects.reconciliation`, `scheduler.daily.telemetry-v2` and `codex.desktop-resume.multi-target-v2`. The UI SHALL require version 8 or later and every required capability before enabling or submitting provider, reconciliation or resume controls. A version below 8, any missing required capability, or a stale runtime manifest MUST be classified as stale, and the UI SHALL send no provider, reconciliation or resume settings write. Health and the sole-writer manifest SHALL carry matching runtime identity, version and capabilities. Resume controls and mutations SHALL require a `verified_manifest` snapshot with exact current manifest/health parity. Vite/Tauri transport and Core pre-parser SHALL freshly compare that snapshot before forwarding, body parsing or mutation; drift SHALL return `409 runtime_target_changed` with zero mutation. General settings SHALL reject `codex_desktop_resume`; only dedicated routes may mutate dedicated resume tables. Existing non-resume reads remain available under their existing compatibility gates.
 
-#### Scenario: New UI reaches a still-running 0.1.3 Core
+#### Scenario: UI reaches version 7 Core
 
-- **WHEN** health reports API contract version 5 or omits any required new capability
-- **THEN** the UI reports stale Core, does not show the runtime as connected for these controls, and sends no provider/reconciliation settings write.
+- **WHEN** health reports contract version 7 or lacks the multi-target capability
+- **THEN** resume controls are disabled and no legacy or general-settings resume write is sent.
 
-#### Scenario: Version 6 Core exposes the complete capability set
+#### Scenario: Health omits an earlier required capability
 
-- **WHEN** health and runtime manifest agree on version 6 and all required capabilities
-- **THEN** the UI enables the new settings and normal validation/persistence may proceed.
+- **WHEN** health reports version 8 but omits `agents.custom.ollama-settings`, `projects.reconciliation` or `scheduler.daily.telemetry-v2`
+- **THEN** the UI reports stale Core, does not show the runtime as connected for these controls, and sends no provider, reconciliation or resume settings write.
+
+#### Scenario: Runtime changes after health
+
+- **WHEN** the manifest identity/digest changes before a dedicated mutation
+- **THEN** transport or Core rejects the request before mutation.
+
+#### Scenario: Version 8 health and manifest agree
+
+- **WHEN** verified runtime identity, origin, contract and capability parity all hold
+- **THEN** the UI enables provider, reconciliation and resume settings, and resume mutations use only the dedicated multi-target routes.
+
+#### Scenario: Background LaunchAgent starts before Core is ready
+
+- **WHEN** the database is missing, has an old schema, lacks the completed migration marker, or a live manifest has an incompatible contract
+- **THEN** the background runner exits before creating, migrating or writing the database; only Core may initialize or upgrade it.
 
 ### Requirement: Missing-project reconciliation is reversible and root-aware
 

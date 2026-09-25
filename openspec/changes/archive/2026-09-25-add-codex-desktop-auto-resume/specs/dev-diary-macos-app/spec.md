@@ -19,12 +19,17 @@ Core/UI compatibility 提升到 v8，新增 multi-target resume capability，所
 
 ### Requirement: New local-provider UI rejects an old Core runtime
 
-The system SHALL advertise Core API contract version at least 8 and capability `codex.desktop-resume.multi-target-v2`. Health and the sole-writer manifest SHALL carry matching runtime identity, version and capabilities. Resume controls and mutations SHALL require a `verified_manifest` snapshot with exact current manifest/health parity. Vite/Tauri transport and Core pre-parser SHALL freshly compare that snapshot before forwarding, body parsing or mutation; drift SHALL return `409 runtime_target_changed` with zero mutation. General settings SHALL reject `codex_desktop_resume`; only dedicated routes may mutate dedicated resume tables. Existing non-resume reads remain available under their existing compatibility gates.
+The system SHALL advertise Core API contract version at least 8 and the complete UI-required capability set, which includes at least `agents.custom.ollama-settings`, `projects.reconciliation`, `scheduler.daily.telemetry-v2` and `codex.desktop-resume.multi-target-v2`. The UI SHALL require version 8 or later and every required capability before enabling or submitting provider, reconciliation or resume controls. A version below 8, any missing required capability, or a stale runtime manifest MUST be classified as stale, and the UI SHALL send no provider, reconciliation or resume settings write. Health and the sole-writer manifest SHALL carry matching runtime identity, version and capabilities. Resume controls and mutations SHALL require a `verified_manifest` snapshot with exact current manifest/health parity. Vite/Tauri transport and Core pre-parser SHALL freshly compare that snapshot before forwarding, body parsing or mutation; drift SHALL return `409 runtime_target_changed` with zero mutation. General settings SHALL reject `codex_desktop_resume`; only dedicated routes may mutate dedicated resume tables. Existing non-resume reads remain available under their existing compatibility gates.
 
 #### Scenario: UI reaches version 7 Core
 
 - **WHEN** health reports contract version 7 or lacks the multi-target capability
 - **THEN** resume controls are disabled and no legacy or general-settings resume write is sent.
+
+#### Scenario: Health omits an earlier required capability
+
+- **WHEN** health reports version 8 but omits `agents.custom.ollama-settings`, `projects.reconciliation` or `scheduler.daily.telemetry-v2`
+- **THEN** the UI reports stale Core, does not show the runtime as connected for these controls, and sends no provider, reconciliation or resume settings write.
 
 #### Scenario: Runtime changes after health
 
@@ -34,7 +39,7 @@ The system SHALL advertise Core API contract version at least 8 and capability `
 #### Scenario: Version 8 health and manifest agree
 
 - **WHEN** verified runtime identity, origin, contract and capability parity all hold
-- **THEN** the UI may call only the dedicated multi-target routes.
+- **THEN** the UI enables provider, reconciliation and resume settings, and resume mutations use only the dedicated multi-target routes.
 
 #### Scenario: Background LaunchAgent starts before Core is ready
 

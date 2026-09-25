@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "stage": "final",
+  "reviewer_id": "advisor/fresh-closer-2026-09-25",
+  "review_revision": "65cd244-docs-closeout-20260925",
+  "prior_closer": {
+    "verdict": "REJECT",
+    "blocking_findings": [
+      "F1 requirements under Open Questions not parsed",
+      "F2 MODIFIED runtime gate dropped earlier capabilities",
+      "F3 review-state not converged"
+    ]
+  },
+  "verdict": "APPROVE",
+  "lens_results": {
+    "integration_authority": "pass",
+    "failure_recovery": "pass",
+    "spec_code_consistency": "pass",
+    "evidence_honesty": "pass",
+    "archive_readiness": "pass_after_review_state_update"
+  },
+  "historical_findings_resolved": [
+    "QF1",
+    "QF2"
+  ],
+  "applied_non_blocking": [
+    "N1 stable-read wording",
+    "N3 v8 scenario wording",
+    "N4 observer tick bound and failure wording"
+  ],
+  "deferred_non_blocking": [
+    "N2 UI does not yet block provider/reconciliation writes on stale runtime (pre-existing baseline gap; follow-up)"
+  ],
+  "fresh_checks": {
+    "strict_validate": "valid",
+    "author_preflight": "ok",
+    "deltas_only": {
+      "ADDED": 10,
+      "MODIFIED": 1
+    },
+    "targeted_vitest": "21/21"
+  },
+  "changed_artifact_digest": "1a94d2ca59b1e0be44bddcc708950789e7ff751f3aa1a34b510eb098ccbde50d",
+  "findings": [],
+  "receipt_digest": "ab72d62c32bfd7950f917c724a75d2715c013b733b88f72d3b211b660c93aca0"
+}

@@ -1,22 +1,37 @@
----
-openspec_level: o3
-template_version: owner-workflow/v1
-change: add-codex-desktop-auto-resume
-reasons: external_write,workflow_state,data_migration
----
-# Delta Spec: Codex Desktop 多任務額度恢復續跑
+# Codex Desktop Multi-Target Quota Auto-Resume Feature Spec
 
 ## 中文摘要
 
-新增以 canonical deep link 註冊多個任務、精確解析 quota evidence，並以 exact UUID 呼叫 Codex CLI 接續固定「繼續」的本機自動化。
+使用者可在 `Settings > Automation` 貼上 `codex://threads/<UUID>` 註冊多個 Codex Desktop 任務；名稱只供顯示，定位一律用 UUID 與本機 session metadata。只有註冊後出現結構化額度用完事件、合法恢復時間已到，且來源仍唯一完整時，背景 runner 才以本機 Codex CLI `queue` 對該 UUID 排入固定「繼續」，精確回條吻合後再開啟該任務。送出成功只代表已排入 Codex 佇列，不保證 Codex 何時開始；另有只觀察、不改變派送結果的本機診斷紀錄。
 
-## Baseline
+## Purpose
 
-- Capability: `add-codex-desktop-auto-resume`
-- New capability; no current Feature Spec.
+This capability lets a local user keep several Codex Desktop tasks moving after a usage-limit interruption without watching the screen. It identifies each task by its immutable thread UUID, acts only on strict post-registration quota evidence whose reset time has passed, and hands a fixed continuation message to Codex through the official local CLI queue. Every uncertain outcome stops for manual review instead of replaying, so the feature favors never double-sending over always resuming.
 
-## ADDED Requirements
+## Scope
 
+- Contract v8 Core API under `/api/codex/desktop-resume` (global toggle, target register, pause/resume, rename, unregister) and dedicated SQLite tables `codex_desktop_resume_state` and `codex_desktop_resume_targets`.
+- Deep-link registration, bounded session lookup, and sequential-segment identity across one canonical Desktop `.codex` store.
+- Strict quota-event parsing, reset-time buffering, bounded retry, fixed `codex queue` dispatch with exact receipts, and a global dispatch lease.
+- Foreground navigation to the registered task after an accepted queue request, background rescan throttling, and diagnostics-only start observation.
+- React settings UI for multiple targets, gated by the v8 runtime capability check.
+
+## Non-Goals
+
+- No custom prompt: the only message ever sent is the fixed 「繼續」.
+- No Codex credential handling and no bypass of OpenAI usage limits.
+- No guarantee that Codex starts or completes the task at any particular time after the request is queued.
+- No positioning by task name, window title, screen coordinates, focus, Accessibility, clipboard, or keystroke injection.
+- No wake-from-sleep, auto-unlock, or modification of the Codex app itself.
+
+## Actors and Permissions
+
+- The local desktop user registers, pauses, renames, and unregisters targets and may toggle the whole feature through Core-backed UI actions.
+- React UI is an unprivileged client; resume mutations are allowed only when Core health proves contract v8 and the full capability set, and only through the dedicated multi-target routes.
+- The Core Engine owns SQLite state and session lookup. Only the LaunchAgent background runner creates the resume engine and may dispatch; the foreground Core never dispatches.
+- The local Codex CLI and Codex Desktop are external providers invoked with fixed argv and `shell:false`; DevDiary reads Codex session files and never writes into `.codex`.
+
+## Requirements
 ### Requirement: Bounded background session verification
 Foreground registration SHALL retain its 5-second scan deadline. Background monitoring and safe recovery SHALL use a 30-second scan deadline to tolerate slower LaunchAgent filesystem scans. A supplied scan budget MUST be a safe integer from 1 to 30,000 milliseconds. Synchronous I/O cannot be interrupted; deadline checks SHALL run at each visit, after scan completion and after full snapshot validation/hash/timezone resolution. When control returns, overdue results SHALL be rejected without claiming evidence or dispatching; all uniqueness, file identity, checkpoint and safe-recovery checks SHALL remain unchanged.
 
@@ -50,7 +65,7 @@ The system SHALL accept only canonical `codex://threads/<lowercase UUID>` links 
 
 ### Requirement: Only post-registration quota exhaustion may trigger continuation
 
-The runner SHALL consider only complete JSONL lines after the registration checkpoint that exactly identify an `event_msg` / `task_complete` error with `codex_error_info=usage_limit_exceeded`, the accepted fixed message prefix, one parseable reset clause and the registered timezone authority. It SHALL wait until reset time, ignore ordinary text and incomplete/old lines, and MUST re-prove cross-root uniqueness, file identity and prefix integrity before claim.
+The runner SHALL consider only complete JSONL lines after the registration checkpoint that exactly identify an `event_msg` / `task_complete` error with `codex_error_info=usage_limit_exceeded`, the accepted fixed message prefix, one parseable reset clause and the registered timezone authority. It SHALL wait until reset time, ignore ordinary text and incomplete/old lines, and MUST re-prove cross-root uniqueness, file identity and prefix integrity before claim. Session reads SHALL use a stable read: the segment is re-read up to three times while its size or mtime changes during the read; if it is still unstable the target is skipped for that tick without an evidence-read state write, evidence claim, dispatch or quarantine, while a file identity change during the read, a real truncation or a rewrite still stops the target.
 
 #### Scenario: A conversation merely mentions quota text
 
@@ -61,6 +76,11 @@ The runner SHALL consider only complete JSONL lines after the registration check
 
 - **WHEN** valid evidence has a future reset time
 - **THEN** the target reports waiting with that time and sends nothing.
+
+#### Scenario: Codex appends while the session is being read
+
+- **WHEN** the registered segment changes during each of three read attempts in one tick
+- **THEN** the tick skips that target without writing state, claiming evidence or quarantining it, and the next tick reads again.
 
 ### Requirement: Continuation uses fixed exact UUID CLI dispatch
 
@@ -138,22 +158,6 @@ The foreground-assisted dispatcher SHALL validate the exact canonical UUID and r
 - **WHEN** no new qualifying quota evidence exists
 - **THEN** upgrade and restart do not reopen or resend the earlier request
 
-## Impacted Readers and Writers
-
-Readers: Settings UI, Core API, session lookup/parser, background runner. Writers: dedicated resume repository/API and fixed Codex CLI dispatcher. Codex logs are read-only; project files are unchanged.
-
-## Compatibility and Migration
-
-Contract v8 uses dedicated tables. Legacy single-target settings become disabled/empty and require explicit re-registration. Legacy register/stop routes return 410; general settings cannot mutate resume state.
-
-## Verification Mapping
-
-Core schema/contracts/repository/lookup/parser/engine/API tests; UI API and build tests; fake CLI runtime smoke; desktop screenshot; independent black-box/security review.
-
-## Open Questions
-
-None.
-
 ### Requirement: Vendor apostrophe variants preserve strict quota evidence
 The quota parser SHALL accept only the official prefixes `You've hit your usage limit.` and `You’ve hit your usage limit.` with U+0027 or U+2019. It SHALL retain original-byte evidence digest and all existing event type, error enum, timestamp, unique reset clause, timezone and replay checks. Other apostrophe variants or embedded quoted text SHALL NOT qualify.
 
@@ -183,3 +187,52 @@ The runner SHALL keep, in process memory only, the time of the last full cross-r
 #### Scenario: Clock moves backwards or the session keeps changing
 - **WHEN** the wall clock moves before the remembered attempt, or the registered segment reads unstable on every tick
 - **THEN** a full rescan still runs, at the latest once 5 minutes have elapsed since the last attempt
+
+### Requirement: Resume diagnostics observe without changing dispatch outcome
+The background runner MAY wrap the dispatcher with a local diagnostic observer. The observer SHALL NOT change the dispatch result, retry, resend, reopen or alter target state; an observer failure SHALL only log a fixed warning and may disable further diagnostics. It SHALL persist only allowlisted fields to an owner-only (0600) `codex-resume-diagnostics/observations.json` capped at 256 KiB, 100 records and 32 pending observations, each with a 10-minute deadline, and SHALL check at most two pending observations per tick, each probe bounded (2-second observe, 4-second snapshot), so observer work outside the lease is at most about 12 seconds per tick. Sources are limited to the registered session segment, at most 16 allowlisted `/bin/ps` rows (PID, PPID, state, kind) and bounded counts from `~/Library/Logs/com.openai.codex`; conversation text, task names, raw logs, source paths and command lines MUST NOT be stored or sent anywhere. Probe work inside the action lease SHALL be bounded (2-second baseline, 4-second snapshot) and counted within the 45-second lease budget. A new turn observed after a request SHALL NOT be claimed as proof that the request caused it.
+
+#### Scenario: Diagnostics storage is unavailable
+- **WHEN** the diagnostics file cannot be written or the pending limit is reached
+- **THEN** the dispatch proceeds with its unchanged outcome, no observation is recorded, and a fixed warning is logged
+
+
+## Data Contracts
+
+- **API:** `GET/PATCH /api/codex/desktop-resume`, `POST /api/codex/desktop-resume/targets`, `PATCH`/`DELETE /api/codex/desktop-resume/targets/:threadId`. Mutations are bound to the verified runtime snapshot; target drift is rejected before body parsing with zero mutation.
+- **Records:** `codex_desktop_resume_state` (global enablement, lease and dispatch bookkeeping) and `codex_desktop_resume_targets` (canonical thread UUID, display name, status, evidence checkpoint, attempt counts and error code).
+- **Health:** `/api/health` reports contract version 8 and capabilities including `codex.desktop-resume.multi-target-v2`; lower versions, missing capabilities, or a stale manifest are treated as stale.
+- **Diagnostics:** `~/Library/Application Support/DevDiary/codex-resume-diagnostics/observations.json`, owner-only, at most 256 KiB, 100 records and 32 pending observations.
+
+## Error and Recovery Behavior
+
+- Uniqueness, file-identity, receipt, or process-stop uncertainty sets the target to 「需要人工檢查」 and never replays.
+- A server that still reports quota after reset retries after 5 minutes, at most three times per reset cycle; the count survives restarts and segment rotation.
+- A runner that dies after claiming a dispatch keeps the global lock until a person reviews it; lock expiry alone never re-sends.
+- Navigation failure after an accepted queue request asks for manual review and does not re-queue.
+- Diagnostics failures only log a fixed warning and may disable diagnostics; the dispatch result is unchanged.
+
+## Security and Privacy
+
+- Only the current user's canonical Desktop `.codex` store is accepted; other CLI stores are rejected before any send.
+- The CLI is executed with fixed argv and `shell:false`; no user-controlled text reaches the command line apart from the validated canonical UUID.
+- Diagnostics never store conversation text, task names, raw logs, source paths, or command lines, and nothing is sent off the machine.
+- No credentials are read or stored, and no system security or Accessibility permission is requested.
+
+## Verification Mapping
+
+| Requirement | Automated test | Runtime / manual evidence |
+|---|---|---|
+| Bounded background session verification | `core/test/codexDesktopSessionLookup.test.ts`, `core/test/codexDesktopResumeEngine.test.ts` | slow-scan and safe-recovery regressions |
+| Deep link registration establishes one exact task identity | `core/test/codexDesktopResumeContracts.test.ts`, `core/test/codexDesktopSessionLookup.test.ts`, `core/test/codexDesktopResumeRepository.test.ts` | isolated black-box QA `doc/test/codex-desktop-auto-resume-closeout-qa-20260925.md` |
+| Only post-registration quota exhaustion may trigger continuation | `core/test/codexQuotaEvidence.test.ts`, `core/test/codexDesktopResumeReadRace.test.ts` | installed-app live triggers in `doc/test/codex-desktop-unattended-start-closeout-20260925.md` |
+| Continuation uses fixed exact UUID CLI dispatch | `core/test/codexDesktopQueueDispatch.test.ts` | installed-app live triggers |
+| Users can safely manage multiple targets | `core/test/codexDesktopResumeApiV8.test.ts`, `src/api/settings.test.js` | isolated black-box QA |
+| Recovery timing and sequential segment repair | `core/test/codexRecoveryTimingSegments.test.ts` | — |
+| Accepted queue requests open the registered Desktop task | `core/test/codexDesktopWake.test.ts` | installed-app live triggers |
+| Vendor apostrophe variants preserve strict quota evidence | `core/test/codexQuotaEvidence.test.ts` | — |
+| Background rescans are throttled only while nothing is actionable | `core/test/codexDesktopResumeRescanCadence.test.ts` | installed runner CPU sampling |
+| Resume diagnostics observe without changing dispatch outcome | `core/test/codexResumeObservation.test.ts` | bounded diagnostics file checks |
+
+## Open Questions
+
+None for the current contract. Known limit: in three installed live triggers, two started within 10 seconds and one started about 8 hours later because Codex Desktop delayed its own resume; this is documented, not guaranteed away.

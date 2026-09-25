@@ -1,0 +1,141 @@
+{
+  "report": "codex-desktop-auto-resume-closeout-qa-20260925",
+  "date": "2026-09-25",
+  "branch": "codex/fix-resume-session-lookup",
+  "role": "independent black-box QA worker (cold-started subagent, no source edits)",
+  "overall_status": "PASS",
+  "isolation": {
+    "qa_dir": "/tmp/devdiary-qa.rUSF",
+    "core": {
+      "port": 4417,
+      "db": "/tmp/devdiary-qa.rUSF/qa.sqlite",
+      "manifest": "/tmp/devdiary-qa.rUSF/core-runtime.json",
+      "pid_parent_tsx": 30399,
+      "pid_node_child": 30401,
+      "home": "/tmp/devdiary-qa.rUSF/home"
+    },
+    "vite": {
+      "port": 5184,
+      "pid": 30504,
+      "reachable_at": "http://localhost:5184 (not 127.0.0.1:5184 -- IPv6 localhost binding in this environment)"
+    },
+    "real_app_untouched": {
+      "port": 4317,
+      "pid": 92774,
+      "verified_before": true,
+      "verified_after": true
+    }
+  },
+  "fixtures": {
+    "fake_uuids": [
+      "0190abcd-ef00-7000-8000-00000000aa01",
+      "0190abcd-ef00-7000-8000-00000000aa02",
+      "0190abcd-ef00-7000-8000-00000000aa03"
+    ],
+    "fixture_session_files": [
+      "/tmp/devdiary-qa.rUSF/home/.codex/sessions/session-aa01.jsonl",
+      "/tmp/devdiary-qa.rUSF/home/.codex/sessions/session-aa02.jsonl",
+      "/tmp/devdiary-qa.rUSF/home/.codex/sessions/session-aa03.jsonl"
+    ],
+    "no_real_codex_cli_used": true,
+    "no_backgroundRunner_used": true
+  },
+  "tooling": {
+    "node": "22 (PATH override /opt/homebrew/opt/node@22/bin)",
+    "browser_automation": "Playwright Node API (existing global npm install, resolved via NODE_PATH)",
+    "browser_executable": "existing cached chromium-1223 'Google Chrome for Testing' (executablePath override; no download)",
+    "viewport": "1280x820"
+  },
+  "items": [
+    {
+      "id": 1,
+      "name": "Settings > Automation renders Codex target section with verified runtime state",
+      "status": "PASS",
+      "evidence": "overview card visible=true; text=\"Core runtime 已連線 ... PORT 127.0.0.1:4417 | CONTRACT v8 | CHECKED 09/25 上午11:06\""
+    },
+    {
+      "id": 2,
+      "name": "Register target via deep link + display name appears in list",
+      "status": "PASS",
+      "evidence": "rows=1; row1=\"Target One | 監看中 | 暫停 | 重新命名 | 註銷\""
+    },
+    {
+      "id": 3,
+      "name": "Register a second target -> both listed",
+      "status": "PASS",
+      "evidence": "rows=2; names=[\"Target One\",\"Target Two\"]"
+    },
+    {
+      "id": "4a",
+      "name": "Malformed deep link rejected, no row created",
+      "status": "PASS",
+      "evidence": "rows_after=2 (unchanged); toast=\"Codex Desktop 續跑註冊失敗：Codex Desktop 續跑資料格式無效。\""
+    },
+    {
+      "id": "4b",
+      "name": "Duplicate UUID rejected, no row created",
+      "status": "PASS",
+      "evidence": "rows_after=2 (unchanged); toast=\"Codex Desktop 續跑註冊失敗：這個 Codex 任務已註冊。\""
+    },
+    {
+      "id": 5,
+      "name": "Rename a target persists after reload",
+      "status": "PASS",
+      "evidence": "after_rename=[\"Renamed Target One\",\"Target Two\"]; after_reload=[\"Renamed Target One\",\"Target Two\"]"
+    },
+    {
+      "id": 6,
+      "name": "Individual pause/resume of one target, other unaffected, persists after reload",
+      "status": "PASS",
+      "evidence": "t1 暫停->繼續監看, survives reload; t2 stayed 暫停 throughout and after reload"
+    },
+    {
+      "id": 7,
+      "name": "Global pause reflected in UI and API; re-enable works",
+      "status": "PASS",
+      "evidence": "UI label 全域監看已暫停/已啟用 matched API codex_desktop_resume.enabled=false/true"
+    },
+    {
+      "id": 8,
+      "name": "Unregister removed from list and API; fixture session files unchanged",
+      "status": "PASS",
+      "evidence": "rows 3->2; api target list no longer contains aa02; sha256 of home/.codex/sessions unchanged before/after (5ac2527512a53b1e38462457ef82b4e84d1c45b1ce80e084eee3cc23fe756bae both)",
+      "note": "Hash scoped to sessions/ (the registration-evidence fixtures). Navigating to Automation alone -- with zero mutation actions -- was independently verified to write a fresh tmp/arg0/<random>/.lock scratch file under .codex/tmp as part of Core's own CLI-agent probe/detection housekeeping; this is unrelated background behavior, not caused by unregister, and is not a mutation of session evidence."
+    },
+    {
+      "id": 9,
+      "name": "State/reset/error display for seeded waiting_for_reset and needs_attention rows",
+      "status": "PASS",
+      "evidence": "aa01 (state=waiting_for_reset, reset_at_ms seeded via sqlite3) displayed \"等待額度恢復（09/25 下午12:07）\"; aa03 (state=needs_attention, last_error_code='qa_fixture_forced_error' seeded via sqlite3) displayed \"需要人工檢查（qa_fixture_forced_error）\"",
+      "seed_method": "direct sqlite3 UPDATE on codex_desktop_resume_targets in the isolated qa.sqlite; repository snapshot() reads live from DB so no backgroundRunner was needed"
+    },
+    {
+      "id": 10,
+      "name": "Stale/old runtime fails closed",
+      "status": "PASS",
+      "evidence": "page.route intercepted /api/health, forced api_contract_version=7 and stripped capability 'codex.desktop-resume.multi-target-v2'; UI showed 'Core runtime 可能過舊' + 'CONTRACT v7' + missing-capability text; master toggle/deep-link input/name input/register button/all 6 per-target buttons all isDisabled()=true; forced clicks (force:true) on master toggle and a target button produced zero POST/PATCH/DELETE requests to /api/codex/desktop-resume"
+    },
+    {
+      "id": 11,
+      "name": "Core mutation route rejects cross-origin requests",
+      "status": "PASS",
+      "evidence": "curl PATCH with Origin: http://evil.example -> HTTP 403 {\"error\":\"forbidden_origin\",...}; enabled state confirmed unchanged after the rejected attempt (stayed true, attempted flip to false did not apply); curl DELETE on a real target with the same forged Origin -> also HTTP 403, target row confirmed still present afterward"
+    }
+  ],
+  "non_functional": {
+    "console_errors": {
+      "status": "benign / expected",
+      "detail": "2 console error lines logged by the browser itself for the intentional 400 (malformed deep link) and 409 (duplicate UUID) responses in items 4a/4b -- these are the negative-test HTTP responses being surfaced as console.error by the browser's own network logging, not application defects."
+    },
+    "page_errors": {
+      "status": "PASS",
+      "detail": "zero uncaught page errors across the entire run"
+    }
+  },
+  "cleanup": {
+    "stopped_pids": [30399, 30504],
+    "qa_dir_removed": true,
+    "ports_verified_free_after": [4417, 5184],
+    "real_core_verified_unaffected_after": { "port": 4317, "pid": 92774 }
+  }
+}

@@ -1,6 +1,6 @@
 # DevDiary — 專案規格總覽
 
-> Last updated: 2026-08-28
+> Last updated: 2026-09-25
 > Source of truth: `openspec/specs/`；`openspec/changes/` 只放尚未封存的工作。
 > Legacy 文件位於 `docs/specs/legacy/`，僅供 provenance 查閱，不是 active contract。
 
@@ -13,12 +13,13 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 | Capability | Feature Spec | 狀態 | 中文摘要 |
 |---|---|---|---|
 | DevDiary macOS development diary | [`openspec/specs/dev-diary-macos-app/spec.md`](../../openspec/specs/dev-diary-macos-app/spec.md) | current / migrated | 已實作的 desktop-only app、Core API、掃描、Dashboard、Workspace、日記、scheduler、export 與隱私邊界的完整 current truth；窄於 768 CSS px 的 viewport 不在支援範圍。 |
+| Codex Desktop multi-target quota auto-resume | [`openspec/specs/add-codex-desktop-auto-resume/spec.md`](../../openspec/specs/add-codex-desktop-auto-resume/spec.md) | current（2026-09-25 archive） | 以 deep link UUID 註冊多個 Codex Desktop 任務；只在註冊後的結構化額度事件且恢復時間已到時，背景以 `codex queue` 送固定「繼續」並開啟該任務；不確定一律停下待人工檢查；送出不保證 Codex 何時開始。 |
 
 ## 進行中變更
 
 | Change | 目的 | 狀態 |
 |---|---|---|
-| [`add-codex-desktop-auto-resume`](../../openspec/changes/add-codex-desktop-auto-resume/proposal.md) | 整合 macOS Codex Desktop 多任務 deep-link 額度恢復續跑；thread ID 精確定位、背景只送固定「繼續」 | v8 已實作並 commit（本機）；背景掃描節流（7.1–7.3）已完成並完成打包安裝與實機節奏驗證；3.1 O3 收門審查、3.4 獨立黑箱 QA、6.4 可靠無人啟動證據仍待完成，完成後才 archive |
+| （無） | 目前沒有進行中的 Change。`add-codex-desktop-auto-resume` 已於 2026-09-25 通過 3.1 O3 收門審查、3.4 獨立黑箱 QA 與 6.4 實機收尾（誠實記錄限制）後封存至 `openspec/changes/archive/2026-09-25-add-codex-desktop-auto-resume/`。 | — |
 
 舊 Delta 的「後續」段落已由後續 commit 覆蓋，或是明確 deferred/non-goal；它們不會被假裝成 active work。
 
@@ -49,7 +50,7 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 | Scan / writes | `POST /api/scan`, `POST /api/projects/:id/scan`, comments、Kanban status、summary、date-scoped diary endpoints |
 | Agents / scheduler | detection、custom-agent probe/write、`/api/scheduler/daily/preflight`、`POST /api/scheduler/daily/run` |
 | Export | `/api/exports/daily` 與 `/api/exports/backup`；backup kind 是 `devdiary-redacted-backup` |
-| Durable records | `projects`, `sessions`, `token_usage`, `daily_logs`, `comments`, `kanban_cards`, `project_docs`, `app_settings`, `daily_scheduler_runs`, `project_reconciliation_runs`, `log_file_scan_cache`；進行中的 v8 Change 已新增 `codex_desktop_resume_state` 與 `codex_desktop_resume_targets` 專用表 |
+| Durable records | `projects`, `sessions`, `token_usage`, `daily_logs`, `comments`, `kanban_cards`, `project_docs`, `app_settings`, `daily_scheduler_runs`, `project_reconciliation_runs`, `log_file_scan_cache`；Codex 續跑另有 `codex_desktop_resume_state` 與 `codex_desktop_resume_targets` 專用表 |
 
 ## 測試與驗證
 
@@ -57,6 +58,7 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 - UI/API tests 位於 `src/api/*.test.js`，涵蓋 Core target、manifest owner PID、health retry、dashboard、projects、settings、shell/RWD contract 與 startup scan policy；Rust tests 另涵蓋 manifest 與 LaunchAgent 路徑／ownership。
 - 本輪 fresh checks 包含 OpenSpec strict/preflight、Core 282 項、UI 80 項、Rust 21 項、Node 22 typecheck、production build、安裝版真實 `qwen3:8b` loopback provider、desktop-only 1280x820 UI、21 秒 29-project packaged scan、掃描中毫秒級 Core health、唯讀 SQLite integrity/counts、實際 LaunchAgent/Ollama 服務、App/DMG 簽章與獨立黑箱 QA。
 - v0.1.3 已完成 local／remote `main`、immutable tag、GitHub Release 與 fresh-downloaded asset checksum readback；發布後只有純文件 closeout 可前進 `main`，不得移動已測試的 tag。
+- 2026-09-25 Codex 續跑收尾：OpenSpec strict、Core 440 項、UI 83 項、Rust 24 項、typecheck、production build，隔離 Core 4417／Vite 5184 冷啟動獨立黑箱 QA 11/11 PASS（`doc/test/codex-desktop-auto-resume-closeout-qa-20260925.md`），以及安裝版 v0.1.4 三次真實額度恢復觸發（`doc/test/codex-desktop-unattended-start-closeout-20260925.md`）。目前公開 Release 只保留 v0.1.4。
 - 這次已在授權的本機環境驗證 runtime DB、真實 Ollama provider、實際 launchctl/install 與可回復備份；仍不宣稱 Finder、OAuth、重開機恢復、Developer ID/notarization 或長時間 packaged soak。
 
 ## 營運與安全
@@ -76,6 +78,7 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 - cost calculation / estimated cost、raw SQLite export、Developer ID/notarization、native sidecar、完整關閉期間 OS catch-up 的長時間 soak 都不是 current acceptance。
 - no-Origin 的本機 native/CLI 相容路徑仍屬同一使用者的信任邊界，不是 production authentication；LaunchAgent 已完成一次安裝／升級與即時驗證，但長時間關閉 App、重開機與 sleep soak 仍未宣稱。
 - 歷史 review-state 有部分只做靜態或局部 runtime evidence；請勿將 legacy review 記錄當成這一輪 fresh runtime proof。
+- Codex 續跑只保證「排入 Codex 佇列」，不保證開始時間：安裝版三次真實觸發中兩次 10 秒內開始、一次因 Codex Desktop 自身延後約 8 小時。Mac 需保持醒著且登入可用桌面。UI 在 runtime stale 時仍未擋下 provider／reconciliation 儲存（既有缺口，列為後續）。
 
 ## 開放問題與延後事項
 
@@ -83,6 +86,7 @@ DevDiary 是 local-first 的 macOS desktop app，將使用者明確設定的 Cla
 
 ## 變更紀錄
 
+- 2026-09-25：封存 `add-codex-desktop-auto-resume`；新增 current Feature Spec `openspec/specs/add-codex-desktop-auto-resume/spec.md`（10 項 Requirement），並修改 dev-diary-macos-app 的 runtime 閘門為 contract v8 加完整 capability 集合。完成 O3 收門審查（先 REJECT 後修正 APPROVE）、獨立黑箱 QA 與實機限制誠實記錄。
 - 2026-08-28：封存 `support-launchagent-on-external-home`；packaged LaunchAgent source 改用 launchd 可接受的 `/Applications/.DevDiaryLaunchAgents`，development 保持 Application Support。另完成掃描 root／單檔／整輪時限隔離、packaged startup 去重與 Scan Now/AI 邊界，並以安裝版 29-project scan、qwen3:8b、SQLite、LaunchAgent、簽章及獨立 QA 驗證。
 - 2026-08-26：封存 `harden-daily-ai-local-providers-and-project-reconciliation`；Ollama 進階設定改由使用者完整控制且只接受 local/private origin，排程加入真實租約時鐘、generation fence、abort 與 typed telemetry，專案加入每七日、兩次確認、可恢復且不刪歷史資料的 missing reconciliation；Core/UI contract 更新為 v6。
 - 2026-08-12：發布 v0.1.3 並封存 `release-v0-1-3-publication-hygiene`；版本 metadata、fresh App／DMG、immutable tag、GitHub Release 與下載 checksum 已對帳，現行公開 source 加入機器專屬路徑衛生邊界，舊版 release 維持不變。
