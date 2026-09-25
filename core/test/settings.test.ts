@@ -21,7 +21,8 @@ import { createConfiguredScanProvider } from '../src/services/scans.js';
 
 const roots: string[] = [];
 const sourceRuntime = { activeDbPath: '/tmp/settings-sources.sqlite', projectRoots: [] };
-const V0_1_3_REVISION = '3dccf669dc4b952818a89378cf1e4754d708248d';
+// Immutable release tag; unlike a commit SHA it survives history rewrites.
+const V0_1_3_REVISION = 'v0.1.3^{commit}';
 
 function tempRoot(): string {
   const root = mkdtempSync(join(tmpdir(), 'devdiary-settings-'));
